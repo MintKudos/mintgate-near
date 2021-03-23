@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "mg-core",
+    "mg-market",
+]
