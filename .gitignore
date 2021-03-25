@@ -1,1 +1,7 @@
+# Node's dependencies
+/node_modules/
+
+# Idea
+/.idea/
+
 /target/
