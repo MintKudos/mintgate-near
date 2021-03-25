@@ -23,8 +23,7 @@
   ],
   "plugins": [
     "@typescript-eslint",
-    "eslint-plugin-import",
-    "eslint-plugin-prettier"
+    "eslint-plugin-import"
   ],
   "rules": {
     "import/no-named-as-default": 0,

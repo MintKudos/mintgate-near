@@ -1,3 +1,4 @@
+// Placeholder
 const sum = (termA: number, termB: number): number => termA + termB;
 
 describe('sum', () => {
