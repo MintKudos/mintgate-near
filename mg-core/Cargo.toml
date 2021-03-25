@@ -3,6 +3,7 @@ name = "mg-core"
 version = "0.1.0"
 authors = ["Epam Inc <hello@nearprotocol.com>"]
 edition = "2018"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -10,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 near-sdk = "3.0.0-pre.release"
 near-env = "0.1.6"
+uint = { version = "0.8.3", default-features = false }
 
 [profile.release]
 codegen-units=1
