@@ -31,15 +31,15 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
       
     - run: rustup target add wasm32-unknown-unknown
-    - run: cd mg-core && cargo build --target wasm32-unknown-unknown --release
-    - run: cd mg-core && cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
+    - run: cargo build --package mg-core --target wasm32-unknown-unknown --release
+    - run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
 
     - uses: actions/upload-artifact@v2
       with:
         name: mg_core
         path: |
-          mg-core/target/wasm32-unknown-unknown/release/mg_core.wasm
-          mg-core/target/wasm32-unknown-unknown/release/metadata.json
+          target/wasm32-unknown-unknown/release/mg_core.wasm
+          target/wasm32-unknown-unknown/release/metadata.json
 
   test-contract:
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
-    - run: cd mg-core && cargo test
+    - run: cargo test --package mg-core
 
   # api-test-contract:
   #   needs: build-contract
