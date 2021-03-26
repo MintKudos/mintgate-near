@@ -12,11 +12,3 @@ crate-type = ["cdylib", "rlib"]
 near-sdk = "3.0.0-pre.release"
 near-env = "0.1.6"
 uint = { version = "0.8.3", default-features = false }
-
-[profile.release]
-codegen-units=1
-opt-level = "z"
-lto = true
-debug = false
-panic = "abort"
-overflow-checks = true
