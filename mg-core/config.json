@@ -1,0 +1,6 @@
+{
+    "mintgate_fee": {
+        "num": 5,
+        "den": 100
+    }
+}
