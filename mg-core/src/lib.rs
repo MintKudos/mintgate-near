@@ -49,7 +49,8 @@ pub struct Collectible {
     royalty: Fraction,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Token {
     token_id: TokenId,
     gate_id: GateId,
