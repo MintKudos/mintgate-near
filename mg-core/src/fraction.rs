@@ -14,6 +14,7 @@ construct_uint! {
 /// It is meant to be used as percentage to calculate both fees and royalties.
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
+#[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
 pub struct Fraction {
     pub num: u32,
     pub den: u32,

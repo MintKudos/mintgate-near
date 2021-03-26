@@ -8,7 +8,7 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
     env,
-    json_types::U64,
+    json_types::{ValidAccountId, U64},
     near_bindgen,
     serde::Serialize,
     AccountId, Balance, PanicOnDefault,
@@ -36,6 +36,7 @@ type GateId = String;
 type TokenId = u64;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Collectible {
     gate_id: GateId,
@@ -102,6 +103,24 @@ impl Contract {
             .insert(&collectible.creator_id, &gids);
     }
 
+    pub fn get_collectibles_by_creator(&self, creator_id: ValidAccountId) -> Vec<Collectible> {
+        match self.collectibles_by_creator.get(creator_id.as_ref()) {
+            None => Vec::new(),
+            Some(list) => list
+                .iter()
+                .map(|gate_id| {
+                    let collectible = self
+                        .collectibles
+                        .get(&gate_id)
+                        .expect("Collectible not found");
+                    assert!(collectible.gate_id == gate_id);
+                    assert!(&collectible.creator_id == creator_id.as_ref());
+                    collectible
+                })
+                .collect(),
+        }
+    }
+
     pub fn claim_token(&mut self, gate_id: String) -> U64 {
         let owner_id = env::predecessor_account_id();
 
@@ -122,6 +141,21 @@ impl Contract {
         self.tokens_by_owner.insert(&token.owner_id, &tids);
 
         U64::from(token_id)
+    }
+
+    pub fn get_tokens_by_owner(&self, owner_id: ValidAccountId) -> Vec<Token> {
+        match self.tokens_by_owner.get(owner_id.as_ref()) {
+            None => Vec::new(),
+            Some(list) => list
+                .iter()
+                .map(|token_id| {
+                    let token = self.tokens.get(&token_id).expect("Token not found");
+                    assert!(token.token_id == token_id);
+                    assert!(&token.owner_id == owner_id.as_ref());
+                    token
+                })
+                .collect(),
+        }
     }
 
     pub fn buy() -> u128 {
