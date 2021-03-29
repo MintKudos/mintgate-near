@@ -38,6 +38,7 @@ impl<T> MockedContext<T> {
         }
     }
 
+    /// Runs the given `action` as account `account_id`.
     pub fn run_as<S, F>(&mut self, account_id: S, action: F) -> &mut Self
     where
         F: FnOnce(&mut MockedContext<T>) -> (),
