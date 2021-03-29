@@ -11,15 +11,19 @@ use near_sdk::{
     json_types::{ValidAccountId, U64},
     near_bindgen,
     serde::Serialize,
-    AccountId, Balance, PanicOnDefault,
+    AccountId, PanicOnDefault,
 };
 
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
 
+/// Entry point data storage for mintgate core contract.
+/// Since the contract needs custom initialization,
+/// we use `PanicOnDefault` to avoid default construction.
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
+    /// Represents a mapping from `GateId` into `Collectible`.
     collectibles: UnorderedMap<GateId, Collectible>,
     collectibles_by_creator: LookupMap<AccountId, UnorderedSet<GateId>>,
     tokens: UnorderedMap<TokenId, Token>,
@@ -30,7 +34,7 @@ pub struct Contract {
 }
 
 /// The `GateId` type represents the identifier of each `Collectible`.
-type GateId = String;
+pub type GateId = String;
 
 /// The `TokenId` type represents the identifier of each `Token`.
 type TokenId = u64;
@@ -55,6 +59,13 @@ pub struct Token {
     token_id: TokenId,
     gate_id: GateId,
     owner_id: AccountId,
+    /// Represents when this `Token` was minted, in nanoseconds.
+    /// Once this `Token` is minted, this field remains unchanged.
+    pub created_at: u64,
+    /// Represents when this `Token` was last modified, in nanoseconds. Either when created or transferred.
+    pub modified_at: u64,
+    /// If this `Token` was transferred, this field holds the previous owner. Otherwise is empty.
+    pub sender_id: AccountId,
 }
 
 #[near_envlog(skip_args, only_pub)]
@@ -104,6 +115,8 @@ impl Contract {
             .insert(&collectible.creator_id, &gids);
     }
 
+    /// Returns the `Collectible` with the given `gate_id`.
+    /// Panics otherwise.
     pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Collectible {
         match self.collectibles.get(&gate_id) {
             None => env::panic("Given gate_id was not found".as_bytes()),
@@ -141,22 +154,18 @@ impl Contract {
                 }
 
                 let owner_id = env::predecessor_account_id();
+                let now = env::block_timestamp();
 
                 let token_id = self.tokens.len();
                 let token = Token {
                     token_id,
                     gate_id: gate_id.clone(),
                     owner_id,
+                    created_at: now,
+                    modified_at: now,
+                    sender_id: "".to_string(),
                 };
-                self.tokens.insert(&token.token_id, &token);
-
-                let mut tids = self
-                    .tokens_by_owner
-                    .get(&token.owner_id)
-                    .unwrap_or_else(|| UnorderedSet::new(get_key_prefix(b't', &token.owner_id)));
-                tids.insert(&token.token_id);
-
-                self.tokens_by_owner.insert(&token.owner_id, &tids);
+                self.insert_token(&token);
 
                 collectible.current_supply -= 1;
                 self.collectibles.insert(&gate_id, &collectible);
@@ -181,9 +190,68 @@ impl Contract {
         }
     }
 
-    pub fn buy() -> u128 {
-        let a: Balance = 0;
-        a
+    /// Transfer the Corgi with the given `id` to `receiver`.
+    /// Only the `owner` of the corgi can make such a transfer.
+    pub fn transfer_token(&mut self, receiver: ValidAccountId, token_id: TokenId) {
+        let sender_id = env::predecessor_account_id();
+        if sender_id == *receiver.as_ref() {
+            env::panic("Self transfers are not allowed".as_bytes());
+        }
+
+        let mut token = self.get_token(token_id);
+
+        if sender_id != token.owner_id {
+            env::panic("Sender must own Corgi".as_bytes());
+        }
+
+        self.delete_token_from(token_id, &sender_id);
+
+        token.owner_id = receiver.as_ref().to_string();
+        token.sender_id = sender_id;
+        token.modified_at = env::block_timestamp();
+        self.insert_token(&token);
+    }
+
+    /// Gets the `Token` with given `token_id`.
+    /// Panics otherwise.
+    fn get_token(&self, token_id: TokenId) -> Token {
+        match self.tokens.get(&token_id) {
+            None => panic!("The token id `{}` was not found", token_id),
+            Some(token) => {
+                assert!(token.token_id == token_id);
+                token
+            }
+        }
+    }
+
+    /// Inserts the given `Token` into `tokens` and `tokens_by_owner`.
+    fn insert_token(&mut self, token: &Token) {
+        self.tokens.insert(&token.token_id, token);
+
+        let mut tids = self
+            .tokens_by_owner
+            .get(&token.owner_id)
+            .unwrap_or_else(|| UnorderedSet::new(get_key_prefix(b't', &token.owner_id)));
+        tids.insert(&token.token_id);
+
+        self.tokens_by_owner.insert(&token.owner_id, &tids);
+    }
+
+    /// Internal method to delete the corgi with `id` owned by `owner`.
+    /// Panics if `owner` does not own the corgi with `id`.
+    fn delete_token_from(&mut self, token_id: TokenId, owner_id: &AccountId) {
+        match self.tokens_by_owner.get(&owner_id) {
+            None => panic!("Could not delete token `{}` since account `{}` does not have tokens to delete from", token_id, owner_id),
+            Some(mut list) => {
+                if !list.remove(&token_id) {
+                    panic!("Token `{}` does not belong to account `{}`", token_id, owner_id);
+                }
+                self.tokens_by_owner.insert(&owner_id, &list);
+
+                let was_removed = self.tokens.remove(&token_id);
+                assert!(was_removed.is_some());
+            }
+        }
     }
 }
 
