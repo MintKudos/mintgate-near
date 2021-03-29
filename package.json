@@ -2,6 +2,7 @@
     "name": "mintgate",
     "version": "0.1.0",
     "private": true,
+    "main": "./lib/index.js",
     "scripts": {
         "build:contract": "cargo build --package mg-core --target wasm32-unknown-unknown --release",
         "test:contract": "cd contract && cargo test",
