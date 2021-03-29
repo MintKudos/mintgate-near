@@ -49,5 +49,6 @@
     "no-console": ["error", { "allow": ["warn", "error"] }],
     "object-curly-newline": ["error", { "multiline": true }],
     "quotes": ["error", "single"]
-  }
+  },
+  "ignorePatterns": ["lib/*"]
 }

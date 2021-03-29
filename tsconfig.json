@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+
+  "include": ["src/**/*"],
+
+  "compilerOptions": {
+    "lib": [
+      "es2015",
+      "esnext",
+      "dom"
+    ],
+    "module": "commonjs",
+    "target": "esnext",
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "moduleResolution": "node",
+    "rootDir": "./src",
+    "outDir": "./lib",
+    "declaration": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "resolveJsonModule": true,
+  },
+}
