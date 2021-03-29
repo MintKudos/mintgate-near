@@ -1,5 +1,5 @@
 // Placeholder
-const sum = (termA: number, termB: number): number => termA + termB;
+import { sum } from '../lib/sum/sum';
 
 describe('sum', () => {
   it('should calculate correct sum', () => {

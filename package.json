@@ -2,6 +2,7 @@
     "name": "mintgate",
     "version": "0.1.0",
     "private": true,
+    "main": "./lib/index.js",
     "scripts": {
         "build:contract": "cargo build --package mg-core --target wasm32-unknown-unknown --release",
         "test:contract": "cd contract && cargo test",
@@ -17,7 +18,8 @@
         "lint": "eslint --ext js,jsx src",
         "lint:file": "eslint",
         "lint:fix": "yarn lint -- --fix",
-        "lint:fix:dry": "yarn lint -- --fix-dry-run"
+        "lint:fix:dry": "yarn lint -- --fix-dry-run",
+        "lib:compile": "yarn tsc"
     },
     "dependencies": {
         "big.js": "^6.0.3",
