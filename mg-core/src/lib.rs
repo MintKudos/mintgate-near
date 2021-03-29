@@ -43,7 +43,7 @@ pub struct Collectible {
     creator_id: AccountId,
     title: String,
     description: String,
-    current_supply: u64,
+    pub current_supply: u64,
     gate_url: String,
     minted_tokens: Vec<TokenId>,
     royalty: Fraction,
@@ -104,6 +104,16 @@ impl Contract {
             .insert(&collectible.creator_id, &gids);
     }
 
+    pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Collectible {
+        match self.collectibles.get(&gate_id) {
+            None => env::panic("Given gate_id was not found".as_bytes()),
+            Some(collectible) => {
+                assert!(collectible.gate_id == gate_id);
+                collectible
+            }
+        }
+    }
+
     pub fn get_collectibles_by_creator(&self, creator_id: ValidAccountId) -> Vec<Collectible> {
         match self.collectibles_by_creator.get(creator_id.as_ref()) {
             None => Vec::new(),
@@ -123,25 +133,37 @@ impl Contract {
     }
 
     pub fn claim_token(&mut self, gate_id: String) -> U64 {
-        let owner_id = env::predecessor_account_id();
+        match self.collectibles.get(&gate_id) {
+            None => env::panic(b"Gate id not found"),
+            Some(mut collectible) => {
+                if collectible.current_supply == 0 {
+                    env::panic(b"All tokens for this gate id have been claimed");
+                }
 
-        let token_id = self.tokens.len();
-        let token = Token {
-            token_id,
-            gate_id,
-            owner_id,
-        };
-        self.tokens.insert(&token.token_id, &token);
+                let owner_id = env::predecessor_account_id();
 
-        let mut tids = self
-            .tokens_by_owner
-            .get(&token.owner_id)
-            .unwrap_or_else(|| UnorderedSet::new(get_key_prefix(b't', &token.owner_id)));
-        tids.insert(&token.token_id);
+                let token_id = self.tokens.len();
+                let token = Token {
+                    token_id,
+                    gate_id: gate_id.clone(),
+                    owner_id,
+                };
+                self.tokens.insert(&token.token_id, &token);
 
-        self.tokens_by_owner.insert(&token.owner_id, &tids);
+                let mut tids = self
+                    .tokens_by_owner
+                    .get(&token.owner_id)
+                    .unwrap_or_else(|| UnorderedSet::new(get_key_prefix(b't', &token.owner_id)));
+                tids.insert(&token.token_id);
 
-        U64::from(token_id)
+                self.tokens_by_owner.insert(&token.owner_id, &tids);
+
+                collectible.current_supply -= 1;
+                self.collectibles.insert(&gate_id, &collectible);
+
+                U64::from(token_id)
+            }
+        }
     }
 
     pub fn get_tokens_by_owner(&self, owner_id: ValidAccountId) -> Vec<Token> {

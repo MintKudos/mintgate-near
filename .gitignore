@@ -1,7 +1,11 @@
+# Cargo's dependencies
+/target/
+
 # Node's dependencies
 /node_modules/
 
 # Idea
 /.idea/
 
-/target/
+# Near CLI deployment
+/neardev/
