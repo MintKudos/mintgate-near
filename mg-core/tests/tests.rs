@@ -8,11 +8,12 @@ use std::{
 };
 
 use context::MockedContext;
-use mg_core::{fraction::Fraction, Contract};
+use mg_core::{fraction::Fraction, Contract, GateId};
 use near_sdk::json_types::{ValidAccountId, U64};
 
 struct ContractChecker {
     contract: Contract,
+    claimed_tokens: Vec<u64>,
 }
 
 impl Deref for ContractChecker {
@@ -39,11 +40,23 @@ impl ContractChecker {
             Fraction::new(5, 100),
         );
     }
+
+    fn claim_token(&mut self, gate_id: GateId) -> u64 {
+        let token_id = self.contract.claim_token(gate_id);
+        self.claimed_tokens.insert(0, token_id.0);
+
+        token_id.0
+    }
+
+    // pub fn last_claimed_token(&self) -> u64 {
+    //     *self.claimed_tokens.get(0).unwrap()
+    // }
 }
 
 fn init() -> MockedContext<ContractChecker> {
     MockedContext::new(|| ContractChecker {
         contract: Contract::init(Fraction::new(25, 1000)),
+        claimed_tokens: Vec::new(),
     })
 }
 
@@ -53,6 +66,10 @@ fn alice() -> ValidAccountId {
 
 fn bob() -> ValidAccountId {
     "bob".try_into().unwrap()
+}
+
+fn charlie() -> ValidAccountId {
+    "charlie".try_into().unwrap()
 }
 
 fn any() -> ValidAccountId {
@@ -88,9 +105,26 @@ fn claim_a_token() {
         })
         .run_as(bob(), |contract| {
             contract.claim_token(some_gate_id());
-            contract.claim_token(some_gate_id());
+
+            let tokens = contract.get_tokens_by_owner(bob());
+            assert_eq!(tokens.len(), 1);
 
             let c = contract.get_collectible_by_gate_id(some_gate_id());
-            assert_eq!(c.current_supply, 8);
+            assert_eq!(c.current_supply, 9);
+        });
+}
+
+#[test]
+fn transfer_a_token() {
+    init()
+        .run_as(alice(), |contract| {
+            contract.create_test_collectible(some_gate_id(), 10);
+        })
+        .run_as(bob(), |contract| {
+            let token_id = contract.claim_token(some_gate_id());
+            contract.transfer_token(charlie(), token_id);
+
+            let ts = contract.get_tokens_by_owner(charlie());
+            assert_eq!(ts.len(), 1);
         });
 }
