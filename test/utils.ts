@@ -4,7 +4,7 @@ import { readFile } from 'fs/promises';
 import { Near, KeyPair, Contract, keyStores } from 'near-api-js';
 import { v4 as uuidv4 } from 'uuid';
 
-import { NftMethods } from '../lib/NftMethods';
+import { NftMethods } from '../src';
 import { getConfig } from './config';
 
 import type { Fraction, NftContract, AccountContract } from '../src';
