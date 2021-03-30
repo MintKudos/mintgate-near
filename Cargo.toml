@@ -2,6 +2,7 @@
 
 members = [
     "mg-core",
+    "mg-nft",
     "mg-market",
 ]
 

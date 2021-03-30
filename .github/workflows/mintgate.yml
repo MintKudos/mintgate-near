@@ -1,4 +1,4 @@
-name: Mintgate Core NFT
+name: Mintgate CI
 
 on:
   # We want to trigger the build & test pipelines in every branch.
@@ -19,7 +19,7 @@ env:
 
 jobs:
 
-  build-contract:
+  build-contracts:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -31,17 +31,18 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
       
     - run: rustup target add wasm32-unknown-unknown
-    - run: cargo build --package mg-core --target wasm32-unknown-unknown --release
+    - run: cargo build --target wasm32-unknown-unknown --release
     - run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
 
     - uses: actions/upload-artifact@v2
       with:
         name: mg_core
         path: |
-          target/wasm32-unknown-unknown/release/mg_core.wasm
+          target/wasm32-unknown-unknown/release/mg_nft.wasm
+          target/wasm32-unknown-unknown/release/mg_market.wasm
           target/wasm32-unknown-unknown/release/metadata.json
 
-  test-contract:
+  test-contracts:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -52,7 +53,7 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
-    - run: cargo test --package mg-core
+    - run: cargo test
 
   # api-test-contract:
   #   needs: build-contract
