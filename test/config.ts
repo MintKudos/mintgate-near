@@ -1,18 +1,4 @@
-import type { NearConfig } from 'near-api-js/lib/near';
-
-interface Config extends NearConfig {
-  contractName: string;
-}
-
-interface ConfigLocal extends Config {
-  keyPath: string;
-}
-
-interface ConfigNet extends Config {
-  helperUrl: string;
-}
-
-type Environment = 'production' | 'development' | 'testnet' | 'betanet' | 'local';
+import type { Environment, ConfigLocal, ConfigNet } from '../src';
 
 export const getConfig = async (env: Environment, contractName: string): Promise<ConfigLocal | ConfigNet> => {
   const { HOME } = process.env;

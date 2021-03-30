@@ -1,49 +1,13 @@
 import path from 'path';
 import { readFile } from 'fs/promises';
 
-import { Near, KeyPair, Contract, keyStores, Account } from 'near-api-js';
+import { Near, KeyPair, Contract, keyStores } from 'near-api-js';
 import { v4 as uuidv4 } from 'uuid';
 
-import { NftMethods } from '../lib/NftMethods';
+import { NftMethods } from '../src';
 import { getConfig } from './config';
 
-interface Fraction {
-  num: number;
-  den: number;
-}
-
-export interface Collectible {
-  gate_id: string;
-  creator_id: string;
-  title: string;
-  description: string;
-  current_supply: number;
-  gate_url: string;
-  minted_tokens: [];
-  royalty: Fraction;
-}
-
-interface NftContract extends Contract {
-  init(mintgateFee: { mintgate_fee: Fraction }): Promise<void>;
-
-  create_collectible(collectibleData: {
-    gate_id: string;
-    gate_url: string;
-    title: string;
-    description: string;
-    supply: string;
-    royalty: Fraction;
-  }): void;
-
-  get_collectible_by_gate_id(gateId: { gate_id: string }): Promise<Collectible>;
-  get_collectibles_by_creator(creatorId: { creator_id: string }): Promise<Collectible[]>;
-}
-
-export type AccountContract = {
-  contract: NftContract;
-  accountId: string;
-  account: Account;
-};
+import type { Fraction, NftContract, AccountContract } from '../src';
 
 const { InMemoryKeyStore } = keyStores;
 const MINTGATE_FEE: Fraction = {

@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import { initContractWithNewTestAccount, addTestCollectible } from './utils';
-import type { AccountContract, Collectible } from './utils';
+import type { AccountContract, Collectible } from '../src';
 
 const TEST_BENEFICIARY = 'corgis-nft.testnet'; // todo: remove corgis from here
 
