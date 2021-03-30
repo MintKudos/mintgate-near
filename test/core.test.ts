@@ -3,7 +3,7 @@ import type { AccountContract } from './utils';
 
 const TEST_BENEFICIARY = 'corgis-nft.testnet'; // todo: remove corgis from here
 
-describe('Core contract', () => {
+describe('Nft contract', () => {
   let jen: AccountContract;
   let bob: AccountContract;
   let ted: AccountContract;

@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 
 import { Near, KeyPair, Contract, keyStores, Account } from 'near-api-js';
 
-import { CoreMethods } from '../lib/CoreMethods';
+import { NftMethods } from '../lib/NftMethods';
 import { getConfig } from './config';
 
 interface Fraction {
@@ -16,7 +16,7 @@ interface CoreContract extends Contract {
 }
 
 export type AccountContract = {
-  contract: CoreContract;
+  contract: NftContract;
   accountId: string;
   account: Account;
 };
@@ -67,7 +67,7 @@ export const initContractWithNewTestAccount = async (): Promise<AccountContract>
 
   await keyStore.setKey(config.networkId, account.accountId, newKeyPair);
 
-  const contract = <CoreContract>(new Contract(account, config.contractName, { ...CoreMethods }));
+  const contract = <NftContract>(new Contract(account, config.contractName, { ...NftMethods }));
   await contract.init({ mintgate_fee: MINTGATE_FEE });
 
   return {
