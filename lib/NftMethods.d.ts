@@ -1,4 +1,4 @@
-export declare const CoreMethods: {
+export declare const NftMethods: {
     viewMethods: string[];
     changeMethods: string[];
 };

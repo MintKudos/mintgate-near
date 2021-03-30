@@ -4,9 +4,9 @@
     "private": true,
     "main": "./lib/index.js",
     "scripts": {
-        "build:contract": "cargo build --package mg-core --target wasm32-unknown-unknown --release",
+        "build:contract": "cargo build --package mg-nft --target wasm32-unknown-unknown --release",
         "test:contract": "cd contract && cargo test",
-        "dev-deploy:contract": "rm -rf neardev/ && near dev-deploy --wasmFile target/wasm32-unknown-unknown/release/mg_core.wasm",
+        "dev-deploy:contract": "rm -rf neardev/ && near dev-deploy --wasmFile target/wasm32-unknown-unknown/release/mg_nft.wasm",
         "api-test:contract": "CONTRACT_NAME=`cat neardev/dev-account` jest api.test.js --env=node --runInBand --testTimeout=500000",
         "deploy:contract": "near deploy --wasmFile contract/target/wasm32-unknown-unknown/release/corgis_nft.wasm",
         "build:web": "NODE_ENV=testnet parcel build src/index.html --public-url ./",
@@ -27,10 +27,12 @@
     "dependencies": {
         "big.js": "^6.0.3",
         "gh-pages": "^3.1.0",
-        "near-api-js": "0.39.0"
+        "near-api-js": "0.39.0",
+        "uuid": "^8.3.2"
     },
     "devDependencies": {
         "@types/jest": "^26.0.21",
+        "@types/uuid": "^8.3.0",
         "@typescript-eslint/eslint-plugin": "^4.19.0",
         "@typescript-eslint/parser": "^4.19.0",
         "autobahn": "^20.9.2",

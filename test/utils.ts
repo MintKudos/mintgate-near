@@ -2,8 +2,9 @@ import path from 'path';
 import { readFile } from 'fs/promises';
 
 import { Near, KeyPair, Contract, keyStores, Account } from 'near-api-js';
+import { v4 as uuidv4 } from 'uuid';
 
-import { CoreMethods } from '../lib/CoreMethods';
+import { NftMethods } from '../lib/NftMethods';
 import { getConfig } from './config';
 
 interface Fraction {
@@ -11,12 +12,35 @@ interface Fraction {
   den: number;
 }
 
-interface CoreContract extends Contract {
-  init(mintgateFee: { mintgate_fee: Fraction }): void;
+export interface Collectible {
+  gate_id: string;
+  creator_id: string;
+  title: string;
+  description: string;
+  current_supply: number;
+  gate_url: string;
+  minted_tokens: [];
+  royalty: Fraction;
+}
+
+interface NftContract extends Contract {
+  init(mintgateFee: { mintgate_fee: Fraction }): Promise<void>;
+
+  create_collectible(collectibleData: {
+    gate_id: string;
+    gate_url: string;
+    title: string;
+    description: string;
+    supply: string;
+    royalty: Fraction;
+  }): void;
+
+  get_collectible_by_gate_id(gateId: { gate_id: string }): Promise<Collectible>;
+  get_collectibles_by_creator(creatorId: { creator_id: string }): Promise<Collectible[]>;
 }
 
 export type AccountContract = {
-  contract: CoreContract;
+  contract: NftContract;
   accountId: string;
   account: Account;
 };
@@ -67,7 +91,7 @@ export const initContractWithNewTestAccount = async (): Promise<AccountContract>
 
   await keyStore.setKey(config.networkId, account.accountId, newKeyPair);
 
-  const contract = <CoreContract>(new Contract(account, config.contractName, { ...CoreMethods }));
+  const contract = <NftContract>(new Contract(account, config.contractName, { ...NftMethods }));
   await contract.init({ mintgate_fee: MINTGATE_FEE });
 
   return {
@@ -75,4 +99,35 @@ export const initContractWithNewTestAccount = async (): Promise<AccountContract>
     accountId: account.accountId,
     account,
   };
+};
+
+const collectibleDefaultData = {
+  gate_url: 'Test gate url',
+  title: 'Test title',
+  description: 'Test description',
+  supply: '100',
+  royalty: {
+    num: 3,
+    den: 10,
+  },
+};
+
+export const addTestCollectible = async (
+  contract: NftContract,
+  collectibleData: {
+    gate_id?: string;
+    gate_url?: string;
+    title?: string;
+    description?: string;
+    supply?: string;
+    royalty?: Fraction;
+  } = {},
+): Promise<void> => {
+  let { gate_id } = collectibleData;
+
+  if (!gate_id) {
+    gate_id = uuidv4();
+  }
+
+  return contract.create_collectible({ ...collectibleDefaultData, ...collectibleData, gate_id });
 };
