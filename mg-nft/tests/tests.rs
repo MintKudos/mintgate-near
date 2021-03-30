@@ -8,7 +8,8 @@ use std::{
 };
 
 use context::MockedContext;
-use mg_core::{fraction::Fraction, Contract, GateId};
+use mg_core::Fraction;
+use mg_nft::{Contract, GateId};
 use near_sdk::json_types::{ValidAccountId, U64};
 
 struct ContractChecker {

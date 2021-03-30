@@ -10,3 +10,4 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 near-sdk = "3.0.0-pre.release"
+mg-core = { path = "../mg-core" }
