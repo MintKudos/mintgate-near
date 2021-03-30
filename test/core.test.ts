@@ -1,8 +1,30 @@
-// Placeholder
-import { sum } from '../lib/sum/sum';
+import { initContractWithNewTestAccount } from './utils';
+import type { AccountContract } from './utils';
 
-describe('sum', () => {
-  it('should calculate correct sum', () => {
-    expect(sum(1, 2)).toBe(3);
+const TEST_BENEFICIARY = 'corgis-nft.testnet'; // todo: remove corgis from here
+
+describe('Core contract', () => {
+  let jen: AccountContract;
+  let bob: AccountContract;
+  let ted: AccountContract;
+
+  beforeAll(async () => {
+    [jen, bob, ted] = await Promise.all([
+      initContractWithNewTestAccount(),
+      initContractWithNewTestAccount(),
+      initContractWithNewTestAccount(),
+    ]);
+  });
+
+  afterAll(async () => {
+    await Promise.all([
+      jen.account.deleteAccount(TEST_BENEFICIARY),
+      bob.account.deleteAccount(TEST_BENEFICIARY),
+      ted.account.deleteAccount(TEST_BENEFICIARY),
+    ]);
+  });
+
+  test('that test accounts are different', async () => {
+    expect(jen.accountId).not.toBe(bob.accountId);
   });
 });

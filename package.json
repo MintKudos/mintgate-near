@@ -19,7 +19,10 @@
         "lint:file": "eslint",
         "lint:fix": "yarn lint -- --fix",
         "lint:fix:dry": "yarn lint -- --fix-dry-run",
-        "lib:compile": "yarn tsc"
+        "lib:compile": "rm -rf lib/ && yarn tsc",
+        "api-test": "jest",
+        "api-test:compile-test": "yarn lib:compile && yarn api-test",
+        "api-test:deploy-compile-test": "yarn build:contract && yarn dev-deploy:contract && yarn api-test:compile-test"
     },
     "dependencies": {
         "big.js": "^6.0.3",
