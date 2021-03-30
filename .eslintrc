@@ -48,7 +48,8 @@
     "max-len": ["error", { "code": 120, "ignorePattern": "d=[\"']([\\s\\S]*?)[\"']" }],
     "no-console": ["error", { "allow": ["warn", "error"] }],
     "object-curly-newline": ["error", { "multiline": true }],
-    "quotes": ["error", "single"]
+    "quotes": ["error", "single"],
+    "operator-linebreak": "off"
   },
   "ignorePatterns": ["lib/*"]
 }
