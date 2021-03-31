@@ -161,4 +161,77 @@ describe('Nft contract', () => {
       );
     });
   });
+
+  describe('transfer_token', () => {
+    const gateId = uuidv4();
+
+    describe('happy path', () => {
+      const initialSupply = '2000';
+
+      let bobsTokenId: string;
+
+      let initialTokensOfBob: Token[];
+      let initialTokensOfJen: Token[];
+      let tokensOfJen: Token[];
+      let tokensOfBob: Token[];
+
+      let token: Token;
+
+      beforeAll(async () => {
+        await addTestCollectible(jen.contract, { gate_id: gateId, supply: initialSupply });
+        bobsTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+        initialTokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+        initialTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+        await bob.contract.transfer_token({ receiver: jen.accountId, token_id: +bobsTokenId });
+
+        tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+        tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+        [token] = tokensOfJen.filter(({ token_id }) => token_id === +bobsTokenId);
+      });
+
+      it('should associate token with it\'s new owner', () => {
+        expect(token).not.toBeUndefined();
+        expect(initialTokensOfJen.length).toBe(tokensOfJen.length - 1);
+      });
+
+      it('should disassociate token from it\'s previous owner', () => {
+        expect(initialTokensOfBob.length).toBe(tokensOfBob.length + 1);
+
+        const [transferredToken] = tokensOfBob.filter(({ token_id }) => token_id === +bobsTokenId);
+
+        expect(transferredToken).toBeUndefined();
+      });
+
+      it('should set token\'s new owner', async () => {
+        expect(token.owner_id).toBe(jen.accountId);
+      });
+
+      it('should set token\'s sender', () => {
+        expect(token.sender_id).toBe(bob.accountId);
+      });
+    });
+
+    describe('errors', () => {
+      let jensTokenId: string;
+
+      beforeAll(async () => {
+        jensTokenId = await jen.contract.claim_token({ gate_id: gateId });
+      });
+
+      it('should throw when the sender and the receiver are one person', async () => {
+        await expect(jen.contract.transfer_token({ receiver: jen.accountId, token_id: +jensTokenId })).rejects.toThrow(
+          'Self transfers are not allowed',
+        );
+      });
+
+      it('should throw when the sender doesn\'t own the token', async () => {
+        await expect(bob.contract.transfer_token({ receiver: jen.accountId, token_id: +jensTokenId })).rejects.toThrow(
+          'Sender must own Token',
+        );
+      });
+    });
+  });
 });

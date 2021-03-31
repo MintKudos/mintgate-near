@@ -21,6 +21,8 @@ export interface NftContract extends Contract {
   claim_token(gateId: { gate_id: string }): Promise<string>;
 
   get_tokens_by_owner(ownerId: { owner_id: string }): Promise<Token[]>;
+
+  transfer_token(data: { receiver: string, token_id: number }): Promise<void>;
 }
 
 export type AccountContract = {
