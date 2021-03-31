@@ -1,7 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
+import { CustomConsole } from '@jest/console';
 
 import { initContractWithNewTestAccount, addTestCollectible } from './utils';
 import type { AccountContract, Collectible } from '../src';
+
+global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
 
 const TEST_BENEFICIARY = 'corgis-nft.testnet'; // todo: remove corgis from here
 
