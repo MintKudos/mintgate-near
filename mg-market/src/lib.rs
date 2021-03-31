@@ -1,4 +1,4 @@
-use mg_core::Fraction;
+use mg_core::fraction::Fraction;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::serde::{Deserialize, Serialize};
@@ -51,13 +51,10 @@ pub struct Contract {
 
 // fn pay_royalty () {
 // //
-// [09:31] Zahhar Kirillov
 // accountId -> marketplace accountminAmount -> sell price
 
-// [09:36] Zahhar Kirillov
 // Selling price: 5NMarktplace fee: 10%, 0.5N = 4.5NRoyalty: 10%, 0.45N = 4.05N
 
-// [09:38] Zahhar Kirillov
 // Selling price: 5NMarketplace adds royalty: 10%: 5.5NMarketplace adds fee: 10%: 6.05NSelling price: 6.05N
 
 // }
