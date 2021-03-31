@@ -1,9 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
+import { CustomConsole } from '@jest/console';
 
 import { addTestCollectible } from './utils';
 import { AccountContract, Collectible, NftMethods } from '../src';
 import { createProfiler } from './deploy';
 import { getConfig } from './config';
+
+global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
 
 describe('Nft contract', () => {
   let jen: AccountContract;
