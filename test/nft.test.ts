@@ -67,9 +67,9 @@ describe('Nft contract', () => {
     it('should throw an error if no collectible found', async () => {
       const nonExistentId = 'nonExistentId';
 
-      await expect(jen.contract.get_collectible_by_gate_id({ gate_id: nonExistentId }))
-        .rejects
-        .toThrow('Given gate_id was not found');
+      await expect(jen.contract.get_collectible_by_gate_id({ gate_id: nonExistentId })).rejects.toThrow(
+        'Given gate_id was not found',
+      );
     });
   });
 
@@ -96,6 +96,36 @@ describe('Nft contract', () => {
       const collectibles = await jen.contract.get_collectibles_by_creator({ creator_id: bob.accountId });
 
       expect(collectibles).toEqual([]);
+    });
+  });
+
+  describe('claim_token', () => {
+    const gateId = uuidv4();
+    // let tokenId: string;
+
+    beforeAll(async () => {
+      await addTestCollectible(jen.contract, { gate_id: gateId });
+
+      await bob.contract.claim_token({ gate_id: gateId });
+    });
+
+    it('should throw an error if no gate id found', async () => {
+      const nonExistentId = 'nonExistentId';
+
+      await expect(jen.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow('Gate id not found');
+    });
+
+    it('should throw an error if all tokens have been claimed', async () => {
+      const gateIdNoSupply = uuidv4();
+
+      await addTestCollectible(jen.contract, {
+        gate_id: gateIdNoSupply,
+        supply: '0',
+      });
+
+      await expect(jen.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
+        'All tokens for this gate id have been claimed',
+      );
     });
   });
 });
