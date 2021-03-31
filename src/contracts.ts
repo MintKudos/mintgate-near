@@ -1,6 +1,6 @@
 import { Account, Contract } from 'near-api-js';
 import { Fraction } from './auxiliary';
-import { Collectible } from './nft';
+import { Collectible, Token } from './nft';
 
 export interface NftContract extends Contract {
   init(mintgateFee: { mintgate_fee: Fraction }): Promise<void>;
@@ -15,7 +15,14 @@ export interface NftContract extends Contract {
   }): void;
 
   get_collectible_by_gate_id(gateId: { gate_id: string }): Promise<Collectible>;
+
   get_collectibles_by_creator(creatorId: { creator_id: string }): Promise<Collectible[]>;
+
+  claim_token(gateId: { gate_id: string }): Promise<string>;
+
+  get_tokens_by_owner(ownerId: { owner_id: string }): Promise<Token[]>;
+
+  transfer_token(data: { receiver: string, token_id: number }): Promise<void>;
 }
 
 export type AccountContract = {

@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { CustomConsole } from '@jest/console';
 
 import { addTestCollectible } from './utils';
-import { AccountContract, Collectible, NftMethods } from '../src';
+import { AccountContract, Collectible, NftMethods, Token } from '../src';
 import { createProfiler } from './deploy';
 import { getConfig } from './config';
 
@@ -67,9 +67,9 @@ describe('Nft contract', () => {
     it('should throw an error if no collectible found', async () => {
       const nonExistentId = 'nonExistentId';
 
-      await expect(jen.contract.get_collectible_by_gate_id({ gate_id: nonExistentId }))
-        .rejects
-        .toThrow('Given gate_id was not found');
+      await expect(jen.contract.get_collectible_by_gate_id({ gate_id: nonExistentId })).rejects.toThrow(
+        'Given gate_id was not found',
+      );
     });
   });
 
@@ -96,6 +96,183 @@ describe('Nft contract', () => {
       const collectibles = await jen.contract.get_collectibles_by_creator({ creator_id: bob.accountId });
 
       expect(collectibles).toEqual([]);
+    });
+  });
+
+  describe('claim_token', () => {
+    const gateId = uuidv4();
+    const initialSupply = '1000';
+    let tokenId: string;
+    let initialTokensOfBob: Token[];
+
+    beforeAll(async () => {
+      await addTestCollectible(jen.contract, { gate_id: gateId, supply: initialSupply });
+
+      initialTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+      tokenId = await bob.contract.claim_token({ gate_id: gateId });
+    });
+
+    describe('token creation', () => {
+      let token: Token;
+      let tokensOfBob: Token[];
+
+      beforeAll(async () => {
+        tokensOfBob = await jen.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+        [token] = tokensOfBob.filter(({ token_id }) => token_id === +tokenId);
+      });
+
+      it('should create only one token for an owner', async () => {
+        expect(tokensOfBob.length).toBe(initialTokensOfBob.length + 1);
+      });
+
+      it('should set correct owner of the token', async () => {
+        expect(token.owner_id).toBe(bob.accountId);
+      });
+
+      it('should set correct collectible of the token', async () => {
+        expect(token.gate_id).toBe(gateId);
+      });
+    });
+
+    it('should decrement current supply of the collectible', async () => {
+      const { current_supply } = await jen.contract.get_collectible_by_gate_id({ gate_id: gateId });
+
+      expect(current_supply).toBe(+initialSupply - 1);
+    });
+
+    it('should throw an error if no gate id found', async () => {
+      const nonExistentId = 'nonExistentId';
+
+      await expect(jen.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow('Gate id not found');
+    });
+
+    it('should throw an error if all tokens have been claimed', async () => {
+      const gateIdNoSupply = uuidv4();
+
+      await addTestCollectible(jen.contract, {
+        gate_id: gateIdNoSupply,
+        supply: '0',
+      });
+
+      await expect(jen.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
+        'All tokens for this gate id have been claimed',
+      );
+    });
+  });
+
+  describe('transfer_token', () => {
+    const gateId = uuidv4();
+
+    describe('happy path', () => {
+      const initialSupply = '2000';
+
+      let bobsTokenId: string;
+
+      let initialTokensOfBob: Token[];
+      let initialTokensOfJen: Token[];
+      let tokensOfJen: Token[];
+      let tokensOfBob: Token[];
+
+      let token: Token;
+
+      beforeAll(async () => {
+        await addTestCollectible(jen.contract, { gate_id: gateId, supply: initialSupply });
+        bobsTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+        initialTokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+        initialTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+        await bob.contract.transfer_token({ receiver: jen.accountId, token_id: +bobsTokenId });
+
+        tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+        tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+        [token] = tokensOfJen.filter(({ token_id }) => token_id === +bobsTokenId);
+      });
+
+      it('should associate token with it\'s new owner', () => {
+        expect(token).not.toBeUndefined();
+        expect(initialTokensOfJen.length).toBe(tokensOfJen.length - 1);
+      });
+
+      it('should disassociate token from it\'s previous owner', () => {
+        expect(initialTokensOfBob.length).toBe(tokensOfBob.length + 1);
+
+        const [transferredToken] = tokensOfBob.filter(({ token_id }) => token_id === +bobsTokenId);
+
+        expect(transferredToken).toBeUndefined();
+      });
+
+      it('should set token\'s new owner', async () => {
+        expect(token.owner_id).toBe(jen.accountId);
+      });
+
+      it('should set token\'s sender', () => {
+        expect(token.sender_id).toBe(bob.accountId);
+      });
+    });
+
+    describe('errors', () => {
+      let jensTokenId: string;
+
+      beforeAll(async () => {
+        jensTokenId = await jen.contract.claim_token({ gate_id: gateId });
+      });
+
+      it('should throw when the sender and the receiver are one person', async () => {
+        await expect(jen.contract.transfer_token({ receiver: jen.accountId, token_id: +jensTokenId })).rejects.toThrow(
+          'Self transfers are not allowed',
+        );
+      });
+
+      it('should throw when the sender doesn\'t own the token', async () => {
+        await expect(bob.contract.transfer_token({ receiver: jen.accountId, token_id: +jensTokenId })).rejects.toThrow(
+          'Sender must own Token',
+        );
+      });
+    });
+  });
+
+  describe('get_tokens_by_owner', () => {
+    const gateId = uuidv4();
+    const numberOfTokensToClaim = 3;
+    let initialTokensOfJen: Token[];
+    let tokensOfJen: Token[];
+
+    beforeAll(async () => {
+      await addTestCollectible(jen.contract, { gate_id: gateId });
+
+      initialTokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      await Promise.all(
+        new Array(numberOfTokensToClaim).fill(0).map(() => jen.contract.claim_token({ gate_id: gateId })),
+      );
+    });
+
+    it('should return all tokens claimed by a specific user', async () => {
+      tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      expect(tokensOfJen.length).toBe(initialTokensOfJen.length + numberOfTokensToClaim);
+    });
+
+    it('should return only tokens of a specific owner', async () => {
+      tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      expect(tokensOfJen.every(({ owner_id }) => owner_id === jen.accountId)).toBe(true);
+    });
+
+    it('should return an empty array if a contract has no tokens', async () => {
+      tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      await Promise.all(
+        tokensOfJen.map(({ token_id }) => jen.contract.transfer_token({ receiver: bob.accountId, token_id })),
+      );
+
+      const newTokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      expect(newTokensOfJen).toHaveLength(0);
     });
   });
 });

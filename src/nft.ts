@@ -10,3 +10,13 @@ export interface Collectible {
   minted_tokens: [];
   royalty: Fraction;
 }
+
+export interface Token {
+  token_id: number;
+  gate_id: string;
+  owner_id: string;
+  created_at: number;
+  modified_at: number;
+  sender_id: string;
+  approvals: [];
+}

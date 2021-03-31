@@ -156,8 +156,8 @@ impl Contract {
         }
     }
 
-    /// Transfer the Corgi with the given `id` to `receiver`.
-    /// Only the `owner` of the corgi can make such a transfer.
+    /// Transfer the Token with the given `id` to `receiver`.
+    /// Only the `owner` of the token can make such a transfer.
     pub fn transfer_token(&mut self, receiver: ValidAccountId, token_id: TokenId) {
         let sender_id = env::predecessor_account_id();
         if sender_id == *receiver.as_ref() {
@@ -167,7 +167,7 @@ impl Contract {
         let mut token = self.get_token(token_id);
 
         if sender_id != token.owner_id {
-            env::panic("Sender must own Corgi".as_bytes());
+            env::panic("Sender must own Token".as_bytes());
         }
 
         self.delete_token_from(token_id, &sender_id);
