@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { CustomConsole } from '@jest/console';
 
 import { addTestCollectible } from './utils';
-import { AccountContract, Collectible, NftMethods } from '../src';
+import { AccountContract, Collectible, NftMethods, Token } from '../src';
 import { createProfiler } from './deploy';
 import { getConfig } from './config';
 
@@ -101,12 +101,45 @@ describe('Nft contract', () => {
 
   describe('claim_token', () => {
     const gateId = uuidv4();
-    // let tokenId: string;
+    const initialSupply = '1000';
+    let tokenId: string;
+    let initialTokensOfBob: Token[];
 
     beforeAll(async () => {
-      await addTestCollectible(jen.contract, { gate_id: gateId });
+      await addTestCollectible(jen.contract, { gate_id: gateId, supply: initialSupply });
 
-      await bob.contract.claim_token({ gate_id: gateId });
+      initialTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+      tokenId = await bob.contract.claim_token({ gate_id: gateId });
+    });
+
+    describe('token creation', () => {
+      let token: Token;
+      let tokensOfBob: Token[];
+
+      beforeAll(async () => {
+        tokensOfBob = await jen.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+        [token] = tokensOfBob.filter(({ token_id }) => token_id === +tokenId);
+      });
+
+      it('should create only one token for an owner', async () => {
+        expect(tokensOfBob.length).toBe(initialTokensOfBob.length + 1);
+      });
+
+      it('should set correct owner of the token', async () => {
+        expect(token.owner_id).toBe(bob.accountId);
+      });
+
+      it('should set correct collectible of the token', async () => {
+        expect(token.gate_id).toBe(gateId);
+      });
+    });
+
+    it('should decrement current supply of the collectible', async () => {
+      const { current_supply } = await jen.contract.get_collectible_by_gate_id({ gate_id: gateId });
+
+      expect(current_supply).toBe(+initialSupply - 1);
     });
 
     it('should throw an error if no gate id found', async () => {
