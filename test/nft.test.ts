@@ -234,4 +234,45 @@ describe('Nft contract', () => {
       });
     });
   });
+
+  describe('get_tokens_by_owner', () => {
+    const gateId = uuidv4();
+    const numberOfTokensToClaim = 3;
+    let initialTokensOfJen: Token[];
+    let tokensOfJen: Token[];
+
+    beforeAll(async () => {
+      await addTestCollectible(jen.contract, { gate_id: gateId });
+
+      initialTokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      await Promise.all(
+        new Array(numberOfTokensToClaim).fill(0).map(() => jen.contract.claim_token({ gate_id: gateId })),
+      );
+    });
+
+    it('should return all tokens claimed by a specific user', async () => {
+      tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      expect(tokensOfJen.length).toBe(initialTokensOfJen.length + numberOfTokensToClaim);
+    });
+
+    it('should return only tokens of a specific owner', async () => {
+      tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      expect(tokensOfJen.every(({ owner_id }) => owner_id === jen.accountId)).toBe(true);
+    });
+
+    it('should return an empty array if a contract has no tokens', async () => {
+      tokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      await Promise.all(
+        tokensOfJen.map(({ token_id }) => jen.contract.transfer_token({ receiver: bob.accountId, token_id })),
+      );
+
+      const newTokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
+
+      expect(newTokensOfJen).toHaveLength(0);
+    });
+  });
 });
