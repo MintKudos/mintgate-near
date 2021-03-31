@@ -1,4 +1,4 @@
-use mg_core::Fraction;
+use mg_core::fraction::Fraction;
 
 #[test]
 fn multiply_by_0() {
