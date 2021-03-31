@@ -1,32 +1,23 @@
 import { v4 as uuidv4 } from 'uuid';
 import { CustomConsole } from '@jest/console';
 
-import { initContractWithNewTestAccount, addTestCollectible } from './utils';
-import type { AccountContract, Collectible } from '../src';
+import { addTestCollectible } from './utils';
+import { AccountContract, Collectible, NftMethods } from '../src';
+import { createProfiler } from './deploy';
+import { getConfig } from './config';
 
 global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
-
-const TEST_BENEFICIARY = 'corgis-nft.testnet'; // todo: remove corgis from here
 
 describe('Nft contract', () => {
   let jen: AccountContract;
   let bob: AccountContract;
-  let ted: AccountContract;
 
   beforeAll(async () => {
-    [jen, bob, ted] = await Promise.all([
-      initContractWithNewTestAccount(),
-      initContractWithNewTestAccount(),
-      initContractWithNewTestAccount(),
-    ]);
-  });
+    const config = await getConfig('development', '');
+    const { deploy, users } = await createProfiler('nft', NftMethods, config, 'jen', 'bob');
+    [jen, bob] = users;
 
-  afterAll(async () => {
-    await Promise.all([
-      jen.account.deleteAccount(TEST_BENEFICIARY),
-      bob.account.deleteAccount(TEST_BENEFICIARY),
-      ted.account.deleteAccount(TEST_BENEFICIARY),
-    ]);
+    await deploy('target/wasm32-unknown-unknown/release/mg_nft.wasm');
   });
 
   test('that test accounts are different', async () => {

@@ -1,16 +1,11 @@
 #![deny(warnings)]
 
-use mg_core::Fraction;
-use near_env::near_envlog;
-use near_sdk::{
-    borsh::{self, BorshDeserialize, BorshSerialize},
-    collections::{LookupMap, UnorderedMap, UnorderedSet},
-    env,
-    json_types::{ValidAccountId, U64},
-    near_bindgen,
-    serde::Serialize,
-    AccountId, Balance, PanicOnDefault,
+use mg_core::{
+    fraction::Fraction,
+    nft::{market, Collectible, GateId, Token, TokenId},
 };
+use near_env::near_envlog;
+use near_sdk::{AccountId, PanicOnDefault, borsh::{self, BorshDeserialize, BorshSerialize}, collections::{LookupMap, UnorderedMap, UnorderedSet}, env, json_types::{ValidAccountId, U64}, log, near_bindgen};
 
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
@@ -29,51 +24,6 @@ pub struct Contract {
     /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
     /// This field can be set up when the contract is deployed.
     mintgate_fee: Fraction,
-}
-
-/// The `GateId` type represents the identifier of each `Collectible`.
-pub type GateId = String;
-
-/// The `TokenId` type represents the identifier of each `Token`.
-type TokenId = u64;
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
-#[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
-pub struct Collectible {
-    gate_id: GateId,
-    creator_id: AccountId,
-    title: String,
-    description: String,
-    pub current_supply: u64,
-    gate_url: String,
-    minted_tokens: Vec<TokenId>,
-    royalty: Fraction,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
-#[serde(crate = "near_sdk::serde")]
-pub struct Token {
-    /// The unique identifier for a `Token`.
-    /// Any two different tokens, will have different `token_id`s,
-    /// even if they belong to different `gate_id`s.
-    token_id: TokenId,
-    gate_id: GateId,
-    /// The owner of this token.
-    owner_id: AccountId,
-    /// Represents when this `Token` was minted, in nanoseconds.
-    /// Once this `Token` is minted, this field remains unchanged.
-    pub created_at: u64,
-    /// Represents when this `Token` was last modified, in nanoseconds.
-    /// Either when created or transferred.
-    pub modified_at: u64,
-    /// If this `Token` was transferred, this field holds the previous owner.
-    /// Otherwise is empty.
-    pub sender_id: AccountId,
-    /// Holds the list of accounts that can `transfer_token`s on behalf of the token's owner.
-    /// It is mapped to the minimum amount that this token should be transfer for.
-    #[serde(skip_serializing)]
-    pub approvals: UnorderedMap<AccountId, Balance>,
 }
 
 #[near_envlog(skip_args, only_pub)]
@@ -177,9 +127,13 @@ impl Contract {
                     approvals: UnorderedMap::new(get_key_prefix(b'a', &token_id.to_ne_bytes())),
                 };
                 self.insert_token(&token);
+                env::log(b"after insert");
 
                 collectible.current_supply -= 1;
                 self.collectibles.insert(&gate_id, &collectible);
+                env::log(b"after change supply");
+
+                log!("token_id: {}", token_id);
 
                 U64::from(token_id)
             }
@@ -224,6 +178,19 @@ impl Contract {
         self.insert_token(&token);
     }
 
+    pub fn approve(&mut self, token_id: TokenId, account_id: ValidAccountId) {
+        let owner_id = env::predecessor_account_id();
+        market::nft_on_approve(
+            token_id,
+            owner_id,
+            U64::from(1),
+            "msg".to_string(),
+            account_id.as_ref(),
+            0,
+            env::prepaid_gas() / 3,
+        );
+    }
+
     /// Gets the `Token` with given `token_id`.
     /// Panics otherwise.
     fn get_token(&self, token_id: TokenId) -> Token {
@@ -238,14 +205,18 @@ impl Contract {
 
     /// Inserts the given `Token` into `tokens` and `tokens_by_owner`.
     fn insert_token(&mut self, token: &Token) {
+        log!("insert token: {}", token.token_id);
         self.tokens.insert(&token.token_id, token);
 
+        log!("get tids: {}", token.token_id);
         let mut tids = self
             .tokens_by_owner
             .get(&token.owner_id)
             .unwrap_or_else(|| UnorderedSet::new(get_key_prefix(b't', &token.owner_id.as_bytes())));
+        log!("insert tids: {}", token.token_id);
         tids.insert(&token.token_id);
 
+        log!("insert tids by owner: {}", token.token_id);
         self.tokens_by_owner.insert(&token.owner_id, &tids);
     }
 
@@ -268,8 +239,10 @@ impl Contract {
 }
 
 fn get_key_prefix(prefix: u8, key: &[u8]) -> Vec<u8> {
+    env::log(b"start key_prefix");
     let mut key_prefix = Vec::with_capacity(33);
     key_prefix.push(prefix);
     key_prefix.extend(env::sha256(key));
+    env::log(b"end key_prefix");
     key_prefix
 }
