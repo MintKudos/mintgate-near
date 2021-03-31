@@ -8,8 +8,8 @@ use std::{
 };
 
 use context::MockedContext;
-use mg_core::Fraction;
-use mg_nft::{Contract, GateId};
+use mg_core::{fraction::Fraction, nft::GateId};
+use mg_nft::Contract;
 use near_sdk::json_types::{ValidAccountId, U64};
 
 struct ContractChecker {
@@ -106,12 +106,28 @@ fn claim_a_token() {
         })
         .run_as(bob(), |contract| {
             contract.claim_token(some_gate_id());
+            contract.claim_token(some_gate_id());
+            contract.claim_token(some_gate_id());
 
             let tokens = contract.get_tokens_by_owner(bob());
-            assert_eq!(tokens.len(), 1);
+            assert_eq!(tokens.len(), 3);
 
             let c = contract.get_collectible_by_gate_id(some_gate_id());
-            assert_eq!(c.current_supply, 9);
+            assert_eq!(c.current_supply, 7);
+        });
+}
+
+#[test]
+fn claim_a_few_tokens() {
+    init()
+        .run_as(alice(), |contract| {
+            contract.create_test_collectible(some_gate_id(), 10);
+            assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 1);
+        })
+        .run_as(bob(), |contract| {
+            contract.create_test_collectible(some_gate_id(), 10);
+            assert_eq!(contract.get_collectibles_by_creator(bob()).len(), 1);
+            contract.claim_token(some_gate_id());
         });
 }
 
@@ -127,5 +143,17 @@ fn transfer_a_token() {
 
             let ts = contract.get_tokens_by_owner(charlie());
             assert_eq!(ts.len(), 1);
+        });
+}
+
+#[test]
+fn approve() {
+    init()
+        .run_as(alice(), |contract| {
+            contract.create_test_collectible(some_gate_id(), 10);
+        })
+        .run_as(bob(), |contract| {
+            let token_id = contract.claim_token(some_gate_id());
+            contract.approve(token_id, any());
         });
 }
