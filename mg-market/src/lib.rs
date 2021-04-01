@@ -1,16 +1,6 @@
-use mg_core::{
-    fraction::Fraction,
-    nft::{NonFungibleTokenApprovalsReceiver, TokenId},
-};
+use mg_core::{fraction::Fraction, nft::{NonFungibleTokenApprovalsReceiver, ValidTokenId}};
 use near_env::near_envlog;
-use near_sdk::{
-    borsh::{self, BorshDeserialize, BorshSerialize},
-    env,
-    json_types::U64,
-    near_bindgen,
-    serde::{Deserialize, Serialize},
-    setup_alloc, AccountId, PanicOnDefault,
-};
+use near_sdk::{AccountId, PanicOnDefault, borsh::{self, BorshDeserialize, BorshSerialize}, env, json_types::{U64, ValidAccountId}, near_bindgen, serde::{Deserialize, Serialize}, setup_alloc};
 
 setup_alloc!();
 
@@ -67,10 +57,10 @@ impl Contract {
 impl NonFungibleTokenApprovalsReceiver for Contract {
     fn nft_on_approve(
         &mut self,
-        token_id: TokenId,
-        owner_id: AccountId,
-        approval_id: U64,
-        msg: String,
+        _token_id: ValidTokenId,
+        _owner_id: ValidAccountId,
+        _approval_id: U64,
+        _msg: String,
     ) {
         env::log(b"nft_on_approve");
     }

@@ -10,7 +10,7 @@ use std::{
 use context::MockedContext;
 use mg_core::{
     fraction::Fraction,
-    nft::{ContractMetadata, GateId, NonFungibleTokenCore},
+    nft::{ContractMetadata, GateId, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore},
 };
 use mg_nft::Contract;
 use near_sdk::json_types::{ValidAccountId, U64};
@@ -170,7 +170,7 @@ fn transfer_a_token() {
         })
         .run_as(bob(), |contract| {
             let token_id = contract.claim_token(some_gate_id());
-            contract.transfer_token(charlie(), token_id);
+            contract.nft_transfer(charlie(), token_id.into(), None, None);
 
             let ts = contract.get_tokens_by_owner(charlie());
             assert_eq!(ts.len(), 1);
@@ -185,6 +185,10 @@ fn approve() {
         })
         .run_as(bob(), |contract| {
             let token_id = contract.claim_token(some_gate_id());
-            contract.approve(token_id, any());
+            contract.nft_approve(
+                U64::from(token_id),
+                any(),
+                Some(r#"{"min_price": "10"}"#.to_string()),
+            );
         });
 }

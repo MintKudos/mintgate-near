@@ -1,8 +1,13 @@
 #![deny(warnings)]
 
+use std::convert::TryInto;
+
 use mg_core::{
     fraction::Fraction,
-    nft::{market, Collectible, ContractMetadata, GateId, NonFungibleTokenCore, Token, TokenId},
+    nft::{
+        market, ApproveMsg, Collectible, ContractMetadata, GateId, NonFungibleTokenApprovalMgmt,
+        NonFungibleTokenCore, Token, TokenId, ValidTokenId,
+    },
 };
 use near_env::near_envlog;
 use near_sdk::{
@@ -10,7 +15,7 @@ use near_sdk::{
     collections::{LookupMap, UnorderedMap, UnorderedSet},
     env,
     json_types::{ValidAccountId, U64},
-    near_bindgen, setup_alloc, AccountId, PanicOnDefault,
+    log, near_bindgen, setup_alloc, AccountId, PanicOnDefault,
 };
 
 setup_alloc!();
@@ -113,7 +118,7 @@ impl Contract {
         }
     }
 
-    pub fn claim_token(&mut self, gate_id: String) -> U64 {
+    pub fn claim_token(&mut self, gate_id: String) -> ValidTokenId {
         match self.collectibles.get(&gate_id) {
             None => env::panic(b"Gate id not found"),
             Some(mut collectible) => {
@@ -133,6 +138,7 @@ impl Contract {
                     modified_at: now,
                     sender_id: "".to_string(),
                     approvals: UnorderedMap::new(get_key_prefix(b'a', &token_id.to_ne_bytes())),
+                    approval_counter: 0,
                 };
                 self.insert_token(&token);
 
@@ -144,7 +150,7 @@ impl Contract {
         }
     }
 
-    /// Returns
+    /// Returns all `Token`s owned by `owner_id`.
     pub fn get_tokens_by_owner(&self, owner_id: ValidAccountId) -> Vec<Token> {
         match self.tokens_by_owner.get(owner_id.as_ref()) {
             None => Vec::new(),
@@ -158,41 +164,6 @@ impl Contract {
                 })
                 .collect(),
         }
-    }
-
-    /// Transfer the Token with the given `id` to `receiver`.
-    /// Only the `owner` of the token can make such a transfer.
-    pub fn transfer_token(&mut self, receiver: ValidAccountId, token_id: TokenId) {
-        let sender_id = env::predecessor_account_id();
-        if sender_id == *receiver.as_ref() {
-            env::panic("Self transfers are not allowed".as_bytes());
-        }
-
-        let mut token = self.get_token(token_id);
-
-        if sender_id != token.owner_id {
-            env::panic("Sender must own Token".as_bytes());
-        }
-
-        self.delete_token_from(token_id, &sender_id);
-
-        token.owner_id = receiver.as_ref().to_string();
-        token.sender_id = sender_id;
-        token.modified_at = env::block_timestamp();
-        self.insert_token(&token);
-    }
-
-    pub fn approve(&mut self, token_id: TokenId, account_id: ValidAccountId) {
-        let owner_id = env::predecessor_account_id();
-        market::nft_on_approve(
-            token_id,
-            owner_id,
-            U64::from(1),
-            "msg".to_string(),
-            account_id.as_ref(),
-            0,
-            env::prepaid_gas() / 3,
-        );
     }
 
     /// Gets the `Token` with given `token_id`.
@@ -238,6 +209,7 @@ impl Contract {
     }
 }
 
+#[near_bindgen]
 impl NonFungibleTokenCore for Contract {
     fn nft_metadata(&self) -> ContractMetadata {
         macro_rules! val {
@@ -258,20 +230,119 @@ impl NonFungibleTokenCore for Contract {
 
     fn nft_transfer(
         &mut self,
-        _receiver_id: ValidAccountId,
-        _token_id: TokenId,
-        _enforce_approval_id: Option<U64>,
-        _memo: Option<String>,
+        receiver_id: ValidAccountId,
+        token_id: ValidTokenId,
+        enforce_approval_id: Option<U64>,
+        memo: Option<String>,
     ) {
-        todo!()
+        let sender_id = env::predecessor_account_id();
+        let mut token = self.get_token(token_id.0);
+
+        if sender_id != token.owner_id && token.approvals.get(&sender_id).is_none() {
+            panic!("Sender `{}` is not authorized to make transfer");
+        }
+
+        if &token.owner_id == receiver_id.as_ref() {
+            panic!("The token owner and the receiver should be different");
+        }
+
+        if let Some(enforce_approval_id) = enforce_approval_id {
+            let (approval_id, _) = token
+                .approvals
+                .get(receiver_id.as_ref())
+                .expect("Receiver not an approver of this token.");
+            if approval_id != enforce_approval_id.0 {
+                panic!("The approval_id is different from enforce_approval_id");
+            }
+        }
+
+        if let Some(memo) = memo {
+            log!("Memo: {}", memo);
+        }
+
+        self.delete_token_from(token_id.0, &sender_id);
+
+        token.owner_id = receiver_id.as_ref().to_string();
+        token.sender_id = sender_id;
+        token.modified_at = env::block_timestamp();
+        self.insert_token(&token);
     }
 
     fn nft_total_supply(&self) -> U64 {
-        todo!()
+        U64::from(self.tokens.len())
     }
 
-    fn nft_token(&self, _token_id: TokenId) -> Token {
-        todo!()
+    fn nft_token(&self, token_id: ValidTokenId) -> Option<Token> {
+        self.tokens.get(&token_id.0)
+    }
+}
+
+#[near_bindgen]
+impl NonFungibleTokenApprovalMgmt for Contract {
+    fn nft_approve(
+        &mut self,
+        token_id: ValidTokenId,
+        account_id: ValidAccountId,
+        msg: Option<String>,
+    ) {
+        let min_price = {
+            if let Some(msg) = msg.clone() {
+                let approve_msg = near_sdk::serde_json::from_str::<ApproveMsg>(&msg)
+                    .expect("Could not find min_price in msg");
+                approve_msg.min_price.0
+            } else {
+                panic!("The msg argument must contain the minimum price");
+            }
+        };
+
+        let owner_id = env::predecessor_account_id();
+
+        let mut token = self.get_token(token_id.0);
+
+        if &owner_id != &token.owner_id {
+            panic!(
+                "Could Account `{}` does not own token `{}`",
+                owner_id, token_id.0
+            );
+        }
+
+        token.approval_counter += 1;
+        token
+            .approvals
+            .insert(account_id.as_ref(), &(token.approval_counter, min_price));
+        self.tokens.insert(&token_id.0, &token);
+
+        market::nft_on_approve(
+            token_id,
+            owner_id.try_into().unwrap(),
+            U64::from(token.approval_counter),
+            msg.unwrap(),
+            account_id.as_ref(),
+            0,
+            env::prepaid_gas() / 3,
+        );
+    }
+
+    fn nft_revoke(&mut self, token_id: ValidTokenId, account_id: ValidAccountId) {
+        let owner_id = env::predecessor_account_id();
+        let mut token = self.get_token(token_id.0);
+        if &owner_id != &token.owner_id {
+            panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
+        }
+        if token.approvals.remove(account_id.as_ref()).is_none() {
+            panic!("Could not revoke approval for `{}`", account_id.as_ref());
+        }
+        self.tokens.insert(&token_id.0, &token);
+    }
+
+    fn nft_revoke_all(&mut self, token_id: ValidTokenId) {
+        let owner_id = env::predecessor_account_id();
+        let mut token = self.get_token(token_id.0);
+        if &owner_id != &token.owner_id {
+            panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
+        }
+        token.approvals.clear();
+        self.tokens.insert(&token_id.0, &token);
     }
 }
 

@@ -3,11 +3,28 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
     ext_contract,
-    json_types::{ValidAccountId, U64},
+    json_types::{ValidAccountId, U128, U64},
     serde::{Deserialize, Serialize},
     AccountId, Balance,
 };
 
+/// The `GateId` type represents the identifier of each `Collectible`.
+pub type GateId = String;
+
+/// The `TokenId` type represents the identifier of each `Token`.
+pub type TokenId = u64;
+
+/// The `ValidTokenId` is meant to be used in public interfaces
+/// to represent `TokenId`.
+/// See https://github.com/near-examples/NFT/issues/117
+/// for background.
+pub type ValidTokenId = U64;
+
+/// Unix epoch, expressed in miliseconds.
+pub type Timestamp = u64;
+
+/// Associated metadata for the NFT contract as defined by
+/// https://github.com/near/NEPs/discussions/177
 #[derive(Deserialize, Serialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
@@ -21,8 +38,22 @@ pub struct ContractMetadata {
     pub reference_hash: Option<String>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
 }
 
-/// The `GateId` type represents the identifier of each `Collectible`.
-pub type GateId = String;
+/// Associated metadata with a `GateId` as defined by
+/// https://github.com/near/NEPs/discussions/177
+pub struct TokenMetadata {
+    pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
+    pub description: Option<String>, // free-form description
+    pub media: Option<String>, // URL to associated media, preferably to decentralized, content-addressed storage
+    pub media_hash: Option<String>, // Base64-encoded sha256 hash of content referenced by the `media` field. Required if `media` is included.
+    pub copies: Option<u64>, // number of copies of this set of metadata in existence when token was minted.
+    pub issued_at: Option<Timestamp>, // ISO 8601 datetime when token was issued or minted
+    pub expires_at: Option<Timestamp>, // ISO 8601 datetime when token expires
+    pub starts_at: Option<Timestamp>, // ISO 8601 datetime when token starts being valid
+    pub updated_at: Option<Timestamp>, // ISO 8601 datetime when token was last updated
+    pub extra: Option<String>, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
+    pub reference: Option<String>, // URL to an off-chain JSON file with more info.
+    pub reference_hash: Option<String>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+}
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
@@ -37,9 +68,6 @@ pub struct Collectible {
     pub minted_tokens: Vec<TokenId>,
     pub royalty: Fraction,
 }
-
-/// The `TokenId` type represents the identifier of each `Token`.
-pub type TokenId = u64;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -61,9 +89,13 @@ pub struct Token {
     /// Otherwise is empty.
     pub sender_id: AccountId,
     /// Holds the list of accounts that can `transfer_token`s on behalf of the token's owner.
-    /// It is mapped to the minimum amount that this token should be transfer for.
+    /// It is mapped to the approval id and minimum amount that this token should be transfer for.
     #[serde(skip_serializing)]
-    pub approvals: UnorderedMap<AccountId, Balance>,
+    pub approvals: UnorderedMap<AccountId, (u64, Balance)>,
+
+    #[serde(skip_serializing)]
+    /// Counter to assign next approval ID.
+    pub approval_counter: u64,
 }
 
 pub trait NonFungibleTokenCore {
@@ -72,30 +104,46 @@ pub trait NonFungibleTokenCore {
     fn nft_transfer(
         &mut self,
         receiver_id: ValidAccountId,
-        token_id: TokenId,
+        token_id: ValidTokenId,
         enforce_approval_id: Option<U64>,
         memo: Option<String>,
     );
 
     fn nft_total_supply(&self) -> U64;
 
-    fn nft_token(&self, token_id: TokenId) -> Token;
+    fn nft_token(&self, token_id: ValidTokenId) -> Option<Token>;
 }
 
-pub trait NonFungibleToken178ApprovalMgmt {
-    fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>);
+pub trait NonFungibleTokenApprovalMgmt {
+    fn nft_approve(
+        &mut self,
+        token_id: ValidTokenId,
+        account_id: ValidAccountId,
+        msg: Option<String>,
+    );
 
-    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId);
+    fn nft_revoke(&mut self, token_id: ValidTokenId, account_id: ValidAccountId);
 
-    fn nft_revoke_all(&mut self, token_id: TokenId);
+    fn nft_revoke_all(&mut self, token_id: ValidTokenId);
+}
+
+/// In our implementation of the standard,
+/// The `nft_approve` method must conform with the following:
+/// - The `msg` argument must contain a value, *i.e.*, cannot be `None`.
+/// - The value of `msg` must be a valid JSON,
+///   that deserializes to this struct.
+#[derive(Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ApproveMsg {
+    pub min_price: U128,
 }
 
 #[ext_contract(market)]
 pub trait NonFungibleTokenApprovalsReceiver {
     fn nft_on_approve(
         &mut self,
-        token_id: TokenId,
-        owner_id: AccountId,
+        token_id: ValidTokenId,
+        owner_id: ValidAccountId,
         approval_id: U64,
         msg: String,
     );
@@ -104,8 +152,8 @@ pub trait NonFungibleTokenApprovalsReceiver {
 pub trait NonFungibleTokenApprovalsReceiver {
     fn nft_on_approve(
         &mut self,
-        token_id: TokenId,
-        owner_id: AccountId,
+        token_id: ValidTokenId,
+        owner_id: ValidAccountId,
         approval_id: U64,
         msg: String,
     );
