@@ -28,15 +28,14 @@
     "dependencies": {
         "big.js": "^6.0.3",
         "gh-pages": "^3.1.0",
-        "near-api-js": "0.39.0",
-        "uuid": "^8.3.2"
+        "nanoid": "^3.1.22",
+        "near-api-js": "0.39.0"
     },
     "devDependencies": {
         "@jest/console": "^26.6.2",
         "@types/bn.js": "^5.1.0",
         "@types/bs58": "^4.0.1",
         "@types/jest": "^26.0.21",
-        "@types/uuid": "^8.3.0",
         "@typescript-eslint/eslint-plugin": "^4.19.0",
         "@typescript-eslint/parser": "^4.19.0",
         "autobahn": "^20.9.2",
@@ -52,7 +51,6 @@
         "js-sha256": "^0.9.0",
         "near-cli": "^1.5.4",
         "near-seed-phrase": "^0.1.1",
-        "node-sass": "^5.0.0",
         "prettier": "^2.2.1",
         "ts-jest": "^26.5.4",
         "typescript": "^4.2.3"
