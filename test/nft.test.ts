@@ -21,10 +21,32 @@ describe('Nft contract', () => {
 
   beforeAll(async () => {
     const config = await getConfig('development', '');
-    const { users } = await createProfiler('nft', 'target/wasm32-unknown-unknown/release/mg_nft.wasm', NftMethods, { func: 'init', args: { mintgate_fee: MINTGATE_FEE } }, config, 'jen', 'bob');
+    const { users } = await createProfiler(
+      'nft',
+      'target/wasm32-unknown-unknown/release/mg_nft.wasm',
+      NftMethods,
+      {
+        func: 'init',
+        args: { mintgate_fee: MINTGATE_FEE },
+      },
+      config,
+      'jen',
+      'bob',
+    );
     [jen, bob] = users;
 
-    const { contractName } = await createProfiler('market', 'target/wasm32-unknown-unknown/release/mg_market.wasm', NftMethods, { func: 'init', args: { mintgate_fee: MINTGATE_FEE } }, config, 'jen', 'bob');
+    const { contractName } = await createProfiler(
+      'market',
+      'target/wasm32-unknown-unknown/release/mg_market.wasm',
+      NftMethods,
+      {
+        func: 'init',
+        args: { mintgate_fee: MINTGATE_FEE },
+      },
+      config,
+      'jen',
+      'bob',
+    );
 
     marketAccount = contractName;
   });
