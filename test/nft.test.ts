@@ -1,7 +1,6 @@
-import { v4 as uuidv4 } from 'uuid';
 import { CustomConsole } from '@jest/console';
 
-import { addTestCollectible } from './utils';
+import { addTestCollectible, generateId } from './utils';
 import { AccountContract, Collectible, Fraction, NftMethods, Token } from '../src';
 import { createProfiler } from './deploy';
 import { getConfig } from './config';
@@ -88,7 +87,7 @@ describe('Nft contract', () => {
 
   describe('get_collectibles_by_creator', () => {
     it('should return collectibles by one creator', async () => {
-      const gateId = uuidv4();
+      const gateId = await generateId();
       const numberOfCollectiblesToAdd = 5;
       const newGateIds = Array.from(new Array(numberOfCollectiblesToAdd), (el, i) => `${gateId}${i}`);
 
@@ -113,12 +112,13 @@ describe('Nft contract', () => {
   });
 
   describe('claim_token', () => {
-    const gateId = uuidv4();
+    let gateId: string;
     const initialSupply = '1000';
     let tokenId: string;
     let initialTokensOfBob: Token[];
 
     beforeAll(async () => {
+      gateId = await generateId();
       await addTestCollectible(jen.contract, { gate_id: gateId, supply: initialSupply });
 
       initialTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
@@ -162,7 +162,7 @@ describe('Nft contract', () => {
     });
 
     it('should throw an error if all tokens have been claimed', async () => {
-      const gateIdNoSupply = uuidv4();
+      const gateIdNoSupply = await generateId();
 
       await addTestCollectible(jen.contract, {
         gate_id: gateIdNoSupply,
@@ -176,7 +176,11 @@ describe('Nft contract', () => {
   });
 
   describe('transfer_token', () => {
-    const gateId = uuidv4();
+    let gateId: string;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+    });
 
     describe('happy path', () => {
       const initialSupply = '2000';
@@ -249,12 +253,15 @@ describe('Nft contract', () => {
   });
 
   describe('get_tokens_by_owner', () => {
-    const gateId = uuidv4();
     const numberOfTokensToClaim = 3;
+
+    let gateId: string;
     let initialTokensOfJen: Token[];
     let tokensOfJen: Token[];
 
     beforeAll(async () => {
+      gateId = await generateId();
+
       await addTestCollectible(jen.contract, { gate_id: gateId });
 
       initialTokensOfJen = await jen.contract.get_tokens_by_owner({ owner_id: jen.accountId });
