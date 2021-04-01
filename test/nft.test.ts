@@ -2,26 +2,39 @@ import { v4 as uuidv4 } from 'uuid';
 import { CustomConsole } from '@jest/console';
 
 import { addTestCollectible } from './utils';
-import { AccountContract, Collectible, NftMethods, Token } from '../src';
+import { AccountContract, Collectible, Fraction, NftMethods, Token } from '../src';
 import { createProfiler } from './deploy';
 import { getConfig } from './config';
 
 global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
 
+const MINTGATE_FEE: Fraction = {
+  num: 25,
+  den: 1000,
+};
+
 describe('Nft contract', () => {
   let jen: AccountContract;
   let bob: AccountContract;
 
+  let marketAccount: string;
+
   beforeAll(async () => {
     const config = await getConfig('development', '');
-    const { deploy, users } = await createProfiler('nft', NftMethods, config, 'jen', 'bob');
+    const { users } = await createProfiler('nft', 'target/wasm32-unknown-unknown/release/mg_nft.wasm', NftMethods, { func: 'init', args: { mintgate_fee: MINTGATE_FEE } }, config, 'jen', 'bob');
     [jen, bob] = users;
 
-    await deploy('target/wasm32-unknown-unknown/release/mg_nft.wasm');
+    const { contractName } = await createProfiler('market', 'target/wasm32-unknown-unknown/release/mg_market.wasm', NftMethods, { func: 'init', args: { mintgate_fee: MINTGATE_FEE } }, config, 'jen', 'bob');
+
+    marketAccount = contractName;
   });
 
   test('that test accounts are different', async () => {
     expect(jen.accountId).not.toBe(bob.accountId);
+  });
+
+  test.only('approve', async () => {
+    await jen.contract.approve({ token_id: 0, account_id: marketAccount });
   });
 
   describe('create_collectible', () => {

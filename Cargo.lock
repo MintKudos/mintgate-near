@@ -247,6 +247,7 @@ name = "mg-market"
 version = "0.1.0"
 dependencies = [
  "mg-core",
+ "near-env",
  "near-sdk",
 ]
 

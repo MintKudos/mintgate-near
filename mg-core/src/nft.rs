@@ -85,3 +85,13 @@ pub trait NonFungibleTokenApprovalsReceiver {
         msg: String,
     );
 }
+
+pub trait NonFungibleTokenApprovalsReceiver {
+    fn nft_on_approve(
+        &mut self,
+        token_id: TokenId,
+        owner_id: AccountId,
+        approval_id: U64,
+        msg: String,
+    );
+}

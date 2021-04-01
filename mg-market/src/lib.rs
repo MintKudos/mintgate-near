@@ -1,13 +1,19 @@
-use mg_core::fraction::Fraction;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{near_bindgen, AccountId, PanicOnDefault, StorageUsage};
+use mg_core::{
+    fraction::Fraction,
+    nft::{NonFungibleTokenApprovalsReceiver, TokenId},
+};
+use near_env::near_envlog;
+use near_sdk::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    env,
+    json_types::U64,
+    near_bindgen,
+    serde::{Deserialize, Serialize},
+    AccountId, PanicOnDefault,
+};
 
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
-
-pub type TokenId = String;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -19,17 +25,6 @@ pub struct Token {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
-
-    pub tokens_by_id: UnorderedMap<TokenId, Token>,
-
-    pub owner_id: AccountId,
-
-    pub total_supply: u64,
-
-    /// The storage size in bytes for one account.
-    pub extra_storage_in_bytes_per_token: StorageUsage,
-
     /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
     /// This field can be set up when the contract is deployed.
     mintgate_fee: Fraction,
@@ -58,3 +53,26 @@ pub struct Contract {
 // Selling price: 5NMarketplace adds royalty: 10%: 5.5NMarketplace adds fee: 10%: 6.05NSelling price: 6.05N
 
 // }
+
+#[near_envlog(skip_args, only_pub)]
+#[near_bindgen]
+impl Contract {
+    #[init]
+    pub fn init(mintgate_fee: Fraction) -> Self {
+        Self { mintgate_fee }
+    }
+}
+
+#[near_envlog(skip_args, only_pub)]
+#[near_bindgen]
+impl NonFungibleTokenApprovalsReceiver for Contract {
+    fn nft_on_approve(
+        &mut self,
+        token_id: TokenId,
+        owner_id: AccountId,
+        approval_id: U64,
+        msg: String,
+    ) {
+        env::log(b"nft_on_approve");
+    }
+}
