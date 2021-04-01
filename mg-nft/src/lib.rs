@@ -2,7 +2,7 @@
 
 use mg_core::{
     fraction::Fraction,
-    nft::{market, Collectible, GateId, Token, TokenId},
+    nft::{market, Collectible, ContractMetadata, GateId, NonFungibleTokenCore, Token, TokenId},
 };
 use near_env::near_envlog;
 use near_sdk::{
@@ -26,22 +26,21 @@ pub struct Contract {
     collectibles_by_creator: LookupMap<AccountId, UnorderedSet<GateId>>,
     tokens: UnorderedMap<TokenId, Token>,
     tokens_by_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
-    /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
-    /// This field can be set up when the contract is deployed.
-    mintgate_fee: Fraction,
+    /// Admin account is only account allowed to make certain calls.
+    admin_id: AccountId,
 }
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn init(mintgate_fee: Fraction) -> Self {
+    pub fn init(admin_id: ValidAccountId) -> Self {
         Self {
             collectibles: UnorderedMap::new(vec![b'0']),
             collectibles_by_creator: LookupMap::new(vec![b'1']),
             tokens: UnorderedMap::new(vec![b'2']),
             tokens_by_owner: LookupMap::new(vec![b'3']),
-            mintgate_fee,
+            admin_id: admin_id.as_ref().to_string(),
         }
     }
 
@@ -88,7 +87,7 @@ impl Contract {
     /// Panics otherwise.
     pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Collectible {
         match self.collectibles.get(&gate_id) {
-            None => env::panic("Given gate_id was not found".as_bytes()),
+            None => panic!("Gate ID `{}` was not found", gate_id),
             Some(collectible) => {
                 assert!(collectible.gate_id == gate_id);
                 collectible
@@ -236,6 +235,43 @@ impl Contract {
                 assert!(was_removed.is_some());
             }
         }
+    }
+}
+
+impl NonFungibleTokenCore for Contract {
+    fn nft_metadata(&self) -> ContractMetadata {
+        macro_rules! val {
+            ($path:expr) => {{
+                include!(concat!(env!("OUT_DIR"), $path))
+            }};
+        }
+        ContractMetadata {
+            spec: val!("/spec.val").to_string(),
+            name: val!("/name.val").to_string(),
+            symbol: val!("/symbol.val").to_string(),
+            icon: val!("/icon.val").map(str::to_string),
+            base_uri: val!("/base_uri.val").map(str::to_string),
+            reference: val!("/reference.val").map(str::to_string),
+            reference_hash: val!("/reference_hash.val").map(str::to_string),
+        }
+    }
+
+    fn nft_transfer(
+        &mut self,
+        _receiver_id: ValidAccountId,
+        _token_id: TokenId,
+        _enforce_approval_id: Option<U64>,
+        _memo: Option<String>,
+    ) {
+        todo!()
+    }
+
+    fn nft_total_supply(&self) -> U64 {
+        todo!()
+    }
+
+    fn nft_token(&self, _token_id: TokenId) -> Token {
+        todo!()
     }
 }
 

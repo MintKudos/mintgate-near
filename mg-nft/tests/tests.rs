@@ -8,7 +8,10 @@ use std::{
 };
 
 use context::MockedContext;
-use mg_core::{fraction::Fraction, nft::GateId};
+use mg_core::{
+    fraction::Fraction,
+    nft::{ContractMetadata, GateId, NonFungibleTokenCore},
+};
 use mg_nft::Contract;
 use near_sdk::json_types::{ValidAccountId, U64};
 
@@ -56,9 +59,13 @@ impl ContractChecker {
 
 fn init() -> MockedContext<ContractChecker> {
     MockedContext::new(|| ContractChecker {
-        contract: Contract::init(Fraction::new(25, 1000)),
+        contract: Contract::init(admin()),
         claimed_tokens: Vec::new(),
     })
+}
+
+fn admin() -> ValidAccountId {
+    "admin".try_into().unwrap()
 }
 
 fn alice() -> ValidAccountId {
@@ -86,6 +93,19 @@ fn initial_state() {
     init().run_as(any(), |contract| {
         assert_eq!(contract.get_collectibles_by_creator(any()).len(), 0);
         assert_eq!(contract.get_tokens_by_owner(any()).len(), 0);
+
+        assert_eq!(
+            contract.nft_metadata(),
+            ContractMetadata {
+                spec: "mg-nft-1.0.0".to_string(),
+                name: "MintGate App".to_string(),
+                symbol: "MG".to_string(),
+                icon: None,
+                base_uri: Some("https://mintgate.app/t/".to_string()),
+                reference: None,
+                reference_hash: None,
+            }
+        );
     });
 }
 
@@ -94,6 +114,17 @@ fn create_a_collectible() {
     init().run_as(alice(), |contract| {
         contract.create_test_collectible(some_gate_id(), 10);
         assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 1);
+
+        let collectible = contract.get_collectible_by_gate_id(some_gate_id());
+        assert_eq!(collectible.gate_id, some_gate_id());
+    });
+}
+
+#[test]
+#[should_panic(expected = "Gate ID `0123` was not found")]
+fn get_nonexistent_gate_id_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.get_collectible_by_gate_id("0123".to_string());
     });
 }
 
