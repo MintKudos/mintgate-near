@@ -5,15 +5,15 @@ use std::convert::TryInto;
 use mg_core::{
     fraction::Fraction,
     nft::{
-        market, ApproveMsg, Collectible, ContractMetadata, GateId, NonFungibleTokenApprovalMgmt,
-        NonFungibleTokenCore, Token, TokenId, ValidTokenId,
+        ApproveMsg, Collectible, ContractMetadata, GateId, NonFungibleTokenApprovalMgmt,
+        NonFungibleTokenCore, Token, TokenId, TokenMetadata, ValidTokenId,
     },
 };
 use near_env::near_envlog;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
-    env,
+    env, ext_contract,
     json_types::{ValidAccountId, U64},
     log, near_bindgen, setup_alloc, AccountId, PanicOnDefault,
 };
@@ -33,19 +33,22 @@ pub struct Contract {
     tokens_by_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
     /// Admin account is only account allowed to make certain calls.
     admin_id: AccountId,
+    /// Metadata describing this NFT contract
+    metadata: ContractMetadata,
 }
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn init(admin_id: ValidAccountId) -> Self {
+    pub fn init(admin_id: ValidAccountId, metadata: ContractMetadata) -> Self {
         Self {
             collectibles: UnorderedMap::new(vec![b'0']),
             collectibles_by_creator: LookupMap::new(vec![b'1']),
             tokens: UnorderedMap::new(vec![b'2']),
             tokens_by_owner: LookupMap::new(vec![b'3']),
             admin_id: admin_id.as_ref().to_string(),
+            metadata,
         }
     }
 
@@ -67,12 +70,24 @@ impl Contract {
         let collectible = Collectible {
             gate_id,
             creator_id,
-            title,
-            description,
             current_supply: supply.0,
             gate_url,
             minted_tokens: Vec::new(),
             royalty,
+            metadata: TokenMetadata {
+                title: Some(title),
+                description: Some(description),
+                media: None,
+                media_hash: None,
+                copies: Some(supply.0),
+                issued_at: None,
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: None,
+                reference_hash: None,
+            },
         };
         self.collectibles.insert(&collectible.gate_id, &collectible);
 
@@ -212,20 +227,7 @@ impl Contract {
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
     fn nft_metadata(&self) -> ContractMetadata {
-        macro_rules! val {
-            ($path:expr) => {{
-                include!(concat!(env!("OUT_DIR"), $path))
-            }};
-        }
-        ContractMetadata {
-            spec: val!("/spec.val").to_string(),
-            name: val!("/name.val").to_string(),
-            symbol: val!("/symbol.val").to_string(),
-            icon: val!("/icon.val").map(str::to_string),
-            base_uri: val!("/base_uri.val").map(str::to_string),
-            reference: val!("/reference.val").map(str::to_string),
-            reference_hash: val!("/reference_hash.val").map(str::to_string),
-        }
+        self.metadata.clone()
     }
 
     fn nft_transfer(
@@ -277,6 +279,17 @@ impl NonFungibleTokenCore for Contract {
     }
 }
 
+#[ext_contract(market)]
+pub trait NonFungibleTokenApprovalsReceiver {
+    fn nft_on_approve(
+        &mut self,
+        token_id: ValidTokenId,
+        owner_id: ValidAccountId,
+        approval_id: U64,
+        msg: String,
+    );
+}
+
 #[near_bindgen]
 impl NonFungibleTokenApprovalMgmt for Contract {
     fn nft_approve(
@@ -300,10 +313,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         let mut token = self.get_token(token_id.0);
 
         if &owner_id != &token.owner_id {
-            panic!(
-                "Could Account `{}` does not own token `{}`",
-                owner_id, token_id.0
-            );
+            panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
         }
 
         token.approval_counter += 1;

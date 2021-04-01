@@ -2,7 +2,6 @@ use crate::fraction::Fraction;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
-    ext_contract,
     json_types::{ValidAccountId, U128, U64},
     serde::{Deserialize, Serialize},
     AccountId, Balance,
@@ -25,7 +24,7 @@ pub type Timestamp = u64;
 
 /// Associated metadata for the NFT contract as defined by
 /// https://github.com/near/NEPs/discussions/177
-#[derive(Deserialize, Serialize)]
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct ContractMetadata {
@@ -40,6 +39,9 @@ pub struct ContractMetadata {
 
 /// Associated metadata with a `GateId` as defined by
 /// https://github.com/near/NEPs/discussions/177
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
+#[serde(crate = "near_sdk::serde")]
 pub struct TokenMetadata {
     pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
     pub description: Option<String>, // free-form description
@@ -61,12 +63,11 @@ pub struct TokenMetadata {
 pub struct Collectible {
     pub gate_id: GateId,
     pub creator_id: AccountId,
-    pub title: String,
-    pub description: String,
     pub current_supply: u64,
     pub gate_url: String,
     pub minted_tokens: Vec<TokenId>,
     pub royalty: Fraction,
+    pub metadata: TokenMetadata,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
@@ -136,17 +137,6 @@ pub trait NonFungibleTokenApprovalMgmt {
 #[serde(crate = "near_sdk::serde")]
 pub struct ApproveMsg {
     pub min_price: U128,
-}
-
-#[ext_contract(market)]
-pub trait NonFungibleTokenApprovalsReceiver {
-    fn nft_on_approve(
-        &mut self,
-        token_id: ValidTokenId,
-        owner_id: ValidAccountId,
-        approval_id: U64,
-        msg: String,
-    );
 }
 
 pub trait NonFungibleTokenApprovalsReceiver {

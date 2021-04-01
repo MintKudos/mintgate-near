@@ -59,9 +59,21 @@ impl ContractChecker {
 
 fn init() -> MockedContext<ContractChecker> {
     MockedContext::new(|| ContractChecker {
-        contract: Contract::init(admin()),
+        contract: Contract::init(admin(), metadata()),
         claimed_tokens: Vec::new(),
     })
+}
+
+fn metadata() -> ContractMetadata {
+    ContractMetadata {
+        spec: "mg-nft-1.0.0".to_string(),
+        name: "MintGate App".to_string(),
+        symbol: "MG".to_string(),
+        icon: None,
+        base_uri: Some("https://mintgate.app/t/".to_string()),
+        reference: None,
+        reference_hash: None,
+    }
 }
 
 fn admin() -> ValidAccountId {
@@ -93,19 +105,7 @@ fn initial_state() {
     init().run_as(any(), |contract| {
         assert_eq!(contract.get_collectibles_by_creator(any()).len(), 0);
         assert_eq!(contract.get_tokens_by_owner(any()).len(), 0);
-
-        assert_eq!(
-            contract.nft_metadata(),
-            ContractMetadata {
-                spec: "mg-nft-1.0.0".to_string(),
-                name: "MintGate App".to_string(),
-                symbol: "MG".to_string(),
-                icon: None,
-                base_uri: Some("https://mintgate.app/t/".to_string()),
-                reference: None,
-                reference_hash: None,
-            }
-        );
+        assert_eq!(contract.nft_metadata(), metadata());
     });
 }
 
