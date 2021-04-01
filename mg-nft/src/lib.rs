@@ -239,7 +239,7 @@ impl NonFungibleTokenCore for Contract {
         let mut token = self.get_token(token_id.0);
 
         if sender_id != token.owner_id && token.approvals.get(&sender_id).is_none() {
-            panic!("Sender `{}` is not authorized to make transfer");
+            panic!("Sender `{}` is not authorized to make transfer", sender_id);
         }
 
         if &token.owner_id == receiver_id.as_ref() {
