@@ -5,10 +5,15 @@ use mg_core::{
     nft::{market, Collectible, GateId, Token, TokenId},
 };
 use near_env::near_envlog;
-use near_sdk::{AccountId, PanicOnDefault, borsh::{self, BorshDeserialize, BorshSerialize}, collections::{LookupMap, UnorderedMap, UnorderedSet}, env, json_types::{ValidAccountId, U64}, log, near_bindgen};
+use near_sdk::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    collections::{LookupMap, UnorderedMap, UnorderedSet},
+    env,
+    json_types::{ValidAccountId, U64},
+    near_bindgen, setup_alloc, AccountId, PanicOnDefault,
+};
 
-#[global_allocator]
-static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
+setup_alloc!();
 
 /// Entry point data storage for mintgate core contract.
 /// Since the contract needs custom initialization,
@@ -131,13 +136,9 @@ impl Contract {
                     approvals: UnorderedMap::new(get_key_prefix(b'a', &token_id.to_ne_bytes())),
                 };
                 self.insert_token(&token);
-                env::log(b"after insert");
 
                 collectible.current_supply -= 1;
                 self.collectibles.insert(&gate_id, &collectible);
-                env::log(b"after change supply");
-
-                log!("token_id: {}", token_id);
 
                 U64::from(token_id)
             }

@@ -9,11 +9,10 @@ use near_sdk::{
     json_types::U64,
     near_bindgen,
     serde::{Deserialize, Serialize},
-    AccountId, PanicOnDefault,
+    setup_alloc, AccountId, PanicOnDefault,
 };
 
-#[global_allocator]
-static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
+setup_alloc!();
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
