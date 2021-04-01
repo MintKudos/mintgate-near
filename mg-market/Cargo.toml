@@ -9,6 +9,6 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "3.0.0-pre.release"
+near-sdk = "3.0.1"
 near-env = "0.1.6"
 mg-core = { path = "../mg-core" }
