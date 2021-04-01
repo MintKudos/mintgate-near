@@ -4,9 +4,22 @@ use near_sdk::{
     collections::UnorderedMap,
     ext_contract,
     json_types::{ValidAccountId, U64},
-    serde::Serialize,
+    serde::{Deserialize, Serialize},
     AccountId, Balance,
 };
+
+#[derive(Deserialize, Serialize)]
+#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub struct ContractMetadata {
+    pub spec: String,              // required, essentially a version like "nft-1.0.0"
+    pub name: String, // required, ex. "Mochi Rising — Digital Edition" or "Metaverse 3"
+    pub symbol: String, // required, ex. "MOCHI"
+    pub icon: Option<String>, // Data URL
+    pub base_uri: Option<String>, // Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs
+    pub reference: Option<String>, // URL to a JSON file with more info
+    pub reference_hash: Option<String>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+}
 
 /// The `GateId` type represents the identifier of each `Collectible`.
 pub type GateId = String;
@@ -54,6 +67,8 @@ pub struct Token {
 }
 
 pub trait NonFungibleTokenCore {
+    fn nft_metadata(&self) -> ContractMetadata;
+
     fn nft_transfer(
         &mut self,
         receiver_id: ValidAccountId,
