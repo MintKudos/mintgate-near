@@ -1,6 +1,16 @@
-use mg_core::{fraction::Fraction, nft::{NonFungibleTokenApprovalsReceiver, ValidTokenId}};
+use mg_core::{
+    fraction::Fraction,
+    nft::{ApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId, ValidTokenId},
+};
 use near_env::near_envlog;
-use near_sdk::{AccountId, PanicOnDefault, borsh::{self, BorshDeserialize, BorshSerialize}, env, json_types::{U64, ValidAccountId}, near_bindgen, serde::{Deserialize, Serialize}, setup_alloc};
+use near_sdk::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    collections::UnorderedMap,
+    json_types::{ValidAccountId, U64},
+    near_bindgen,
+    serde::{Deserialize, Serialize},
+    setup_alloc, AccountId, PanicOnDefault,
+};
 
 setup_alloc!();
 
@@ -17,6 +27,8 @@ pub struct Contract {
     /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
     /// This field can be set up when the contract is deployed.
     mintgate_fee: Fraction,
+    /// Lists all tokens for sale.
+    tokens_for_sale: UnorderedMap<TokenId, (AccountId, u64, u128)>,
 }
 
 // fn asdf() {
@@ -48,7 +60,18 @@ pub struct Contract {
 impl Contract {
     #[init]
     pub fn init(mintgate_fee: Fraction) -> Self {
-        Self { mintgate_fee }
+        Self {
+            mintgate_fee,
+            tokens_for_sale: UnorderedMap::new(vec![b'0']),
+        }
+    }
+
+    pub fn get_tokens_for_sale(&self) -> Vec<ValidTokenId> {
+        let mut result = Vec::new();
+        for (token_id, _) in self.tokens_for_sale.iter() {
+            result.push(U64::from(token_id));
+        }
+        result
     }
 }
 
@@ -57,11 +80,17 @@ impl Contract {
 impl NonFungibleTokenApprovalsReceiver for Contract {
     fn nft_on_approve(
         &mut self,
-        _token_id: ValidTokenId,
-        _owner_id: ValidAccountId,
-        _approval_id: U64,
-        _msg: String,
+        token_id: ValidTokenId,
+        owner_id: ValidAccountId,
+        approval_id: U64,
+        msg: String,
     ) {
-        env::log(b"nft_on_approve");
+        let approve_msg = near_sdk::serde_json::from_str::<ApproveMsg>(&msg)
+            .expect("Could not find min_price in msg");
+
+        self.tokens_for_sale.insert(
+            &token_id.0,
+            &(owner_id.into(), approval_id.0, approve_msg.min_price.0),
+        );
     }
 }
