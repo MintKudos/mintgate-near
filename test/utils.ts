@@ -1,6 +1,10 @@
-import { v4 as uuidv4 } from 'uuid';
+import { customAlphabet } from 'nanoid/async';
 
 import type { Fraction, NftContract } from '../src';
+
+const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
+
+export const generateId = async (): Promise<string> => nanoid();
 
 const collectibleDefaultData = {
   gate_url: 'Test gate url',
@@ -27,8 +31,30 @@ export const addTestCollectible = async (
   let { gate_id } = collectibleData;
 
   if (!gate_id) {
-    gate_id = uuidv4();
+    gate_id = await generateId();
   }
 
   return contract.create_collectible({ ...collectibleDefaultData, ...collectibleData, gate_id });
 };
+
+export const formatNsToMs = (timestampNs: number): number => Number(
+  (() => {
+    let timestampStr = timestampNs.toString();
+
+    if (timestampStr.length > 13) {
+      return timestampStr.slice(0, 13);
+    }
+
+    if (timestampStr.length < 13) {
+      for (let i = timestampStr.length; i < 13; i += 1) {
+        timestampStr += '0';
+      }
+
+      return timestampStr;
+    }
+
+    return timestampStr;
+  })(),
+);
+
+export const isWithinLastMs = (timestamp: number, ms: number): boolean => timestamp > Date.now() - ms;
