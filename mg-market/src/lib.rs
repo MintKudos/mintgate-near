@@ -1,6 +1,6 @@
 use mg_core::{
     fraction::Fraction,
-    nft::{ApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId, ValidTokenId},
+    nft::{ApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId},
 };
 use near_env::near_envlog;
 use near_sdk::{
@@ -66,10 +66,10 @@ impl Contract {
         }
     }
 
-    pub fn get_tokens_for_sale(&self) -> Vec<ValidTokenId> {
+    pub fn get_tokens_for_sale(&self) -> Vec<TokenId> {
         let mut result = Vec::new();
         for (token_id, _) in self.tokens_for_sale.iter() {
-            result.push(U64::from(token_id));
+            result.push(token_id);
         }
         result
     }
@@ -80,7 +80,7 @@ impl Contract {
 impl NonFungibleTokenApprovalsReceiver for Contract {
     fn nft_on_approve(
         &mut self,
-        token_id: ValidTokenId,
+        token_id: TokenId,
         owner_id: ValidAccountId,
         approval_id: U64,
         msg: String,
@@ -89,7 +89,7 @@ impl NonFungibleTokenApprovalsReceiver for Contract {
             .expect("Could not find min_price in msg");
 
         self.tokens_for_sale.insert(
-            &token_id.0,
+            &token_id,
             &(owner_id.into(), approval_id.0, approve_msg.min_price.0),
         );
     }

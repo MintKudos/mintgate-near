@@ -1,12 +1,12 @@
 #![deny(warnings)]
 
-use std::convert::TryInto;
+use std::{collections::HashMap, convert::TryInto};
 
 use mg_core::{
     fraction::Fraction,
     nft::{
         ApproveMsg, Collectible, ContractMetadata, GateId, NonFungibleTokenApprovalMgmt,
-        NonFungibleTokenCore, Token, TokenId, TokenMetadata, ValidTokenId,
+        NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
     },
 };
 use near_env::near_envlog;
@@ -65,12 +65,19 @@ impl Contract {
         gate_url: String,
         royalty: Fraction,
     ) {
+        if self.collectibles.get(&gate_id).is_some() {
+            panic!("Gate ID `{}` already exists", gate_id);
+        }
+        if supply.0 == 0 {
+            panic!("Gate ID `{}` must have a positive supply", gate_id);
+        }
+
         let creator_id = env::predecessor_account_id();
 
         let collectible = Collectible {
             gate_id,
             creator_id,
-            current_supply: supply.0,
+            current_supply: supply,
             gate_url,
             minted_tokens: Vec::new(),
             royalty,
@@ -79,7 +86,7 @@ impl Contract {
                 description: Some(description),
                 media: None,
                 media_hash: None,
-                copies: Some(supply.0),
+                copies: Some(supply),
                 issued_at: None,
                 expires_at: None,
                 starts_at: None,
@@ -133,11 +140,11 @@ impl Contract {
         }
     }
 
-    pub fn claim_token(&mut self, gate_id: String) -> ValidTokenId {
+    pub fn claim_token(&mut self, gate_id: String) -> TokenId {
         match self.collectibles.get(&gate_id) {
             None => env::panic(b"Gate id not found"),
             Some(mut collectible) => {
-                if collectible.current_supply == 0 {
+                if collectible.current_supply.0 == 0 {
                     env::panic(b"All tokens for this gate id have been claimed");
                 }
 
@@ -146,18 +153,18 @@ impl Contract {
 
                 let token_id = self.tokens.len();
                 let token = Token {
-                    token_id,
+                    token_id: U64::from(token_id),
                     gate_id: gate_id.clone(),
                     owner_id,
                     created_at: now,
                     modified_at: now,
                     sender_id: "".to_string(),
-                    approvals: UnorderedMap::new(get_key_prefix(b'a', &token_id.to_ne_bytes())),
-                    approval_counter: 0,
+                    approvals: HashMap::new(),
+                    approval_counter: U64::from(0),
                 };
                 self.insert_token(&token);
 
-                collectible.current_supply -= 1;
+                collectible.current_supply.0 = collectible.current_supply.0 - 1;
                 self.collectibles.insert(&gate_id, &collectible);
 
                 U64::from(token_id)
@@ -185,7 +192,7 @@ impl Contract {
     /// Panics otherwise.
     fn get_token(&self, token_id: TokenId) -> Token {
         match self.tokens.get(&token_id) {
-            None => panic!("The token id `{}` was not found", token_id),
+            None => panic!("The token id `{}` was not found", token_id.0),
             Some(token) => {
                 assert!(token.token_id == token_id);
                 token
@@ -210,10 +217,10 @@ impl Contract {
     /// Panics if `owner` does not own the corgi with `id`.
     fn delete_token_from(&mut self, token_id: TokenId, owner_id: &AccountId) {
         match self.tokens_by_owner.get(&owner_id) {
-            None => panic!("Could not delete token `{}` since account `{}` does not have tokens to delete from", token_id, owner_id),
+            None => panic!("Could not delete token `{}` since account `{}` does not have tokens to delete from", token_id.0, owner_id),
             Some(mut list) => {
                 if !list.remove(&token_id) {
-                    panic!("Token `{}` does not belong to account `{}`", token_id, owner_id);
+                    panic!("Token `{}` does not belong to account `{}`", token_id.0, owner_id);
                 }
                 self.tokens_by_owner.insert(&owner_id, &list);
 
@@ -224,6 +231,7 @@ impl Contract {
     }
 }
 
+#[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
     fn nft_metadata(&self) -> ContractMetadata {
@@ -233,12 +241,12 @@ impl NonFungibleTokenCore for Contract {
     fn nft_transfer(
         &mut self,
         receiver_id: ValidAccountId,
-        token_id: ValidTokenId,
+        token_id: TokenId,
         enforce_approval_id: Option<U64>,
         memo: Option<String>,
     ) {
         let sender_id = env::predecessor_account_id();
-        let mut token = self.get_token(token_id.0);
+        let mut token = self.get_token(token_id);
 
         if sender_id != token.owner_id && token.approvals.get(&sender_id).is_none() {
             panic!("Sender `{}` is not authorized to make transfer", sender_id);
@@ -249,11 +257,14 @@ impl NonFungibleTokenCore for Contract {
         }
 
         if let Some(enforce_approval_id) = enforce_approval_id {
-            let (approval_id, _) = token
+            let TokenApproval {
+                approval_id,
+                min_price: _,
+            } = token
                 .approvals
                 .get(receiver_id.as_ref())
                 .expect("Receiver not an approver of this token.");
-            if approval_id != enforce_approval_id.0 {
+            if approval_id != &enforce_approval_id {
                 panic!("The approval_id is different from enforce_approval_id");
             }
         }
@@ -262,7 +273,7 @@ impl NonFungibleTokenCore for Contract {
             log!("Memo: {}", memo);
         }
 
-        self.delete_token_from(token_id.0, &sender_id);
+        self.delete_token_from(token_id, &token.owner_id);
 
         token.owner_id = receiver_id.as_ref().to_string();
         token.sender_id = sender_id;
@@ -274,8 +285,8 @@ impl NonFungibleTokenCore for Contract {
         U64::from(self.tokens.len())
     }
 
-    fn nft_token(&self, token_id: ValidTokenId) -> Option<Token> {
-        self.tokens.get(&token_id.0)
+    fn nft_token(&self, token_id: TokenId) -> Option<Token> {
+        self.tokens.get(&token_id)
     }
 }
 
@@ -283,26 +294,22 @@ impl NonFungibleTokenCore for Contract {
 pub trait NonFungibleTokenApprovalsReceiver {
     fn nft_on_approve(
         &mut self,
-        token_id: ValidTokenId,
+        token_id: TokenId,
         owner_id: ValidAccountId,
         approval_id: U64,
         msg: String,
     );
 }
 
+#[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalMgmt for Contract {
-    fn nft_approve(
-        &mut self,
-        token_id: ValidTokenId,
-        account_id: ValidAccountId,
-        msg: Option<String>,
-    ) {
+    fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
         let min_price = {
             if let Some(msg) = msg.clone() {
                 let approve_msg = near_sdk::serde_json::from_str::<ApproveMsg>(&msg)
                     .expect("Could not find min_price in msg");
-                approve_msg.min_price.0
+                approve_msg.min_price
             } else {
                 panic!("The msg argument must contain the minimum price");
             }
@@ -310,17 +317,21 @@ impl NonFungibleTokenApprovalMgmt for Contract {
 
         let owner_id = env::predecessor_account_id();
 
-        let mut token = self.get_token(token_id.0);
+        let mut token = self.get_token(token_id);
 
         if &owner_id != &token.owner_id {
             panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
         }
 
-        token.approval_counter += 1;
-        token
-            .approvals
-            .insert(account_id.as_ref(), &(token.approval_counter, min_price));
-        self.tokens.insert(&token_id.0, &token);
+        token.approval_counter.0 = token.approval_counter.0 + 1;
+        token.approvals.insert(
+            account_id.clone().into(),
+            TokenApproval {
+                approval_id: token.approval_counter,
+                min_price,
+            },
+        );
+        self.tokens.insert(&token_id, &token);
 
         market::nft_on_approve(
             token_id,
@@ -333,26 +344,26 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         );
     }
 
-    fn nft_revoke(&mut self, token_id: ValidTokenId, account_id: ValidAccountId) {
+    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) {
         let owner_id = env::predecessor_account_id();
-        let mut token = self.get_token(token_id.0);
+        let mut token = self.get_token(token_id);
         if &owner_id != &token.owner_id {
             panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
         }
         if token.approvals.remove(account_id.as_ref()).is_none() {
             panic!("Could not revoke approval for `{}`", account_id.as_ref());
         }
-        self.tokens.insert(&token_id.0, &token);
+        self.tokens.insert(&token_id, &token);
     }
 
-    fn nft_revoke_all(&mut self, token_id: ValidTokenId) {
+    fn nft_revoke_all(&mut self, token_id: TokenId) {
         let owner_id = env::predecessor_account_id();
-        let mut token = self.get_token(token_id.0);
+        let mut token = self.get_token(token_id);
         if &owner_id != &token.owner_id {
             panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
         }
         token.approvals.clear();
-        self.tokens.insert(&token_id.0, &token);
+        self.tokens.insert(&token_id, &token);
     }
 }
 
