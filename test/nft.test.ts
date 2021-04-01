@@ -33,7 +33,7 @@ describe('Nft contract', () => {
     expect(jen.accountId).not.toBe(bob.accountId);
   });
 
-  test.only('approve', async () => {
+  test('approve -- to refactor', async () => {
     await jen.contract.approve({ token_id: 0, account_id: marketAccount });
   });
 
