@@ -1,9 +1,11 @@
 import { CustomConsole } from '@jest/console';
 
-import { addTestCollectible, generateId } from './utils';
-import { AccountContract, Collectible, Fraction, NftMethods, Token } from '../src';
 import { createProfiler } from './deploy';
 import { getConfig } from './config';
+import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs } from './utils';
+import { NftMethods } from '../src';
+
+import type { AccountContract, Collectible, Token, Fraction } from '../src';
 
 global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
 
@@ -15,6 +17,7 @@ const MINTGATE_FEE: Fraction = {
 describe('Nft contract', () => {
   let jen: AccountContract;
   let bob: AccountContract;
+  const nonExistentUserId = 'ron-1111111111111-111111';
 
   let marketAccount: string;
 
@@ -37,12 +40,23 @@ describe('Nft contract', () => {
   });
 
   describe('create_collectible', () => {
-    it('should create collectible with provided data', async () => {
-      const gateId = uuidv4();
-      const title = 'Test title';
-      const description = 'Test description';
-      const supply = '100';
-      const royalty = {
+    let gateId: string;
+    let title: string;
+    let description: string;
+    let supply: string;
+    let gateUrl: string;
+    let royalty: Fraction;
+
+    let collectible: Collectible;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      title = 'Test title';
+      description = 'Test description';
+      supply = '100';
+      gateUrl = 'Test url';
+      royalty = {
         num: 5,
         den: 10,
       };
@@ -52,23 +66,48 @@ describe('Nft contract', () => {
         title,
         description,
         supply,
+        gate_url: gateUrl,
         royalty,
       });
 
-      const collectible = await jen.contract.get_collectible_by_gate_id({ gate_id: gateId });
+      collectible = await jen.contract.get_collectible_by_gate_id({ gate_id: gateId });
+    });
 
+    it('should create collectible with provided data', async () => {
       expect(collectible).toMatchObject({
+        gate_id: gateId,
         title,
         description,
         current_supply: Number(supply),
+        gate_url: gateUrl,
         royalty,
       });
+    });
+
+    it('should make a new collectible available through it\'s id', () => {
+      expect(collectible).not.toBeUndefined();
+    });
+
+    it('should associate a new collectible with it\'s creator', async () => {
+      const collectiblesOfJen = await jen.contract.get_collectibles_by_creator({ creator_id: jen.accountId });
+
+      const newCollectibles = collectiblesOfJen.filter(({ gate_id }) => gate_id === gateId);
+
+      expect(newCollectibles.length).toBe(1);
+    });
+
+    it('should set a correct creator\'s id', async () => {
+      expect(collectible.creator_id).toBe(jen.accountId);
+    });
+
+    it('should set minted tokens for a new collectible to an empty array', async () => {
+      expect(collectible.minted_tokens).toEqual([]);
     });
   });
 
   describe('get_collectible_by_gate_id', () => {
     it('should return collectible', async () => {
-      const gateId = uuidv4();
+      const gateId = await generateId();
 
       await addTestCollectible(jen.contract, { gate_id: gateId });
       const collectible = await jen.contract.get_collectible_by_gate_id({ gate_id: gateId });
@@ -86,28 +125,37 @@ describe('Nft contract', () => {
   });
 
   describe('get_collectibles_by_creator', () => {
-    it('should return collectibles by one creator', async () => {
+    const numberOfCollectiblesToAdd = 5;
+
+    let newGateIds: string[];
+    let collectiblesInitial: Collectible[];
+    let collectibles: Collectible[];
+
+    beforeAll(async () => {
       const gateId = await generateId();
-      const numberOfCollectiblesToAdd = 5;
-      const newGateIds = Array.from(new Array(numberOfCollectiblesToAdd), (el, i) => `${gateId}${i}`);
 
-      const collectiblesInitial = await jen.contract.get_collectibles_by_creator({ creator_id: jen.accountId });
+      newGateIds = Array.from(new Array(numberOfCollectiblesToAdd), (el, i) => `${gateId}${i}`);
 
+      collectiblesInitial = await jen.contract.get_collectibles_by_creator({ creator_id: jen.accountId });
       await Promise.all(newGateIds.map((id) => addTestCollectible(jen.contract, { gate_id: id })));
+      collectibles = await jen.contract.get_collectibles_by_creator({ creator_id: jen.accountId });
+    });
 
-      const collectibles = await jen.contract.get_collectibles_by_creator({ creator_id: jen.accountId });
-
-      expect(collectibles).toHaveLength(numberOfCollectiblesToAdd + collectiblesInitial.length);
+    it('should return only collectibles by specified creator', () => {
       expect(collectibles.every((collectible: Collectible) => collectible.creator_id === jen.accountId)).toBe(true);
+    });
+
+    it('should return all collectibles by a specified creator', async () => {
+      expect(collectibles).toHaveLength(numberOfCollectiblesToAdd + collectiblesInitial.length);
       expect(
         newGateIds.every((id) => collectibles.some((collectible: Collectible) => collectible.gate_id === id)),
       ).toBe(true);
     });
 
     it('should return empty array if no collectibles found', async () => {
-      const collectibles = await jen.contract.get_collectibles_by_creator({ creator_id: bob.accountId });
+      const collectiblesNonExistent = await jen.contract.get_collectibles_by_creator({ creator_id: nonExistentUserId });
 
-      expect(collectibles).toEqual([]);
+      expect(collectiblesNonExistent).toEqual([]);
     });
   });
 
@@ -146,6 +194,14 @@ describe('Nft contract', () => {
 
       it('should set correct collectible of the token', async () => {
         expect(token.gate_id).toBe(gateId);
+      });
+
+      it('should set now as time of token\'s creation', async () => {
+        expect(isWithinLastMs(formatNsToMs(token.created_at), 1000 * 5)).toBe(true);
+      });
+
+      it('should set time of the token\'s modification equal to it\'s creation', async () => {
+        expect(formatNsToMs(token.created_at)).toBe(formatNsToMs(token.modified_at));
       });
     });
 
@@ -224,6 +280,10 @@ describe('Nft contract', () => {
 
       it('should set token\'s new owner', async () => {
         expect(token.owner_id).toBe(jen.accountId);
+      });
+
+      it('should update token\'s modified_at property', async () => {
+        expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
 
       it('should set token\'s sender', () => {
