@@ -1,18 +1,6 @@
-import { CustomConsole } from '@jest/console';
-
-import { createProfiler } from './deploy';
-import { getConfig } from './config';
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs } from './utils';
-import { NftMethods } from '../src';
 
 import type { AccountContract, Collectible, Token, Fraction } from '../src';
-
-global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
-
-const MINTGATE_FEE: Fraction = {
-  num: 25,
-  den: 1000,
-};
 
 describe('Nft contract', () => {
   let alice: AccountContract;
@@ -22,35 +10,9 @@ describe('Nft contract', () => {
   let marketAccount: string;
 
   beforeAll(async () => {
-    const config = await getConfig('development', '');
-    const { users } = await createProfiler(
-      'nft',
-      'target/wasm32-unknown-unknown/release/mg_nft.wasm',
-      NftMethods,
-      {
-        func: 'init',
-        args: { mintgate_fee: MINTGATE_FEE },
-      },
-      config,
-      'alice',
-      'bob',
-    );
-    [alice, bob] = users;
+    [alice, bob] = global.users;
 
-    const { contractName } = await createProfiler(
-      'market',
-      'target/wasm32-unknown-unknown/release/mg_market.wasm',
-      NftMethods,
-      {
-        func: 'init',
-        args: { mintgate_fee: MINTGATE_FEE },
-      },
-      config,
-      'alice',
-      'bob',
-    );
-
-    marketAccount = contractName;
+    marketAccount = global.contractName;
   });
 
   test('that test accounts are different', async () => {
@@ -175,7 +137,8 @@ describe('Nft contract', () => {
     });
 
     it('should return empty array if no collectibles found', async () => {
-      const collectiblesNonExistent = await alice.contract.get_collectibles_by_creator({ creator_id: nonExistentUserId });
+      const collectiblesNonExistent = await alice.contract
+        .get_collectibles_by_creator({ creator_id: nonExistentUserId });
 
       expect(collectiblesNonExistent).toEqual([]);
     });
