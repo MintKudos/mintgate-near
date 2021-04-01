@@ -8,23 +8,18 @@ import bs58 from 'bs58';
 import BN from 'bn.js';
 import { NearConfig } from 'near-api-js/lib/near';
 import { FinalExecutionOutcome } from 'near-api-js/lib/providers';
-import { AccountContract, Fraction, NftContract } from '../src';
+import { AccountContract, NftContract } from '../src';
 
 const GAS = new BN(300000000000000);
-
-const MINTGATE_FEE: Fraction = {
-    num: 25,
-    den: 1000,
-};
 
 export interface Methods {
     viewMethods: string[],
     changeMethods: string[],
 }
 
-export async function createProfiler(contractPrefix: string, methods: Methods, config: NearConfig, ...userPrefixes: string[]):
+export async function createProfiler(contractPrefix: string, wasmPath: string, methods: Methods, init: { func: string, args: any } | null, config: NearConfig, ...userPrefixes: string[]):
     Promise<{
-        deploy: (wasmPath: string) => Promise<void>,
+        contractName: string,
         users: AccountContract[]
     }> {
     const out = process.stdout;
@@ -111,25 +106,30 @@ export async function createProfiler(contractPrefix: string, methods: Methods, c
     start('Initial entry');
     const initialEntry = await append({});
 
-    return {
-        deploy: async function (wasmPath: string) {
-            start(`Contract ${chalk.cyan(basename(wasmPath))}`);
-            const wasmData = fs.readFileSync(wasmPath);
-            const wasmHash = sha256.array(wasmData);
-            const wasmBase64 = bs58.encode(Buffer.from(wasmHash));
-            info('sha256/base58:' + wasmBase64);
-            if (initialEntry.contract.code_hash !== wasmBase64) {
-                info('deploying');
-                const outcome = await contractAccount.deployContract(wasmData);
-                await contractAccount.functionCall(contractAccount.accountId, 'init', { mintgate_fee: MINTGATE_FEE }, GAS, new BN(0));
-
-                done();
-                await append(outcome);
-            } else {
-                info('up to date');
-                done();
+    await (async function () {
+        start(`Contract ${chalk.cyan(basename(wasmPath))}`);
+        const wasmData = fs.readFileSync(wasmPath);
+        const wasmHash = sha256.array(wasmData);
+        const wasmBase64 = bs58.encode(Buffer.from(wasmHash));
+        info('sha256/base58:' + wasmBase64);
+        if (initialEntry.contract.code_hash !== wasmBase64) {
+            info('deploying');
+            const outcome = await contractAccount.deployContract(wasmData);
+            if (init) {
+                await contractAccount.functionCall(contractAccount.accountId, init.func, init.args, GAS, new BN(0));
             }
-        },
+
+            done();
+            await append(outcome);
+        } else {
+            info('up to date');
+            done();
+        }
+    })();
+
+    return {
+
+        contractName: contractAccount.accountId,
 
         users: users.map(({ account, contract, user }) => {
             return {
