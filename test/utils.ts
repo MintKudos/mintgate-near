@@ -36,3 +36,25 @@ export const addTestCollectible = async (
 
   return contract.create_collectible({ ...collectibleDefaultData, ...collectibleData, gate_id });
 };
+
+export const formatNsToMs = (timestampNs: number): number => Number(
+  (() => {
+    let timestampStr = timestampNs.toString();
+
+    if (timestampStr.length > 13) {
+      return timestampStr.slice(0, 13);
+    }
+
+    if (timestampStr.length < 13) {
+      for (let i = timestampStr.length; i < 13; i += 1) {
+        timestampStr += '0';
+      }
+
+      return timestampStr;
+    }
+
+    return timestampStr;
+  })(),
+);
+
+export const isWithinLastMs = (timestamp: number, ms: number): boolean => timestamp > Date.now() - ms;
