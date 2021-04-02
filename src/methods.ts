@@ -5,5 +5,5 @@ export const NftMethods = {
 
 export const MarketMethods = {
   viewMethods: ['get_tokens_for_sale'],
-  changeMethods: ['init'],
+  changeMethods: ['init', 'nft_on_approve'],
 };
