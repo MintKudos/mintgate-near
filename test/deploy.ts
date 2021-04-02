@@ -34,10 +34,16 @@ export async function createProfiler(contractPrefix: string, wasmPath: string, m
 
     const keyDir = homedir() + '/.near-credentials';
     const keyStore = new keyStores.UnencryptedFileSystemKeyStore(keyDir);
+    const keyStoreInMemory = new keyStores.InMemoryKeyStore();
     infoln(`Using key store from ${param(keyDir)}`);
 
     const near = new Near({
         deps: { keyStore: keyStore },
+        ...config
+    });
+
+    const nearInMemory = new Near({
+        deps: { keyStore: keyStoreInMemory },
         ...config
     });
 
@@ -63,6 +69,17 @@ export async function createProfiler(contractPrefix: string, wasmPath: string, m
                 fs.mkdirSync('neardev');
             }
             fs.writeFileSync(`neardev/${prefix}-account`, accountId);
+
+            if (prefix === contractPrefix) {
+              prog('adding funds to account');
+              const accountIdSponsor = generateUniqueAccountId();
+              const newKeyPairSponsor = KeyPair.fromRandom('ed25519');
+              const accountSponsor = await nearInMemory.createAccount(accountIdSponsor, newKeyPairSponsor.getPublicKey());
+              await keyStoreInMemory.setKey(config.networkId, accountSponsor.accountId, newKeyPairSponsor);
+
+              await accountSponsor.deleteAccount(accountId);
+            }
+
             done();
             return account;
         }
