@@ -11,8 +11,8 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace NodeJS {
     interface Global {
-      users: AccountContract[],
-      contractName: string,
+      users: AccountContract[];
+      contractName: string;
     }
   }
 }
@@ -49,7 +49,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
       },
       config,
       'alice',
-      'bob',
+      'bob'
     );
 
     this.global.users = users;
@@ -64,7 +64,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
       },
       config,
       'alice',
-      'bob',
+      'bob'
     );
 
     this.global.contractName = contractName;

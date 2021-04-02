@@ -64,11 +64,11 @@ describe('Nft contract', () => {
       });
     });
 
-    it('should make a new collectible available through it\'s id', () => {
+    it("should make a new collectible available through it's id", () => {
       expect(collectible).not.toBeUndefined();
     });
 
-    it('should associate a new collectible with it\'s creator', async () => {
+    it("should associate a new collectible with it's creator", async () => {
       const collectiblesOfAlice = await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId });
 
       const newCollectibles = collectiblesOfAlice.filter(({ gate_id }) => gate_id === gateId);
@@ -76,7 +76,7 @@ describe('Nft contract', () => {
       expect(newCollectibles.length).toBe(1);
     });
 
-    it('should set a correct creator\'s id', async () => {
+    it("should set a correct creator's id", async () => {
       expect(collectible.creator_id).toBe(alice.accountId);
     });
 
@@ -99,7 +99,7 @@ describe('Nft contract', () => {
       const nonExistentId = 'nonExistentId';
 
       await expect(alice.contract.get_collectible_by_gate_id({ gate_id: nonExistentId })).rejects.toThrow(
-        `Gate ID \`${nonExistentId}\` was not found`,
+        `Gate ID \`${nonExistentId}\` was not found`
       );
     });
   });
@@ -128,13 +128,14 @@ describe('Nft contract', () => {
     it('should return all collectibles by a specified creator', async () => {
       expect(collectibles).toHaveLength(numberOfCollectiblesToAdd + collectiblesInitial.length);
       expect(
-        newGateIds.every((id) => collectibles.some((collectible: Collectible) => collectible.gate_id === id)),
+        newGateIds.every((id) => collectibles.some((collectible: Collectible) => collectible.gate_id === id))
       ).toBe(true);
     });
 
     it('should return empty array if no collectibles found', async () => {
-      const collectiblesNonExistent = await alice.contract
-        .get_collectibles_by_creator({ creator_id: nonExistentUserId });
+      const collectiblesNonExistent = await alice.contract.get_collectibles_by_creator({
+        creator_id: nonExistentUserId,
+      });
 
       expect(collectiblesNonExistent).toEqual([]);
     });
@@ -148,7 +149,10 @@ describe('Nft contract', () => {
 
     beforeAll(async () => {
       gateId = await generateId();
-      await addTestCollectible(alice.contract, { gate_id: gateId, supply: initialSupply });
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+        supply: initialSupply,
+      });
 
       initialTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
 
@@ -177,11 +181,11 @@ describe('Nft contract', () => {
         expect(token.gate_id).toBe(gateId);
       });
 
-      it('should set now as time of token\'s creation', async () => {
+      it("should set now as time of token's creation", async () => {
         expect(isWithinLastMs(formatNsToMs(token.created_at), 1000 * 5)).toBe(true);
       });
 
-      it('should set time of the token\'s modification equal to it\'s creation', async () => {
+      it("should set time of the token's modification equal to it's creation", async () => {
         expect(formatNsToMs(token.created_at)).toBe(formatNsToMs(token.modified_at));
       });
     });
@@ -209,7 +213,7 @@ describe('Nft contract', () => {
       await alice.contract.claim_token({ gate_id: gateIdNoSupply });
 
       await expect(alice.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
-        'All tokens for this gate id have been claimed',
+        'All tokens for this gate id have been claimed'
       );
     });
   });
@@ -221,7 +225,10 @@ describe('Nft contract', () => {
       const initialSupply = '2000';
 
       gateId = await generateId();
-      await addTestCollectible(alice.contract, { gate_id: gateId, supply: initialSupply });
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+        supply: initialSupply,
+      });
     });
 
     describe('happy path', () => {
@@ -240,7 +247,10 @@ describe('Nft contract', () => {
         initialTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
         initialTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
 
-        await bob.contract.nft_transfer({ receiver_id: alice.accountId, token_id: bobsTokenId });
+        await bob.contract.nft_transfer({
+          receiver_id: alice.accountId,
+          token_id: bobsTokenId,
+        });
 
         tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
         tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
@@ -248,12 +258,12 @@ describe('Nft contract', () => {
         [token] = tokensOfAlice.filter(({ token_id }) => token_id === bobsTokenId);
       });
 
-      it('should associate token with it\'s new owner', () => {
+      it("should associate token with it's new owner", () => {
         expect(token).not.toBeUndefined();
         expect(initialTokensOfAlice.length).toBe(tokensOfAlice.length - 1);
       });
 
-      it('should disassociate token from it\'s previous owner', () => {
+      it("should disassociate token from it's previous owner", () => {
         expect(initialTokensOfBob.length).toBe(tokensOfBob.length + 1);
 
         const [transferredToken] = tokensOfBob.filter(({ token_id }) => token_id === bobsTokenId);
@@ -261,15 +271,15 @@ describe('Nft contract', () => {
         expect(transferredToken).toBeUndefined();
       });
 
-      it('should set token\'s new owner', async () => {
+      it("should set token's new owner", async () => {
         expect(token.owner_id).toBe(alice.accountId);
       });
 
-      it('should update token\'s modified_at property', async () => {
+      it("should update token's modified_at property", async () => {
         expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
 
-      it('should set token\'s sender', () => {
+      it("should set token's sender", () => {
         expect(token.sender_id).toBe(bob.accountId);
       });
     });
@@ -282,15 +292,21 @@ describe('Nft contract', () => {
       });
 
       it('should throw when the sender and the receiver are one person', async () => {
-        await expect(alice.contract.nft_transfer({ receiver_id: alice.accountId, token_id: alicesTokenId }))
-          .rejects
-          .toThrow('The token owner and the receiver should be different');
+        await expect(
+          alice.contract.nft_transfer({
+            receiver_id: alice.accountId,
+            token_id: alicesTokenId,
+          })
+        ).rejects.toThrow('The token owner and the receiver should be different');
       });
 
-      it('should throw when the sender doesn\'t own the token', async () => {
-        await expect(bob.contract.nft_transfer({ receiver_id: alice.accountId, token_id: alicesTokenId }))
-          .rejects
-          .toThrow(`Sender &#x60;${bob.accountId}&#x60; is not authorized to make transfer`);
+      it("should throw when the sender doesn't own the token", async () => {
+        await expect(
+          bob.contract.nft_transfer({
+            receiver_id: alice.accountId,
+            token_id: alicesTokenId,
+          })
+        ).rejects.toThrow(`Sender &#x60;${bob.accountId}&#x60; is not authorized to make transfer`);
       });
     });
   });
@@ -310,7 +326,7 @@ describe('Nft contract', () => {
       initialTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
 
       await Promise.all(
-        new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId })),
+        new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId }))
       );
     });
 
@@ -330,7 +346,12 @@ describe('Nft contract', () => {
       tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
 
       await Promise.all(
-        tokensOfAlice.map(({ token_id }) => alice.contract.nft_transfer({ receiver_id: bob.accountId, token_id })),
+        tokensOfAlice.map(({ token_id }) =>
+          alice.contract.nft_transfer({
+            receiver_id: bob.accountId,
+            token_id,
+          })
+        )
       );
 
       const newTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
