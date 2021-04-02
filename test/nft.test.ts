@@ -1,18 +1,30 @@
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs } from './utils';
 
-import type { AccountContract, Collectible, Token, Fraction } from '../src';
+import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace NodeJS {
+    interface Global {
+      nftUsers: AccountContract<NftContract>[];
+      marketUsers: AccountContract<MarketContract>[];
+    }
+  }
+}
 
 describe('Nft contract', () => {
-  let alice: AccountContract;
-  let bob: AccountContract;
+  let alice: AccountContract<NftContract>;
+  let bob: AccountContract<NftContract>;
+  let merchant: AccountContract<MarketContract>;
+  let merchant2: AccountContract<MarketContract>;
   const nonExistentUserId = 'ron-1111111111111-111111';
 
   // let marketAccount: string;
 
   beforeAll(async () => {
-    [alice, bob] = global.users;
+    [alice, bob] = global.nftUsers;
 
-    // marketAccount = global.contractName;
+    [merchant, merchant2] = global.marketUsers;
   });
 
   test('that test accounts are different', async () => {
@@ -360,7 +372,184 @@ describe('Nft contract', () => {
     });
   });
 
-  describe('approve', () => {
-    test.todo('approve');
+  describe('nft_approve', () => {
+    let gateId: string;
+    let tokenId: string;
+    let token: Token;
+
+    const message = {
+      min_price: '5',
+    };
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+
+      tokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      await bob.contract.nft_approve({
+        token_id: tokenId,
+        account_id: merchant.accountId,
+        msg: JSON.stringify(message),
+      });
+
+      const tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+      [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+    });
+
+    it('should increment approval counter', () => {
+      expect(token.approval_counter).toBe('1');
+    });
+
+    it("should update token's approvals", () => {
+      expect(token.approvals[merchant.accountId]).toEqual({
+        approval_id: String(Object.keys(token.approvals).length),
+        min_price: message.min_price,
+      });
+    });
+
+    // todo: Cannot find contract code for account merchant-.......
+    test.skip('that market lists the token as for sale', async () => {
+      const tokensForSale = await merchant.contract.get_tokens_for_sale();
+
+      expect(tokensForSale).toContain(tokenId);
+    });
+
+    describe('errors', () => {
+      it("should throw an error if msg argument doesn't contain min price", async () => {
+        await expect(
+          alice.contract.nft_approve({
+            token_id: tokenId,
+            account_id: merchant.accountId,
+            msg: JSON.stringify({}),
+          })
+        ).rejects.toThrow(`Could not find min_price in msg`);
+      });
+
+      // todo
+      it('should throw an error if msg not provided', async () => {
+        await expect(
+          alice.contract.nft_approve({
+            token_id: tokenId,
+            account_id: merchant.accountId,
+          })
+        ).rejects.toThrow(`The msg argument must contain the minimum price`);
+      });
+
+      it("should throw an error if msg argument doesn't contain min price", async () => {
+        await expect(
+          alice.contract.nft_approve({
+            token_id: tokenId,
+            account_id: merchant.accountId,
+            msg: JSON.stringify(message),
+          })
+        ).rejects.toThrow(`Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${tokenId}&#x60;`);
+      });
+    });
+  });
+
+  describe('nft_revoke', () => {
+    let gateId: string;
+    let tokenId: string;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+
+      tokenId = await bob.contract.claim_token({ gate_id: gateId });
+    });
+
+    it('should remove approval for specified market', async () => {
+      await bob.contract.nft_approve({
+        token_id: tokenId,
+        account_id: merchant.accountId,
+        msg: JSON.stringify({
+          min_price: '5',
+        }),
+      });
+
+      let tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+      let [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+
+      expect(token.approvals[merchant.accountId]).not.toBeUndefined();
+
+      await bob.contract.nft_revoke({
+        token_id: tokenId,
+        account_id: merchant.accountId,
+      });
+
+      tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+      [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+
+      expect(token.approvals[merchant.accountId]).toBeUndefined();
+    });
+
+    it("should throw an error if revoker doesn't own the token", async () => {
+      await expect(
+        alice.contract.nft_revoke({
+          token_id: tokenId,
+          account_id: merchant.accountId,
+        })
+      ).rejects.toThrow(`Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${tokenId}&#x60;`);
+    });
+
+    it('should throw an error if token is not approved for market', async () => {
+      const tokenId2 = await bob.contract.claim_token({ gate_id: gateId });
+
+      await expect(
+        bob.contract.nft_revoke({
+          token_id: tokenId2,
+          account_id: merchant.accountId,
+        })
+      ).rejects.toThrow(`Could not revoke approval for &#x60;${merchant.accountId}&#x60;`);
+    });
+  });
+
+  describe('nft_revoke_all', () => {
+    let gateId: string;
+    let tokenId: string;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+
+      tokenId = await bob.contract.claim_token({ gate_id: gateId });
+    });
+
+    it('should remove approval for specified market', async () => {
+      const approvePromises: Promise<void>[] = [];
+
+      [merchant, merchant2].forEach((accountContract) => {
+        approvePromises.push(
+          bob.contract.nft_approve({
+            token_id: tokenId,
+            account_id: accountContract.accountId,
+            msg: JSON.stringify({
+              min_price: '5',
+            }),
+          })
+        );
+      });
+
+      await Promise.all(approvePromises);
+
+      let tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+      let [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+
+      expect(Object.keys(token.approvals).length).toBeTruthy();
+
+      await bob.contract.nft_revoke_all({ token_id: tokenId });
+
+      tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+      [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+
+      expect(Object.keys(token.approvals)).toHaveLength(0);
+    });
+
+    it("should throw an error if revoker doesn't own the token", async () => {
+      await expect(alice.contract.nft_revoke_all({ token_id: tokenId })).rejects.toThrow(
+        `Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${tokenId}&#x60;`
+      );
+    });
   });
 });

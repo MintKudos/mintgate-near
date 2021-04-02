@@ -25,6 +25,11 @@ export interface Collectible {
   metadata: TokenMetadata;
 }
 
+export interface TokenApproval {
+  approval_id: string;
+  min_price: string;
+}
+
 export interface Token {
   token_id: string;
   gate_id: string;
@@ -32,5 +37,6 @@ export interface Token {
   created_at: number;
   modified_at: number;
   sender_id: string;
-  approvals: [];
+  approvals: Record<string, TokenApproval>;
+  approval_counter: string;
 }
