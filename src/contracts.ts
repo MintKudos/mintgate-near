@@ -34,7 +34,11 @@ export interface NftContract extends Contract {
 
   nft_transfer(data: { receiver_id: string; token_id: string }): Promise<void>;
 
-  approve(args: { token_id: string; account_id: string }): Promise<void>;
+  nft_approve(args: { token_id: string; account_id: string; msg?: string }): Promise<void>;
+
+  nft_revoke(args: { token_id: string; account_id: string }): Promise<void>;
+
+  nft_revoke_all(token_id: { token_id: string }): Promise<void>;
 }
 
 export interface MarketContract extends Contract {

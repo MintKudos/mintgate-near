@@ -63,8 +63,8 @@ export default class LocalTestEnvironment extends NodeEnvironment {
         args: { mintgate_fee: MINTGATE_FEE },
       },
       config,
-      'alice',
-      'bob'
+      'merchant-1',
+      'merchant-2'
     );
 
     this.global.marketUsers = marketUsers;
