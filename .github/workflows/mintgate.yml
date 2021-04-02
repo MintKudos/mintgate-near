@@ -65,6 +65,7 @@ jobs:
       with:
         name: mg_release
         path: target/wasm32-unknown-unknown/release
+    - run: rustup target add wasm32-unknown-unknown
     - run: yarn install --frozen-lockfile
     - run: yarn app-test:contracts
 

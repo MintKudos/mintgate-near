@@ -26,7 +26,7 @@ export const addTestCollectible = async (
     description?: string;
     supply?: string;
     royalty?: Fraction;
-  } = {},
+  } = {}
 ): Promise<void> => {
   let { gate_id } = collectibleData;
 
@@ -34,27 +34,32 @@ export const addTestCollectible = async (
     gate_id = await generateId();
   }
 
-  return contract.create_collectible({ ...collectibleDefaultData, ...collectibleData, gate_id });
+  return contract.create_collectible({
+    ...collectibleDefaultData,
+    ...collectibleData,
+    gate_id,
+  });
 };
 
-export const formatNsToMs = (timestampNs: number): number => Number(
-  (() => {
-    let timestampStr = timestampNs.toString();
+export const formatNsToMs = (timestampNs: number): number =>
+  Number(
+    (() => {
+      let timestampStr = timestampNs.toString();
 
-    if (timestampStr.length > 13) {
-      return timestampStr.slice(0, 13);
-    }
+      if (timestampStr.length > 13) {
+        return timestampStr.slice(0, 13);
+      }
 
-    if (timestampStr.length < 13) {
-      for (let i = timestampStr.length; i < 13; i += 1) {
-        timestampStr += '0';
+      if (timestampStr.length < 13) {
+        for (let i = timestampStr.length; i < 13; i += 1) {
+          timestampStr += '0';
+        }
+
+        return timestampStr;
       }
 
       return timestampStr;
-    }
-
-    return timestampStr;
-  })(),
-);
+    })()
+  );
 
 export const isWithinLastMs = (timestamp: number, ms: number): boolean => timestamp > Date.now() - ms;

@@ -4,7 +4,7 @@ export interface Collectible {
     creator_id: string;
     title: string;
     description: string;
-    current_supply: number;
+    current_supply: string;
     gate_url: string;
     minted_tokens: [];
     royalty: Fraction;
