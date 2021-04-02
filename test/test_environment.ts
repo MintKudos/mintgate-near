@@ -7,8 +7,6 @@ import { getConfig } from './config';
 import { createProfiler } from './deploy';
 import { AccountContract, Fraction, NftMethods } from '../src';
 
-global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
-
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace NodeJS {
@@ -19,9 +17,21 @@ declare global {
   }
 }
 
+global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
+
 const MINTGATE_FEE: Fraction = {
   num: 25,
   den: 1000,
+};
+
+// todo: use more realistic data
+const nftContractArguments = {
+  admin_id: 'zzz-1111111111111-111111',
+  metadata: {
+    spec: 'someSpec',
+    name: 'someName',
+    symbol: 'someSymbol',
+  },
 };
 
 export default class LocalTestEnvironment extends NodeEnvironment {
@@ -35,7 +45,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
       NftMethods,
       {
         func: 'init',
-        args: { mintgate_fee: MINTGATE_FEE },
+        args: nftContractArguments,
       },
       config,
       'alice',
