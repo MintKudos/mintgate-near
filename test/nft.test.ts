@@ -1,18 +1,19 @@
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs } from './utils';
 
-import type { AccountContract, Collectible, Token, Fraction } from '../src';
+import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
 
 describe('Nft contract', () => {
-  let alice: AccountContract;
-  let bob: AccountContract;
+  let alice: AccountContract<NftContract>;
+  let bob: AccountContract<NftContract>;
+  let merchant: AccountContract<MarketContract>;
   const nonExistentUserId = 'ron-1111111111111-111111';
 
   // let marketAccount: string;
 
   beforeAll(async () => {
-    [alice, bob] = global.users;
+    [alice, bob] = global.nftUsers;
 
-    // marketAccount = global.contractName;
+    [merchant] = global.marketUsers;
   });
 
   test('that test accounts are different', async () => {

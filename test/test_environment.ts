@@ -5,14 +5,14 @@ import type { Script } from 'vm';
 
 import { getConfig } from './config';
 import { createProfiler } from './deploy';
-import { AccountContract, Fraction, NftMethods } from '../src';
+import { AccountContract, Fraction, NftMethods, MarketMethods, NftContract, MarketContract } from '../src';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace NodeJS {
     interface Global {
-      users: AccountContract[];
-      contractName: string;
+      nftUsers: AccountContract<NftContract>[];
+      marketUsers: AccountContract<MarketContract>[];
     }
   }
 }
@@ -39,7 +39,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
     await super.setup();
 
     const config = await getConfig('development', '');
-    const { users } = await createProfiler(
+    const { users: nftUsers } = await createProfiler<NftContract>(
       'nft',
       'target/wasm32-unknown-unknown/release/mg_nft.wasm',
       NftMethods,
@@ -52,12 +52,12 @@ export default class LocalTestEnvironment extends NodeEnvironment {
       'bob'
     );
 
-    this.global.users = users;
+    this.global.nftUsers = nftUsers;
 
-    const { contractName } = await createProfiler(
+    const { users: marketUsers } = await createProfiler<MarketContract>(
       'market',
       'target/wasm32-unknown-unknown/release/mg_market.wasm',
-      NftMethods,
+      MarketMethods,
       {
         func: 'init',
         args: { mintgate_fee: MINTGATE_FEE },
@@ -67,7 +67,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
       'bob'
     );
 
-    this.global.contractName = contractName;
+    this.global.marketUsers = marketUsers;
   }
 
   async teardown(): Promise<void> {
