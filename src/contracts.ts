@@ -41,6 +41,8 @@ export interface MarketContract extends Contract {
   init(mintgateFee: { mintgate_fee: Fraction }): Promise<void>;
 
   get_tokens_for_sale(): Promise<Token[]>;
+
+  nft_on_approve(args: { token_id: string; owner_id: string; approval_id: string; msg: string }): Promise<void>;
 }
 
 export type AccountContract<T extends NftContract | MarketContract> = {
