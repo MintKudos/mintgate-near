@@ -29,14 +29,12 @@ jobs:
           ~/.cargo/registry
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-      
     - run: rustup target add wasm32-unknown-unknown
     - run: cargo build --target wasm32-unknown-unknown --release
     - run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
-
     - uses: actions/upload-artifact@v2
       with:
-        name: mg_core
+        name: mg_release
         path: |
           target/wasm32-unknown-unknown/release/mg_nft.wasm
           target/wasm32-unknown-unknown/release/mg_market.wasm
@@ -52,28 +50,23 @@ jobs:
           ~/.cargo/registry
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-
     - run: cargo test
 
-  # api-test-contract:
-  #   needs: build-contract
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - uses: actions/cache@v2
-  #     with:
-  #       path: '**/node_modules'
-  #       key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
-  #   - uses: actions/download-artifact@v2
-  #     with:
-  #       name: corgis_nft
-  #       path: contract/target/wasm32-unknown-unknown/release
-
-  #   - name: Disable near-cli event tracking consent question (which blocks the CI pipeline)
-  #     run: "mkdir ~/.near-config && echo '{\"trackingEnabled\": false, \"trackingAccountID\": false}' > ~/.near-config/settings.json"
-  #   - run: yarn install --frozen-lockfile
-  #   - run: yarn dev-deploy:contract
-  #   - run: yarn api-test:contract
+  app-test-contracts:
+    needs: build-contracts
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: '**/node_modules'
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: mg_release
+        path: target/wasm32-unknown-unknown/release
+    - run: yarn install --frozen-lockfile
+    - run: yarn app-test:contracts
 
   # deploy:
   #   needs: api-test-contract

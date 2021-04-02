@@ -13,8 +13,8 @@ construct_uint! {
 /// Represents a number between `0` and `1`.
 /// It is meant to be used as percentage to calculate both fees and royalties.
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
-#[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
 pub struct Fraction {
     pub num: u32,
     pub den: u32,
