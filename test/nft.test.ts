@@ -332,6 +332,38 @@ describe('Nft contract', () => {
     });
   });
 
+  describe('nft_total_supply', () => {
+    it('nft_total_supply', async () => {
+      const promises = [];
+      promises.push(alice.contract.nft_total_supply());
+
+      global.nftUsers.forEach(({ contract, accountId }) => {
+        promises.push(contract.get_tokens_by_owner({ owner_id: accountId }));
+      });
+
+      const [totalSupply, ...tokens] = await Promise.all(promises);
+
+      expect(+totalSupply).toBe(tokens.flat().length);
+    });
+  });
+
+  describe('nft_token', () => {
+    it('nft_token', async () => {
+      const gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+      });
+
+      const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+      const tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+      const [tokenFromAllTokens] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+      const tokenById = await bob.contract.nft_token({ token_id: tokenId });
+
+      expect(tokenFromAllTokens).toEqual(tokenById);
+    });
+  });
+
   describe('get_tokens_by_owner', () => {
     const numberOfTokensToClaim = 3;
 
