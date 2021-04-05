@@ -46,7 +46,9 @@
     ],
     "prettier/prettier": "error",
     "camelcase": "off",
-    "no-console": ["error", { "allow": ["warn", "error"] }]
+    "no-console": ["error", { "allow": ["warn", "error"] }],
+    "no-continue": "off",
+    "no-await-in-loop": "off"
   },
   "ignorePatterns": ["lib/*"]
 }

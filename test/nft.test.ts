@@ -1,4 +1,5 @@
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs } from './utils';
+import contractMetadata from './contractMetadata';
 
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
 
@@ -69,10 +70,14 @@ describe('Nft contract', () => {
       expect(collectible).toMatchObject({
         current_supply: supply,
         royalty,
-        metadata: {
-          title,
-          description,
-        },
+      });
+    });
+
+    it("should set token's metadata for the created collectible", async () => {
+      expect(collectible.metadata).toMatchObject({
+        title,
+        description,
+        copies: supply,
       });
     });
 
@@ -95,6 +100,32 @@ describe('Nft contract', () => {
     it('should set minted tokens for a new collectible to an empty array', async () => {
       expect(collectible.minted_tokens).toEqual([]);
     });
+
+    describe('errors', () => {
+      const invalidDigitMessage = 'invalid digit found in string';
+
+      it('should throw an error if provided gate id already exists', async () => {
+        await expect(addTestCollectible(alice.contract, { gate_id: gateId })).rejects.toThrow(
+          `Gate ID &#x60;${gateId}&#x60; already exists`
+        );
+      });
+
+      it.each([
+        ['0', /Gate ID .+ must have a positive supply/],
+        ['-10', invalidDigitMessage],
+        ['1b', invalidDigitMessage],
+        ['c', invalidDigitMessage],
+      ])('should throw an error if supply is not a positive number, i.e. %s', async (supplyNew, message) => {
+        const gateIdNew = await generateId();
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            supply: supplyNew,
+          })
+        ).rejects.toThrow(message);
+      });
+    });
   });
 
   describe('get_collectible_by_gate_id', () => {
@@ -108,7 +139,7 @@ describe('Nft contract', () => {
     });
 
     it('should throw an error if no collectible found', async () => {
-      const nonExistentId = 'nonExistentId';
+      const nonExistentId = await generateId();
 
       await expect(alice.contract.get_collectible_by_gate_id({ gate_id: nonExistentId })).rejects.toThrow(
         `Gate ID \`${nonExistentId}\` was not found`
@@ -177,8 +208,7 @@ describe('Nft contract', () => {
 
       beforeAll(async () => {
         tokensOfBob = await alice.contract.get_tokens_by_owner({ owner_id: bob.accountId });
-
-        [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+        token = await alice.contract.nft_token({ token_id: tokenId });
       });
 
       it('should create only one token for an owner', async () => {
@@ -230,6 +260,14 @@ describe('Nft contract', () => {
     });
   });
 
+  describe('nft_metadata', () => {
+    it("should return contract's metadata", async () => {
+      const metadata = await alice.contract.nft_metadata();
+
+      expect(metadata).toEqual(contractMetadata);
+    });
+  });
+
   describe('nft_transfer', () => {
     let gateId: string;
 
@@ -266,8 +304,7 @@ describe('Nft contract', () => {
 
         tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
         tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
-
-        [token] = tokensOfAlice.filter(({ token_id }) => token_id === bobsTokenId);
+        token = await bob.contract.nft_token({ token_id: bobsTokenId });
       });
 
       it("should associate token with it's new owner", () => {
@@ -294,6 +331,10 @@ describe('Nft contract', () => {
       it("should set token's sender", () => {
         expect(token.sender_id).toBe(bob.accountId);
       });
+
+      it.todo('enforce_approval_id');
+
+      it.todo('memo');
     });
 
     describe('errors', () => {
@@ -320,6 +361,38 @@ describe('Nft contract', () => {
           })
         ).rejects.toThrow(`Sender &#x60;${bob.accountId}&#x60; is not authorized to make transfer`);
       });
+    });
+  });
+
+  describe('nft_total_supply', () => {
+    it('nft_total_supply', async () => {
+      const promises = [];
+      promises.push(alice.contract.nft_total_supply());
+
+      global.nftUsers.forEach(({ contract, accountId }) => {
+        promises.push(contract.get_tokens_by_owner({ owner_id: accountId }));
+      });
+
+      const [totalSupply, ...tokens] = await Promise.all(promises);
+
+      expect(+totalSupply).toBe(tokens.flat().length);
+    });
+  });
+
+  describe('nft_token', () => {
+    it('nft_token', async () => {
+      const gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+      });
+
+      const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+      const tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+      const [tokenFromAllTokens] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+      const tokenById = await bob.contract.nft_token({ token_id: tokenId });
+
+      expect(tokenFromAllTokens).toEqual(tokenById);
     });
   });
 
@@ -393,8 +466,7 @@ describe('Nft contract', () => {
         msg: JSON.stringify(message),
       });
 
-      const tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
-      [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+      token = await bob.contract.nft_token({ token_id: tokenId });
     });
 
     it('should increment approval counter', () => {
@@ -426,7 +498,6 @@ describe('Nft contract', () => {
         ).rejects.toThrow(`Could not find min_price in msg`);
       });
 
-      // todo
       it('should throw an error if msg not provided', async () => {
         await expect(
           alice.contract.nft_approve({
@@ -468,9 +539,7 @@ describe('Nft contract', () => {
         }),
       });
 
-      let tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
-      let [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
-
+      let token = await bob.contract.nft_token({ token_id: tokenId });
       expect(token.approvals[merchant.accountId]).not.toBeUndefined();
 
       await bob.contract.nft_revoke({
@@ -478,9 +547,7 @@ describe('Nft contract', () => {
         account_id: merchant.accountId,
       });
 
-      tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
-      [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
-
+      token = await bob.contract.nft_token({ token_id: tokenId });
       expect(token.approvals[merchant.accountId]).toBeUndefined();
     });
 
@@ -533,16 +600,12 @@ describe('Nft contract', () => {
 
       await Promise.all(approvePromises);
 
-      let tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
-      let [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
-
+      let token = await bob.contract.nft_token({ token_id: tokenId });
       expect(Object.keys(token.approvals).length).toBeTruthy();
 
       await bob.contract.nft_revoke_all({ token_id: tokenId });
 
-      tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
-      [token] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
-
+      token = await bob.contract.nft_token({ token_id: tokenId });
       expect(Object.keys(token.approvals)).toHaveLength(0);
     });
 
