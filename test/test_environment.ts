@@ -1,11 +1,14 @@
+import type { Script } from 'vm';
+
 import NodeEnvironment from 'jest-environment-node';
 import { CustomConsole } from '@jest/console';
 
-import type { Script } from 'vm';
-
 import { getConfig } from './config';
 import { createProfiler } from './deploy';
-import { AccountContract, Fraction, NftMethods, MarketMethods, NftContract, MarketContract } from '../src';
+import prefixes from './prefixes';
+import { NftMethods, MarketMethods } from '../src';
+
+import type { AccountContract, Fraction, NftContract, MarketContract } from '../src';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -40,7 +43,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
 
     const config = await getConfig('development', '');
     const { users: nftUsers } = await createProfiler<NftContract>(
-      'nft',
+      prefixes.nft.contract,
       'target/wasm32-unknown-unknown/release/mg_nft.wasm',
       NftMethods,
       {
@@ -48,14 +51,13 @@ export default class LocalTestEnvironment extends NodeEnvironment {
         args: nftContractArguments,
       },
       config,
-      'alice',
-      'bob'
+      ...prefixes.nft.users
     );
 
     this.global.nftUsers = nftUsers;
 
     const { users: marketUsers } = await createProfiler<MarketContract>(
-      'market',
+      prefixes.market.contract,
       'target/wasm32-unknown-unknown/release/mg_market.wasm',
       MarketMethods,
       {
@@ -63,8 +65,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
         args: { mintgate_fee: MINTGATE_FEE },
       },
       config,
-      'merchant-1',
-      'merchant-2'
+      ...prefixes.market.users
     );
 
     this.global.marketUsers = marketUsers;
