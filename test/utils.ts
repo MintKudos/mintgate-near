@@ -1,4 +1,5 @@
 import { customAlphabet } from 'nanoid/async';
+import chalk from 'chalk';
 
 import type { Fraction, NftContract } from '../src';
 
@@ -63,3 +64,32 @@ export const formatNsToMs = (timestampNs: number): number =>
   );
 
 export const isWithinLastMs = (timestamp: number, ms: number): boolean => timestamp > Date.now() - ms;
+
+export const logger = {
+  out: process.stdout,
+
+  msg: chalk.blue,
+  ok: chalk.green,
+  param: chalk.cyan,
+  warn: chalk.yellow,
+
+  prog(message: string): void {
+    this.out.write(this.msg(`${message}.. `));
+  },
+
+  info(message: string): void {
+    logger.out.write(logger.msg(`${message} `));
+  },
+
+  infoln(message: string): void {
+    this.out.write(chalk.magenta('\u25b6 ') + this.msg(message) + this.ok(' \u2713\n'));
+  },
+
+  start(message: string): void {
+    this.out.write(chalk.magenta('\u25b6 ') + this.msg(`${message}.. `));
+  },
+
+  done(): void {
+    this.out.write(this.ok('\u2713\n'));
+  },
+};
