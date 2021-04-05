@@ -1,4 +1,5 @@
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs } from './utils';
+import contractMetadata from './contractMetadata';
 
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
 
@@ -227,6 +228,14 @@ describe('Nft contract', () => {
       await expect(alice.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
         'All tokens for this gate id have been claimed'
       );
+    });
+  });
+
+  describe('nft_metadata', () => {
+    it("should return contract's metadata", async () => {
+      const metadata = await alice.contract.nft_metadata();
+
+      expect(metadata).toEqual(contractMetadata);
     });
   });
 
