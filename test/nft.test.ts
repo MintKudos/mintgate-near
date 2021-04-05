@@ -70,10 +70,14 @@ describe('Nft contract', () => {
       expect(collectible).toMatchObject({
         current_supply: supply,
         royalty,
-        metadata: {
-          title,
-          description,
-        },
+      });
+    });
+
+    it("should set token's metadata for the created collectible", async () => {
+      expect(collectible.metadata).toMatchObject({
+        title,
+        description,
+        copies: supply,
       });
     });
 
@@ -95,6 +99,32 @@ describe('Nft contract', () => {
 
     it('should set minted tokens for a new collectible to an empty array', async () => {
       expect(collectible.minted_tokens).toEqual([]);
+    });
+
+    describe('errors', () => {
+      const invalidDigitMessage = 'invalid digit found in string';
+
+      it('should throw an error if provided gate id already exists', async () => {
+        await expect(addTestCollectible(alice.contract, { gate_id: gateId })).rejects.toThrow(
+          `Gate ID &#x60;${gateId}&#x60; already exists`
+        );
+      });
+
+      it.each([
+        ['0', /Gate ID .+ must have a positive supply/],
+        ['-10', invalidDigitMessage],
+        ['1b', invalidDigitMessage],
+        ['c', invalidDigitMessage],
+      ])('should throw an error if supply is not a positive number, i.e. %s', async (supplyNew, message) => {
+        const gateIdNew = await generateId();
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            supply: supplyNew,
+          })
+        ).rejects.toThrow(message);
+      });
     });
   });
 
