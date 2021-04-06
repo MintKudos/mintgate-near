@@ -4,7 +4,7 @@ import { homedir } from 'os';
 
 import { KeyPair, keyStores, Near } from 'near-api-js';
 
-import prefixes from './prefixes';
+import { prefixes } from './initialData';
 import { getConfig } from './config';
 import { logger } from './utils';
 
