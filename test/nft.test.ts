@@ -491,7 +491,7 @@ describe('Nft contract', () => {
         await expect(
           alice.contract.nft_approve({
             token_id: tokenId,
-            account_id: merchant.accountId,
+            account_id: merchant.contract.contractId,
             msg: JSON.stringify({}),
           })
         ).rejects.toThrow(`Could not find min_price in msg`);
@@ -501,7 +501,7 @@ describe('Nft contract', () => {
         await expect(
           alice.contract.nft_approve({
             token_id: tokenId,
-            account_id: merchant.accountId,
+            account_id: merchant.contract.contractId,
           })
         ).rejects.toThrow(`The msg argument must contain the minimum price`);
       });
@@ -510,7 +510,7 @@ describe('Nft contract', () => {
         await expect(
           alice.contract.nft_approve({
             token_id: tokenId,
-            account_id: merchant.accountId,
+            account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           })
         ).rejects.toThrow(`Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${tokenId}&#x60;`);
@@ -532,29 +532,29 @@ describe('Nft contract', () => {
     it('should remove approval for specified market', async () => {
       await bob.contract.nft_approve({
         token_id: tokenId,
-        account_id: merchant.accountId,
+        account_id: merchant.contract.contractId,
         msg: JSON.stringify({
           min_price: '5',
         }),
       });
 
       let token = await bob.contract.nft_token({ token_id: tokenId });
-      expect(token.approvals[merchant.accountId]).not.toBeUndefined();
+      expect(token.approvals[merchant.contract.contractId]).not.toBeUndefined();
 
       await bob.contract.nft_revoke({
         token_id: tokenId,
-        account_id: merchant.accountId,
+        account_id: merchant.contract.contractId,
       });
 
       token = await bob.contract.nft_token({ token_id: tokenId });
-      expect(token.approvals[merchant.accountId]).toBeUndefined();
+      expect(token.approvals[merchant.contract.contractId]).toBeUndefined();
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
       await expect(
         alice.contract.nft_revoke({
           token_id: tokenId,
-          account_id: merchant.accountId,
+          account_id: merchant.contract.contractId,
         })
       ).rejects.toThrow(`Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${tokenId}&#x60;`);
     });
@@ -565,9 +565,9 @@ describe('Nft contract', () => {
       await expect(
         bob.contract.nft_revoke({
           token_id: tokenId2,
-          account_id: merchant.accountId,
+          account_id: merchant.contract.contractId,
         })
-      ).rejects.toThrow(`Could not revoke approval for &#x60;${merchant.accountId}&#x60;`);
+      ).rejects.toThrow(`Could not revoke approval for &#x60;${merchant.contract.contractId}&#x60;`);
     });
   });
 
