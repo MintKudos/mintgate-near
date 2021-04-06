@@ -1,7 +1,5 @@
 #![deny(warnings)]
 
-use std::{cmp::Ordering, collections::HashMap, convert::TryInto};
-
 use mg_core::{
     fraction::Fraction,
     nft::{
@@ -15,8 +13,9 @@ use near_sdk::{
     collections::{LookupMap, UnorderedMap, UnorderedSet},
     env, ext_contract,
     json_types::{ValidAccountId, U64},
-    log, near_bindgen, setup_alloc, AccountId, PanicOnDefault,
+    log, near_bindgen, setup_alloc, AccountId, CryptoHash, PanicOnDefault,
 };
+use std::{cmp::Ordering, collections::HashMap, convert::TryInto};
 
 setup_alloc!();
 
@@ -41,6 +40,32 @@ pub struct Contract {
     max_royalty: Fraction,
 }
 
+/// To create a persistent collection on the blockchain, *e.g.*,
+/// `UnorderedMap` or `LookupMap`,
+/// a unique prefix key is needed to identify the collection.
+/// These variants keep a list of the keys used for persistent collections.
+#[derive(BorshSerialize)]
+enum Prefix {
+    Collectibles,
+    CollectiblesByCreator,
+    CollectiblesByCreatorValue { creator_id_hash: CryptoHash },
+    Tokens,
+    TokensByOwner,
+    TokensByOwnerValue { owner_id_hash: CryptoHash },
+}
+
+impl Into<Vec<u8>> for Prefix {
+    fn into(self) -> Vec<u8> {
+        self.try_to_vec().unwrap()
+    }
+}
+
+fn hash_account_id(account_id: &AccountId) -> CryptoHash {
+    let mut hash = CryptoHash::default();
+    hash.copy_from_slice(&env::sha256(account_id.as_bytes()));
+    hash
+}
+
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl Contract {
@@ -52,10 +77,10 @@ impl Contract {
         max_royalty: Fraction,
     ) -> Self {
         Self {
-            collectibles: UnorderedMap::new(vec![b'0']),
-            collectibles_by_creator: LookupMap::new(vec![b'1']),
-            tokens: UnorderedMap::new(vec![b'2']),
-            tokens_by_owner: LookupMap::new(vec![b'3']),
+            collectibles: UnorderedMap::new(Prefix::Collectibles.into()),
+            collectibles_by_creator: LookupMap::new(Prefix::CollectiblesByCreator.into()),
+            tokens: UnorderedMap::new(Prefix::Tokens.into()),
+            tokens_by_owner: LookupMap::new(Prefix::TokensByOwner.into()),
             admin_id: admin_id.as_ref().to_string(),
             metadata,
             min_royalty,
@@ -119,7 +144,12 @@ impl Contract {
             .collectibles_by_creator
             .get(&collectible.creator_id)
             .unwrap_or_else(|| {
-                UnorderedSet::new(get_key_prefix(b'c', &collectible.creator_id.as_bytes()))
+                UnorderedSet::new(
+                    Prefix::CollectiblesByCreatorValue {
+                        creator_id_hash: hash_account_id(&collectible.creator_id),
+                    }
+                    .into(),
+                )
             });
         gids.insert(&collectible.gate_id);
 
@@ -244,7 +274,14 @@ impl Contract {
         let mut tids = self
             .tokens_by_owner
             .get(&token.owner_id)
-            .unwrap_or_else(|| UnorderedSet::new(get_key_prefix(b't', &token.owner_id.as_bytes())));
+            .unwrap_or_else(|| {
+                UnorderedSet::new(
+                    Prefix::TokensByOwnerValue {
+                        owner_id_hash: hash_account_id(&token.owner_id),
+                    }
+                    .into(),
+                )
+            });
         tids.insert(&token.token_id);
 
         self.tokens_by_owner.insert(&token.owner_id, &tids);
@@ -402,11 +439,4 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         token.approvals.clear();
         self.tokens.insert(&token_id, &token);
     }
-}
-
-fn get_key_prefix(prefix: u8, key: &[u8]) -> Vec<u8> {
-    let mut key_prefix = Vec::with_capacity(33);
-    key_prefix.push(prefix);
-    key_prefix.extend(env::sha256(key));
-    key_prefix
 }
