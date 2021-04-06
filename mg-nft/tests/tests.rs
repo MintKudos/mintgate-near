@@ -80,7 +80,31 @@ impl MockedContext<ContractChecker> {
     }
 
     fn claim_token(&mut self, gate_id: GateId) -> TokenId {
-        let token_id = self.contract.claim_token(gate_id);
+        let token_id = self.contract.claim_token(gate_id.clone());
+
+        assert!(self
+            .contract
+            .get_tokens_by_owner(self.pred_id())
+            .iter()
+            .map(|token| (token.token_id, token.gate_id.clone()))
+            .collect::<Vec<(TokenId, GateId)>>()
+            .contains(&(token_id, gate_id.clone())));
+
+        assert!(self
+            .contract
+            .get_tokens_by_owner_and_gate_id(gate_id.clone(), self.pred_id())
+            .iter()
+            .map(|token| token.token_id)
+            .collect::<Vec<TokenId>>()
+            .contains(&token_id));
+
+        assert!(self
+            .contract
+            .get_tokens_by_owner_and_gate_id(gate_id.clone(), self.pred_id())
+            .iter()
+            .map(|token| token.gate_id.clone())
+            .all(|gid| gid == gate_id));
+
         self.claimed_tokens.insert(0, token_id);
         token_id
     }
