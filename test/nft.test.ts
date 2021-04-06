@@ -462,7 +462,7 @@ describe('Nft contract', () => {
 
       await bob.contract.nft_approve({
         token_id: tokenId,
-        account_id: merchant.accountId,
+        account_id: merchant.contract.contractId,
         msg: JSON.stringify(message),
       });
 
@@ -474,14 +474,13 @@ describe('Nft contract', () => {
     });
 
     it("should update token's approvals", () => {
-      expect(token.approvals[merchant.accountId]).toEqual({
+      expect(token.approvals[merchant.contract.contractId]).toEqual({
         approval_id: String(Object.keys(token.approvals).length),
         min_price: message.min_price,
       });
     });
 
-    // todo: Cannot find contract code for account merchant-.......
-    test.skip('that market lists the token as for sale', async () => {
+    test('that market lists the token as for sale', async () => {
       const tokensForSale = await merchant.contract.get_tokens_for_sale();
 
       expect(tokensForSale).toContain(tokenId);
