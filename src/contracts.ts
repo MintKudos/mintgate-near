@@ -32,6 +32,8 @@ export interface NftContract extends Contract {
 
   get_tokens_by_owner(ownerId: { owner_id: string }): Promise<Token[]>;
 
+  get_tokens_by_owner_and_gate_id(args: { gate_id: string; owner_id: string }): Promise<Token[]>;
+
   nft_metadata(): Promise<ContractMetadata>;
 
   nft_transfer(data: { receiver_id: string; token_id: string }): Promise<void>;

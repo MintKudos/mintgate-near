@@ -6,6 +6,7 @@ export const NftMethods = {
     'nft_total_supply',
     'nft_token',
     'get_tokens_by_owner',
+    'get_tokens_by_owner_and_gate_id',
   ],
   changeMethods: [
     'init',
