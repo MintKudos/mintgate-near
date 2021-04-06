@@ -1,5 +1,5 @@
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs } from './utils';
-import contractMetadata from './contractMetadata';
+import { contractMetadata, royalty as royaltySetting } from './initialData';
 
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
 
@@ -19,8 +19,6 @@ describe('Nft contract', () => {
   let merchant: AccountContract<MarketContract>;
   let merchant2: AccountContract<MarketContract>;
   const nonExistentUserId = 'ron-1111111111111-111111';
-
-  // let marketAccount: string;
 
   beforeAll(async () => {
     [alice, bob] = global.nftUsers;
@@ -50,8 +48,8 @@ describe('Nft contract', () => {
       supply = '100';
       gateUrl = 'Test url';
       royalty = {
-        num: 5,
-        den: 10,
+        num: 25,
+        den: 100,
       };
 
       await addTestCollectible(alice.contract, {
@@ -124,6 +122,38 @@ describe('Nft contract', () => {
             supply: supplyNew,
           })
         ).rejects.toThrow(message);
+      });
+
+      it('should throw an error if royalty is less than minimum', async () => {
+        const num = royaltySetting.min_royalty.num - 1;
+        const { den } = royaltySetting.min_royalty;
+        const gateIdNew = await generateId();
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            royalty: {
+              num,
+              den,
+            },
+          })
+        ).rejects.toThrow(`Royalty &#x60;${num}&#x2F;${den}&#x60; of &#x60;${gateIdNew}&#x60; is less than min`);
+      });
+
+      it('should throw an error if royalty is greater than maximum', async () => {
+        const num = royaltySetting.max_royalty.num + 1;
+        const { den } = royaltySetting.max_royalty;
+        const gateIdNew = await generateId();
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            royalty: {
+              num,
+              den,
+            },
+          })
+        ).rejects.toThrow(`Royalty &#x60;${num}&#x2F;${den}&#x60; of &#x60;${gateIdNew}&#x60; is greater than max`);
       });
     });
   });

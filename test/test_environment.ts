@@ -5,8 +5,7 @@ import { CustomConsole } from '@jest/console';
 
 import { getConfig } from './config';
 import { createProfiler } from './deploy';
-import prefixes from './prefixes';
-import contractMetadata from './contractMetadata';
+import { contractMetadata, prefixes, royalty } from './initialData';
 import { NftMethods, MarketMethods } from '../src';
 
 import type { AccountContract, Fraction, NftContract, MarketContract } from '../src';
@@ -32,6 +31,7 @@ const MINTGATE_FEE: Fraction = {
 const nftContractArguments = {
   admin_id: 'zzz-1111111111111-111111',
   metadata: contractMetadata,
+  ...royalty,
 };
 
 export default class LocalTestEnvironment extends NodeEnvironment {
