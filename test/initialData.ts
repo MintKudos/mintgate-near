@@ -1,5 +1,4 @@
-import { ContractMetadata } from '../src';
-import { Fraction } from '../lib';
+import { ContractMetadata, Fraction } from '../src';
 
 export const prefixes = {
   nft: {
