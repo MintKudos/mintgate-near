@@ -205,6 +205,26 @@ impl Contract {
         }
     }
 
+    pub fn get_tokens_by_owner_and_gate_id(
+        &self,
+        gate_id: GateId,
+        owner_id: ValidAccountId,
+    ) -> Vec<Token> {
+        match self.tokens_by_owner.get(owner_id.as_ref()) {
+            None => Vec::new(),
+            Some(list) => list
+                .iter()
+                .map(|token_id| {
+                    let token = self.tokens.get(&token_id).expect("Token not found");
+                    assert!(token.token_id == token_id);
+                    assert!(&token.owner_id == owner_id.as_ref());
+                    token
+                })
+                .filter(|token| token.gate_id == gate_id)
+                .collect(),
+        }
+    }
+
     /// Gets the `Token` with given `token_id`.
     /// Panics otherwise.
     fn get_token(&self, token_id: TokenId) -> Token {
