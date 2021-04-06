@@ -1,6 +1,6 @@
 #![deny(warnings)]
 
-use std::{collections::HashMap, convert::TryInto};
+use std::{cmp::Ordering, collections::HashMap, convert::TryInto};
 
 use mg_core::{
     fraction::Fraction,
@@ -35,13 +35,22 @@ pub struct Contract {
     admin_id: AccountId,
     /// Metadata describing this NFT contract
     metadata: ContractMetadata,
+    /// Indicates the minimum allowed `royalty` to be set on a `Collectible` when an Artist creates it.
+    min_royalty: Fraction,
+    /// Indicates the minimum allowed `royalty` to be set on a `Collectible` when an Artist creates it.
+    max_royalty: Fraction,
 }
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn init(admin_id: ValidAccountId, metadata: ContractMetadata) -> Self {
+    pub fn init(
+        admin_id: ValidAccountId,
+        metadata: ContractMetadata,
+        min_royalty: Fraction,
+        max_royalty: Fraction,
+    ) -> Self {
         Self {
             collectibles: UnorderedMap::new(vec![b'0']),
             collectibles_by_creator: LookupMap::new(vec![b'1']),
@@ -49,6 +58,8 @@ impl Contract {
             tokens_by_owner: LookupMap::new(vec![b'3']),
             admin_id: admin_id.as_ref().to_string(),
             metadata,
+            min_royalty,
+            max_royalty,
         }
     }
 
@@ -65,6 +76,12 @@ impl Contract {
         gate_url: String,
         royalty: Fraction,
     ) {
+        if royalty.cmp(&self.min_royalty) == Ordering::Less {
+            panic!("Royalty `{}` of `{}` is less than min", royalty, gate_id);
+        }
+        if royalty.cmp(&self.max_royalty) == Ordering::Greater {
+            panic!("Royalty `{}` of `{}` is greater than max", royalty, gate_id);
+        }
         if self.collectibles.get(&gate_id).is_some() {
             panic!("Gate ID `{}` already exists", gate_id);
         }

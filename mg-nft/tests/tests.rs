@@ -92,7 +92,12 @@ impl MockedContext<ContractChecker> {
 
 fn init() -> MockedContext<ContractChecker> {
     MockedContext::new(|| ContractChecker {
-        contract: Contract::init(admin(), metadata()),
+        contract: Contract::init(
+            admin(),
+            metadata(),
+            Fraction::new(5, 100),
+            Fraction::new(30, 100),
+        ),
         claimed_tokens: Vec::new(),
     })
 }
@@ -159,9 +164,34 @@ fn get_nonexistent_gate_id_should_panic() {
 }
 
 #[test]
-fn create_a_collectible_with_no_royalty() {
+#[should_panic(expected = "Royalty `0/100` of `GPZkspuVGaZxwWoP6bJoWU` is less than min")]
+fn create_a_collectible_with_no_royalty_should_panic() {
     init().run_as(alice(), |contract| {
         contract.create_collectible(gate_id(1), 10, "0/100");
+    });
+}
+
+#[test]
+#[should_panic(expected = "Royalty `2/100` of `GPZkspuVGaZxwWoP6bJoWU` is less than min")]
+fn create_a_collectible_with_less_than_min_royalty_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.create_collectible(gate_id(1), 10, "2/100");
+    });
+}
+
+#[test]
+#[should_panic(expected = "Royalty `5/10` of `GPZkspuVGaZxwWoP6bJoWU` is greater than max")]
+fn create_a_collectible_with_greater_than_max_royalty_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.create_collectible(gate_id(1), 10, "5/10");
+    });
+}
+
+#[test]
+#[should_panic(expected = "Royalty `1/1` of `GPZkspuVGaZxwWoP6bJoWU` is greater than max")]
+fn create_a_collectible_with_all_royalty_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.create_collectible(gate_id(1), 10, "1/1");
     });
 }
 
