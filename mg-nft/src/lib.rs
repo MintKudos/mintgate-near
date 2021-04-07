@@ -1,7 +1,22 @@
-//! This module implements the NFT contract.
+//! This module implements the NFT contract for the MintGate marketplace.
+//! The MintGate marketplace consists of two main entities:
 //!
-//! It uses the following standards to do so.
-//! 177, 171, 178
+//! - `Collectible`s
+//! - `Token`s
+//!
+//! A `Collectible` represents a content that a creator wants to tokenize.
+//! A `Token` represents a copy of a given `Collectible.
+//!
+//! In addition, this contract implements the following NFT standards:
+//!
+//! - Non-Fungible Token NEP-171
+//! <https://github.com/near/NEPs/blob/master/specs/Standards/NonFungibleToken/Core.md>
+//! - Non-Fungible Token Metadata NEP-177
+//! <https://github.com/near/NEPs/blob/master/specs/Standards/NonFungibleToken/Metadata.md>
+//! - Non-Fungible Token Approval Management NEP-178
+//! <https://github.com/near/NEPs/blob/master/specs/Standards/NonFungibleToken/ApprovalManagement.md>
+//! - Non-Fungible Token Enumeration NEP-181
+//! <https://github.com/near/NEPs/blob/master/specs/Standards/NonFungibleToken/Enumeration.md>
 #![deny(warnings)]
 
 use mg_core::{
@@ -74,7 +89,7 @@ fn hash_account_id(account_id: &AccountId) -> CryptoHash {
 #[near_bindgen]
 impl Contract {
     /// Initializes the contract.
-    /// This contract methods needs to be explicitely called,
+    /// This contract methods needs to be explicitely called
     /// since the default construction of the contract will panic.
     ///
     /// - `admin_id` is the valid account that is allowed to perform certain operations.
@@ -325,12 +340,12 @@ impl Contract {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
-    /// Metadata for the contract.
+    /// Returns the NFT metadata for this contract.
     fn nft_metadata(&self) -> ContractMetadata {
         self.metadata.clone()
     }
 
-    /// Transfer a token to `receiver_id` account.
+    /// Transfer the token `token_id` to the `receiver_id` account.
     fn nft_transfer(
         &mut self,
         receiver_id: ValidAccountId,
@@ -374,12 +389,13 @@ impl NonFungibleTokenCore for Contract {
         self.insert_token(&token);
     }
 
-    /// Total supply.
+    /// Returns the total token supply.
     fn nft_total_supply(&self) -> U64 {
         U64::from(self.tokens.len())
     }
 
-    /// Nft token
+    /// Returns the token identified by `token_id`.
+    /// Or `null` if the `token_id` was not found.
     fn nft_token(&self, token_id: TokenId) -> Option<Token> {
         self.tokens.get(&token_id)
     }
@@ -399,7 +415,10 @@ pub trait NonFungibleTokenApprovalsReceiver {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalMgmt for Contract {
-    /// Approves an account to transfer.
+    /// Allows `account_id` to transfer `token_id` on behalf of its owner.
+    /// The `msg` argument allows the caller to pass into additional information.
+    /// A contract implementing the `nft_on_approve` methods must be
+    /// deployed into `account_id`.
     fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
         let min_price = {
             if let Some(msg) = msg.clone() {
@@ -440,7 +459,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         );
     }
 
-    /// Revokes accesses.
+    /// Revokes approval for `token_id` from `account_id`.
     fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
@@ -453,7 +472,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         self.tokens.insert(&token_id, &token);
     }
 
-    /// Revokes all accesses.
+    /// Revokes all approval for `token_id`.
     fn nft_revoke_all(&mut self, token_id: TokenId) {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
