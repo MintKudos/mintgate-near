@@ -12,6 +12,11 @@ Add `wasm32` target to Rust
 rustup target add wasm32-unknown-unknown
 ```
 
+## To Explore
+
+- [`mg-nft` contract](mg-nft/)
+- [`mg-market` contract](mg-market/)
+
 ## Scripts
 
 The `package.json` contains scripts to facilitate running compilation targets and tests.
