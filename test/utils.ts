@@ -1,3 +1,5 @@
+import util from 'util';
+
 import { customAlphabet } from 'nanoid/async';
 import chalk from 'chalk';
 
@@ -83,6 +85,19 @@ export const logger = {
 
   infoln(message: string): void {
     this.out.write(chalk.magenta('\u25b6 ') + this.msg(message) + this.ok(' \u2713\n'));
+  },
+
+  title(message: string): void {
+    this.out.write(`\n${chalk.inverse(message)}\n\n`);
+  },
+
+  data(message: string, data?: unknown): void {
+    this.out.write(`\n${chalk.blue.underline(message)}: `);
+    if (data !== undefined) {
+      this.out.write(`${util.inspect(data, { colors: true, depth: null })}\n\n`);
+    } else {
+      this.out.write('\n\n');
+    }
   },
 
   start(message: string): void {
