@@ -118,6 +118,8 @@ impl Contract {
     /// The `supply` indicates maximum supply for this collectible.
     /// The `royalty` indicates the royalty (as percentage) paid to the creator (`predecessor_account_id`).
     /// This royalty is paid when any `Token` is being resold in any marketplace.
+    ///
+    /// See <https://github.com/epam/mintgate/issues/3>.
     pub fn create_collectible(
         &mut self,
         gate_id: String,
@@ -185,6 +187,8 @@ impl Contract {
 
     /// Returns the `Collectible` with the given `gate_id`.
     /// Panics otherwise.
+    ///
+    /// See <https://github.com/epam/mintgate/issues/16>.
     pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Collectible {
         match self.collectibles.get(&gate_id) {
             None => panic!("Gate ID `{}` was not found", gate_id),
@@ -196,6 +200,8 @@ impl Contract {
     }
 
     /// Returns all `Collectible`s created by `creator_id`.
+    ///
+    /// See <https://github.com/epam/mintgate/issues/15>.
     pub fn get_collectibles_by_creator(&self, creator_id: ValidAccountId) -> Vec<Collectible> {
         match self.collectibles_by_creator.get(creator_id.as_ref()) {
             None => Vec::new(),
@@ -218,6 +224,8 @@ impl Contract {
     /// The claim is on behalf the `predecessor_account_id`.
     /// Returns a `TokenId` that represents this claim.
     /// If the given `gate_id` has exhausted its supply, this call will panic.
+    ///
+    /// See <https://github.com/epam/mintgate/issues/6>.
     pub fn claim_token(&mut self, gate_id: String) -> TokenId {
         match self.collectibles.get(&gate_id) {
             None => env::panic(b"Gate id not found"),
@@ -267,6 +275,8 @@ impl Contract {
     }
 
     /// Returns all tokens claimed by `owner_id` belonging to `gate_id`.
+    ///
+    /// See <https://github.com/epam/mintgate/issues/14>.
     pub fn get_tokens_by_owner_and_gate_id(
         &self,
         gate_id: GateId,
@@ -346,6 +356,8 @@ impl NonFungibleTokenCore for Contract {
     }
 
     /// Transfer the token `token_id` to the `receiver_id` account.
+    ///
+    /// See <https://github.com/epam/mintgate/issues/18>.
     fn nft_transfer(
         &mut self,
         receiver_id: ValidAccountId,
@@ -396,6 +408,8 @@ impl NonFungibleTokenCore for Contract {
 
     /// Returns the token identified by `token_id`.
     /// Or `null` if the `token_id` was not found.
+    ///
+    /// See <https://github.com/epam/mintgate/issues/17>.
     fn nft_token(&self, token_id: TokenId) -> Option<Token> {
         self.tokens.get(&token_id)
     }
