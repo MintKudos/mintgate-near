@@ -1,3 +1,5 @@
+//! This module implement the MintGate marketplace.
+
 use mg_core::{
     fraction::Fraction,
     nft::{ApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId},
@@ -58,6 +60,9 @@ pub struct Contract {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl Contract {
+    /// Initializes the contract.
+    ///
+    /// - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
     #[init]
     pub fn init(mintgate_fee: Fraction) -> Self {
         Self {
@@ -66,6 +71,7 @@ impl Contract {
         }
     }
 
+    /// Returns all `TokenId` available for sale.
     pub fn get_tokens_for_sale(&self) -> Vec<TokenId> {
         let mut result = Vec::new();
         for (token_id, _) in self.tokens_for_sale.iter() {
@@ -78,6 +84,7 @@ impl Contract {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalsReceiver for Contract {
+    /// Callback method to allow this contract to put a `Token` into the marketplace.
     fn nft_on_approve(
         &mut self,
         token_id: TokenId,
