@@ -363,6 +363,130 @@ describe('Nft contract', () => {
     });
   });
 
+  describe('get_tokens_by_owner', () => {
+    const numberOfTokensToClaim = 3;
+
+    let gateId: string;
+    let initialTokensOfAlice: Token[];
+    let tokensOfAlice: Token[];
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+
+      initialTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+      logger.data('Tokens before', initialTokensOfAlice.length);
+
+      await Promise.all(
+        new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId }))
+      );
+
+      logger.data('Tokens claimed', numberOfTokensToClaim);
+    });
+
+    it('should return all tokens claimed by a specific user', async () => {
+      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+      logger.data('Total number of tokens after', tokensOfAlice.length);
+
+      expect(tokensOfAlice.length).toBe(initialTokensOfAlice.length + numberOfTokensToClaim);
+    });
+
+    it('should return only tokens of a specific owner', async () => {
+      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+
+      const uniqueOwnerIds = [...new Set(tokensOfAlice.map(({ owner_id }) => owner_id))];
+
+      logger.data("Unique owners' ids", uniqueOwnerIds);
+
+      expect(uniqueOwnerIds).toEqual([alice.accountId]);
+    });
+
+    it('should return an empty array if a contract has no tokens', async () => {
+      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+
+      await Promise.all(
+        tokensOfAlice.map(({ token_id }) =>
+          alice.contract.nft_transfer({
+            receiver_id: bob.accountId,
+            token_id,
+          })
+        )
+      );
+
+      const newTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+
+      logger.data('Tokens after transferring all tokens ', newTokensOfAlice);
+
+      expect(newTokensOfAlice).toHaveLength(0);
+    });
+  });
+
+  describe('get_tokens_by_owner_and_gate_id', () => {
+    const numberOfTokensToClaim = 3;
+
+    let gateId1: string;
+    let gateId2: string;
+    let tokensOfAliceGate1: Token[];
+
+    beforeAll(async () => {
+      gateId1 = await generateId();
+      gateId2 = await generateId();
+
+      await Promise.all([
+        addTestCollectible(alice.contract, { gate_id: gateId1 }),
+        addTestCollectible(alice.contract, { gate_id: gateId2 }),
+      ]);
+
+      await Promise.all([
+        ...new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId1 })),
+        ...new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId2 })),
+      ]);
+
+      logger.data('Tokens claimed for new collectible', numberOfTokensToClaim);
+
+      tokensOfAliceGate1 = await alice.contract.get_tokens_by_owner_and_gate_id({
+        gate_id: gateId1,
+        owner_id: alice.accountId,
+      });
+    });
+
+    it('should return all tokens claimed by a specific user for a specific collectible', async () => {
+      logger.data('Tokens returned for a specific user for a specific collectible', tokensOfAliceGate1.length);
+
+      expect(tokensOfAliceGate1.length).toBe(numberOfTokensToClaim);
+    });
+
+    it('should return only tokens of a specific owner', async () => {
+      const uniqueOwnerIds = [...new Set(tokensOfAliceGate1.map(({ owner_id }) => owner_id))];
+
+      logger.data("Unique owners' ids", uniqueOwnerIds);
+
+      expect(uniqueOwnerIds).toEqual([alice.accountId]);
+    });
+
+    it('should return only tokens of a specific collectible', async () => {
+      const uniqueCollectibleIds = [...new Set(tokensOfAliceGate1.map(({ gate_id }) => gate_id))];
+
+      logger.data("Unique collectibles' ids", uniqueCollectibleIds);
+
+      expect(uniqueCollectibleIds).toEqual([gateId1]);
+    });
+
+    it('should return an empty array if an owner has no tokens of a specific collectible', async () => {
+      const gateId3 = await generateId();
+
+      const tokensOfAliceGate3 = await alice.contract.get_tokens_by_owner_and_gate_id({
+        gate_id: gateId3,
+        owner_id: alice.accountId,
+      });
+
+      logger.data(`Tokens returned for the same user and a new collectible ${gateId3}`, tokensOfAliceGate3);
+
+      expect(tokensOfAliceGate3).toEqual([]);
+    });
+  });
+
   describe('nft_metadata', () => {
     it("should return contract's metadata", async () => {
       logger.data('Contract created with metadata', contractMetadata);
@@ -534,130 +658,6 @@ describe('Nft contract', () => {
       logger.data('Token found using `nft_token`', tokenById);
 
       expect(tokenFromAllTokens).toEqual(tokenById);
-    });
-  });
-
-  describe('get_tokens_by_owner', () => {
-    const numberOfTokensToClaim = 3;
-
-    let gateId: string;
-    let initialTokensOfAlice: Token[];
-    let tokensOfAlice: Token[];
-
-    beforeAll(async () => {
-      gateId = await generateId();
-
-      await addTestCollectible(alice.contract, { gate_id: gateId });
-
-      initialTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-      logger.data('Tokens before', initialTokensOfAlice.length);
-
-      await Promise.all(
-        new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId }))
-      );
-
-      logger.data('Tokens claimed', numberOfTokensToClaim);
-    });
-
-    it('should return all tokens claimed by a specific user', async () => {
-      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-      logger.data('Total number of tokens after', tokensOfAlice.length);
-
-      expect(tokensOfAlice.length).toBe(initialTokensOfAlice.length + numberOfTokensToClaim);
-    });
-
-    it('should return only tokens of a specific owner', async () => {
-      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-
-      const uniqueOwnerIds = [...new Set(tokensOfAlice.map(({ owner_id }) => owner_id))];
-
-      logger.data("Unique owners' ids", uniqueOwnerIds);
-
-      expect(uniqueOwnerIds).toEqual([alice.accountId]);
-    });
-
-    it('should return an empty array if a contract has no tokens', async () => {
-      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-
-      await Promise.all(
-        tokensOfAlice.map(({ token_id }) =>
-          alice.contract.nft_transfer({
-            receiver_id: bob.accountId,
-            token_id,
-          })
-        )
-      );
-
-      const newTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-
-      logger.data('Tokens after transferring all tokens ', newTokensOfAlice);
-
-      expect(newTokensOfAlice).toHaveLength(0);
-    });
-  });
-
-  describe('get_tokens_by_owner_and_gate_id', () => {
-    const numberOfTokensToClaim = 3;
-
-    let gateId1: string;
-    let gateId2: string;
-    let tokensOfAliceGate1: Token[];
-
-    beforeAll(async () => {
-      gateId1 = await generateId();
-      gateId2 = await generateId();
-
-      await Promise.all([
-        addTestCollectible(alice.contract, { gate_id: gateId1 }),
-        addTestCollectible(alice.contract, { gate_id: gateId2 }),
-      ]);
-
-      await Promise.all([
-        ...new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId1 })),
-        ...new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId2 })),
-      ]);
-
-      logger.data('Tokens claimed for new collectible', numberOfTokensToClaim);
-
-      tokensOfAliceGate1 = await alice.contract.get_tokens_by_owner_and_gate_id({
-        gate_id: gateId1,
-        owner_id: alice.accountId,
-      });
-    });
-
-    it('should return all tokens claimed by a specific user for a specific collectible', async () => {
-      logger.data('Tokens returned for a specific user for a specific collectible', tokensOfAliceGate1.length);
-
-      expect(tokensOfAliceGate1.length).toBe(numberOfTokensToClaim);
-    });
-
-    it('should return only tokens of a specific owner', async () => {
-      const uniqueOwnerIds = [...new Set(tokensOfAliceGate1.map(({ owner_id }) => owner_id))];
-
-      logger.data("Unique owners' ids", uniqueOwnerIds);
-
-      expect(uniqueOwnerIds).toEqual([alice.accountId]);
-    });
-
-    it('should return only tokens of a specific collectible', async () => {
-      const uniqueCollectibleIds = [...new Set(tokensOfAliceGate1.map(({ gate_id }) => gate_id))];
-
-      logger.data("Unique collectibles' ids", uniqueCollectibleIds);
-
-      expect(uniqueCollectibleIds).toEqual([gateId1]);
-    });
-
-    it('should return an empty array if an owner has no tokens of a specific collectible', async () => {
-      const gateId3 = await generateId();
-
-      const tokensOfAliceGate3 = await alice.contract.get_tokens_by_owner_and_gate_id({
-        gate_id: gateId3,
-        owner_id: alice.accountId,
-      });
-
-      logger.data(`Tokens returned for the same user and a new collectible ${gateId3}`, tokensOfAliceGate3);
-
-      expect(tokensOfAliceGate3).toEqual([]);
     });
   });
 
