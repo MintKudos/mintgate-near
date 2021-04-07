@@ -22,22 +22,19 @@ rustup target add wasm32-unknown-unknown
 The `package.json` contains scripts to facilitate running compilation targets and tests.
 The following are the most relevant scripts.
 
-### `build:contracts`
-
+- `build:contracts`.
 Builds both `mg_nft.wasm` and `mg_market.wasm` contracts for the `wasm32-unknown-unknown` target.
 The wasm binaries can be found under `release/wasm32-unknown-unknown/release` folder.
-
-### `unit-test:contracts`
-
-Executes the contract unit tests.
-
-### `app-test:contracts`
-
+- `unit-test:contracts`.
+Runs both `mg-nft` and `mg-market` contract unit tests.
+These tests are being executed locally using the host architecture.
+In other words, they are not compile down to WebAssembly.
+- `app-test:contracts`.
 Executes the application tests.
-The application tests execute contracts in `testnet`.
-The script automatically deploys contracts to `testnet` accounts.
-Moreover, it creates user accounts to test the contract.
-It ensures that both contracts are already built.
+The application tests run both contracts in `testnet`.
+It creates user and contract accounts to test the contracts.
+Moreover, the script automatically deploys contracts to the `testnet` contract accounts.
+It ensures that both contracts are already built before running the tests.
 
 ## Terminology
 
