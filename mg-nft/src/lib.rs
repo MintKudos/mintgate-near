@@ -76,6 +76,7 @@ impl Contract {
     /// Initializes the contract.
     /// This contract methods needs to be explicitely called,
     /// since the default construction of the contract will panic.
+    ///
     /// - `admin_id` is the valid account that is allowed to perform certain operations.
     /// - `metadata` represents the general information of the contract.
     /// - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
