@@ -5,7 +5,7 @@
 //! - `Token`s
 //!
 //! A `Collectible` represents a content that a creator wants to tokenize.
-//! A `Token` represents a copy of a given `Collectible.
+//! A `Token` represents a copy of a given `Collectible`.
 //!
 //! In addition, this contract implements the following NFT standards:
 //!
