@@ -1,3 +1,7 @@
+//! This module implements the NFT contract.
+//!
+//! It uses the following standards to do so.
+//! 177, 171, 178
 #![deny(warnings)]
 
 use mg_core::{
@@ -69,6 +73,12 @@ fn hash_account_id(account_id: &AccountId) -> CryptoHash {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl Contract {
+    /// Initializes the contract.
+    /// This contract methods needs to be explicitely called,
+    /// since the default construction of the contract will panic.
+    /// - `admin_id` is the valid account that is allowed to perform certain operations.
+    /// - `metadata` represents the general information of the contract.
+    /// - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
     #[init]
     pub fn init(
         admin_id: ValidAccountId,
@@ -169,6 +179,7 @@ impl Contract {
         }
     }
 
+    /// Returns all `Collectible`s created by `creator_id`.
     pub fn get_collectibles_by_creator(&self, creator_id: ValidAccountId) -> Vec<Collectible> {
         match self.collectibles_by_creator.get(creator_id.as_ref()) {
             None => Vec::new(),
@@ -187,6 +198,10 @@ impl Contract {
         }
     }
 
+    /// Claims a `Token` for the `Collectible` indicated by `gate_id`.
+    /// The claim is on behalf the `predecessor_account_id`.
+    /// Returns a `TokenId` that represents this claim.
+    /// If the given `gate_id` has exhausted its supply, this call will panic.
     pub fn claim_token(&mut self, gate_id: String) -> TokenId {
         match self.collectibles.get(&gate_id) {
             None => env::panic(b"Gate id not found"),
@@ -235,6 +250,7 @@ impl Contract {
         }
     }
 
+    /// Returns all tokens claimed by `owner_id` belonging to `gate_id`.
     pub fn get_tokens_by_owner_and_gate_id(
         &self,
         gate_id: GateId,
@@ -308,10 +324,12 @@ impl Contract {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
+    /// Metadata for the contract.
     fn nft_metadata(&self) -> ContractMetadata {
         self.metadata.clone()
     }
 
+    /// Transfer a token to `receiver_id` account.
     fn nft_transfer(
         &mut self,
         receiver_id: ValidAccountId,
@@ -355,10 +373,12 @@ impl NonFungibleTokenCore for Contract {
         self.insert_token(&token);
     }
 
+    /// Total supply.
     fn nft_total_supply(&self) -> U64 {
         U64::from(self.tokens.len())
     }
 
+    /// Nft token
     fn nft_token(&self, token_id: TokenId) -> Option<Token> {
         self.tokens.get(&token_id)
     }
@@ -378,6 +398,7 @@ pub trait NonFungibleTokenApprovalsReceiver {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalMgmt for Contract {
+    /// Approves an account to transfer.
     fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
         let min_price = {
             if let Some(msg) = msg.clone() {
@@ -418,6 +439,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         );
     }
 
+    /// Revokes accesses.
     fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
@@ -430,6 +452,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         self.tokens.insert(&token_id, &token);
     }
 
+    /// Revokes all accesses.
     fn nft_revoke_all(&mut self, token_id: TokenId) {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
