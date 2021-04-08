@@ -33,8 +33,11 @@ In other words, they are not compile down to WebAssembly.
 Executes the application tests.
 The application tests run both contracts in `testnet`.
 It creates user and contract accounts to test the contracts.
+The accounts IDs used are cached in the `neardev` folder.
 Moreover, the script automatically deploys contracts to the `testnet` contract accounts.
 It ensures that both contracts are already built before running the tests.
+- `app-test:contracts:clean`.
+Removes the `neardev` folder which contains the account IDs created for `app-test:contracts`.
 - `dev-deploy:contract`.
 *WIP*. Deploys contracts to a dev account.
 - `deploy:contract`.

@@ -7,6 +7,7 @@
         "build:contracts": "cargo build --target wasm32-unknown-unknown --release",
         "unit-test:contracts": "cargo test",
         "app-test:contracts": "yarn build:contracts && jest",
+        "app-test:contracts:clean": "rm -rf neardev/",
         "dev-deploy:contract": "rm -rf neardev/ && near dev-deploy --wasmFile target/wasm32-unknown-unknown/release/mg_nft.wasm",
         "deploy:contract": "near deploy --wasmFile target/wasm32-unknown-unknown/release/mg_nft.wasm",
         "build:lib": "rm -rf lib/ && yarn tsc",
