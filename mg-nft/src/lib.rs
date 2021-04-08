@@ -97,10 +97,24 @@ enum Panics {
     GateIdAlreadyExists { gate_id: GateId },
     #[panic_msg = "Gate ID `{}` must have a positive supply"]
     ZeroSupplyNotAllowed { gate_id: GateId },
-    #[panic_msg = "Gate id `{}` was not found"]
+    #[panic_msg = "Gate ID `{}` was not found"]
     GateIdNotFound { gate_id: GateId },
     #[panic_msg = "Tokens for gate id `{}` have already been claimed"]
     GateIdExhausted { gate_id: GateId },
+    #[panic_msg = "Token ID `{:?}` was not found"]
+    TokenIdNotFound { token_id: U64 },
+    #[panic_msg = "Token ID `{:?}` does not belong to account `{}`"]
+    TokenIdNotOwnedBy { token_id: U64, owner_id: AccountId },
+    #[panic_msg = "Sender `{}` is not authorized to make transfer"]
+    SenderNotAuthToTransfer { sender_id: AccountId },
+    #[panic_msg = "The token owner and the receiver should be different"]
+    ReceiverIsOwner,
+    #[panic_msg = "The approval_id is different from enforce_approval_id"]
+    EnforceApprovalFailed,
+    #[panic_msg = "The msg argument must contain the minimum price"]
+    MsgFormatNotRecognized,
+    #[panic_msg = "Could not revoke approval for `{}`"]
+    RevokeApprovalFailed { account_id: AccountId },
 }
 
 #[near_envlog(skip_args, only_pub)]
@@ -212,7 +226,7 @@ impl Contract {
     /// See <https://github.com/epam/mintgate/issues/16>.
     pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Collectible {
         match self.collectibles.get(&gate_id) {
-            None => panic!("Gate ID `{}` was not found", gate_id),
+            None => Panics::GateIdNotFound { gate_id }.panic(),
             Some(collectible) => {
                 assert!(collectible.gate_id == gate_id);
                 collectible
@@ -322,7 +336,7 @@ impl Contract {
     /// Panics otherwise.
     fn get_token(&self, token_id: TokenId) -> Token {
         match self.tokens.get(&token_id) {
-            None => panic!("The token id `{}` was not found", token_id.0),
+            None => Panics::TokenIdNotFound { token_id }.panic(),
             Some(token) => {
                 assert!(token.token_id == token_id);
                 token
@@ -354,10 +368,18 @@ impl Contract {
     /// Panics if `owner` does not own the corgi with `id`.
     fn delete_token_from(&mut self, token_id: TokenId, owner_id: &AccountId) {
         match self.tokens_by_owner.get(&owner_id) {
-            None => panic!("Could not delete token `{}` since account `{}` does not have tokens to delete from", token_id.0, owner_id),
+            None => Panics::TokenIdNotOwnedBy {
+                token_id,
+                owner_id: owner_id.clone(),
+            }
+            .panic(),
             Some(mut list) => {
                 if !list.remove(&token_id) {
-                    panic!("Token `{}` does not belong to account `{}`", token_id.0, owner_id);
+                    Panics::TokenIdNotOwnedBy {
+                        token_id,
+                        owner_id: owner_id.clone(),
+                    }
+                    .panic();
                 }
                 self.tokens_by_owner.insert(&owner_id, &list);
 
@@ -390,11 +412,11 @@ impl NonFungibleTokenCore for Contract {
         let mut token = self.get_token(token_id);
 
         if sender_id != token.owner_id && token.approvals.get(&sender_id).is_none() {
-            panic!("Sender `{}` is not authorized to make transfer", sender_id);
+            Panics::SenderNotAuthToTransfer { sender_id }.panic();
         }
 
         if &token.owner_id == receiver_id.as_ref() {
-            panic!("The token owner and the receiver should be different");
+            Panics::ReceiverIsOwner.panic();
         }
 
         if let Some(enforce_approval_id) = enforce_approval_id {
@@ -406,7 +428,7 @@ impl NonFungibleTokenCore for Contract {
                 .get(receiver_id.as_ref())
                 .expect("Receiver not an approver of this token.");
             if approval_id != &enforce_approval_id {
-                panic!("The approval_id is different from enforce_approval_id");
+                Panics::EnforceApprovalFailed.panic();
             }
         }
 
@@ -461,7 +483,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
                     .expect("Could not find min_price in msg");
                 approve_msg.min_price
             } else {
-                panic!("The msg argument must contain the minimum price");
+                Panics::MsgFormatNotRecognized.panic();
             }
         };
 
@@ -470,7 +492,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         let mut token = self.get_token(token_id);
 
         if &owner_id != &token.owner_id {
-            panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
+            Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
 
         token.approval_counter.0 = token.approval_counter.0 + 1;
@@ -499,10 +521,13 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
         if &owner_id != &token.owner_id {
-            panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
+            Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
         if token.approvals.remove(account_id.as_ref()).is_none() {
-            panic!("Could not revoke approval for `{}`", account_id.as_ref());
+            Panics::RevokeApprovalFailed {
+                account_id: account_id.to_string(),
+            }
+            .panic();
         }
         self.tokens.insert(&token_id, &token);
     }
@@ -512,7 +537,7 @@ impl NonFungibleTokenApprovalMgmt for Contract {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
         if &owner_id != &token.owner_id {
-            panic!("Account `{}` does not own token `{}`", owner_id, token_id.0);
+            Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
         token.approvals.clear();
         self.tokens.insert(&token_id, &token);
