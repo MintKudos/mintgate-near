@@ -170,6 +170,10 @@ fn gate_id(n: u64) -> String {
     bs58::encode(data).into_string()
 }
 
+fn min_price(price: u64) -> Option<String> {
+    Some(format!(r#"{{"min_price": "{}"}}"#, price))
+}
+
 #[test]
 fn initial_state() {
     init().run_as(any(), |contract| {
@@ -368,14 +372,68 @@ fn approve_and_transfer_token() {
         })
         .run_as(bob(), |contract| {
             let token_id = contract.claim_token(gate_id(1));
-            contract.nft_approve(
-                token_id,
-                market(),
-                Some(r#"{"min_price": "10"}"#.to_string()),
-            );
+            contract.nft_approve(token_id, market(), min_price(10));
         })
         .run_as(market(), |contract| {
             let token_id = contract.last_claimed_token();
             contract.nft_transfer(charlie(), token_id, None, None);
+        });
+}
+
+#[test]
+#[should_panic(expected = "The msg argument must contain the minimum price")]
+fn nft_approve_with_no_msg_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.nft_approve(0.into(), bob(), None);
+    });
+}
+
+#[test]
+#[should_panic(expected = "Could not find min_price in msg: ")]
+fn nft_approve_with_invalid_msg_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.nft_approve(0.into(), bob(), Some("".to_string()));
+    });
+}
+
+#[test]
+#[should_panic(expected = "Token ID `U64(99)` was not found")]
+fn nft_approve_a_non_existent_token_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.nft_approve(99.into(), bob(), min_price(10));
+    });
+}
+
+#[test]
+fn nft_approve_a_token() {
+    init().run_as(alice(), |contract| {
+        contract.create_test_collectible(gate_id(1), 10);
+        let token_id = contract.claim_token(gate_id(1));
+        contract.nft_approve(token_id, bob(), min_price(10));
+
+        let token = contract.nft_token(token_id).unwrap();
+        assert_eq!(token.approval_counter.0, 1);
+    });
+}
+
+#[test]
+#[should_panic(expected = "Token ID `U64(99)` was not found")]
+fn nft_revoke_all_for_non_existent_token_should_panic() {
+    init().run_as(bob(), |contract| {
+        contract.nft_revoke_all(99.into());
+    });
+}
+
+#[test]
+#[should_panic(expected = "Token ID `U64(0)` does not belong to account `bob")]
+fn nft_revoke_all_for_non_owned_token_should_panic() {
+    init()
+        .run_as(alice(), |contract| {
+            contract.create_test_collectible(gate_id(1), 10);
+            contract.claim_token(gate_id(1));
+        })
+        .run_as(bob(), |contract| {
+            let token_id = contract.last_claimed_token();
+            contract.nft_revoke_all(token_id);
         });
 }
