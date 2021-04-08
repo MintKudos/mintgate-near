@@ -113,6 +113,8 @@ enum Panics {
     EnforceApprovalFailed,
     #[panic_msg = "The msg argument must contain the minimum price"]
     MsgFormatNotRecognized,
+    #[panic_msg = "Could not find min_price in msg: {}"]
+    MsgFormatMinPriceMissing { reason: String },
     #[panic_msg = "Could not revoke approval for `{}`"]
     RevokeApprovalFailed { account_id: AccountId },
 }
@@ -479,9 +481,13 @@ impl NonFungibleTokenApprovalMgmt for Contract {
     fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
         let min_price = {
             if let Some(msg) = msg.clone() {
-                let approve_msg = near_sdk::serde_json::from_str::<ApproveMsg>(&msg)
-                    .expect("Could not find min_price in msg");
-                approve_msg.min_price
+                match near_sdk::serde_json::from_str::<ApproveMsg>(&msg) {
+                    Ok(approve_msg) => approve_msg.min_price,
+                    Err(err) => Panics::MsgFormatMinPriceMissing {
+                        reason: err.to_string(),
+                    }
+                    .panic(),
+                }
             } else {
                 Panics::MsgFormatNotRecognized.panic();
             }
