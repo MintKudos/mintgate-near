@@ -303,6 +303,27 @@ fn claim_a_few_tokens() {
 }
 
 #[test]
+#[should_panic(expected = "Gate id `Nekq22i3rvzDe7c51Yc8hU` was not found")]
+fn claim_a_token_of_non_existent_gate_id_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.claim_token(gate_id(0));
+    });
+}
+
+#[test]
+#[should_panic(expected = "Tokens for gate id `GPZkspuVGaZxwWoP6bJoWU` have already been claimed")]
+fn claim_a_token_with_no_supply_should_panic() {
+    init()
+        .run_as(alice(), |contract| {
+            contract.create_test_collectible(gate_id(1), 1);
+            contract.claim_token(gate_id(1));
+        })
+        .run_as(bob(), |contract| {
+            contract.claim_token(gate_id(1));
+        });
+}
+
+#[test]
 fn transfer_a_token() {
     init()
         .run_as(alice(), |contract| {

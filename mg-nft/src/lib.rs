@@ -26,7 +26,7 @@ use mg_core::{
         NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
     },
 };
-use near_env::near_envlog;
+use near_env::{near_envlog, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
@@ -85,6 +85,24 @@ fn hash_account_id(account_id: &AccountId) -> CryptoHash {
     hash
 }
 
+use near_sdk::serde::Serialize;
+#[derive(Serialize, PanicMessage)]
+#[serde(crate = "near_sdk::serde", tag = "err")]
+enum Panics {
+    #[panic_msg = "Royalty `{}` of `{}` is less than min"]
+    RoyaltyMinThanAllowed { royalty: Fraction, gate_id: String },
+    #[panic_msg = "Royalty `{}` of `{}` is greater than max"]
+    RoyaltyMaxThanAllowed { royalty: Fraction, gate_id: String },
+    #[panic_msg = "Gate ID `{}` already exists"]
+    GateIdAlreadyExists { gate_id: GateId },
+    #[panic_msg = "Gate ID `{}` must have a positive supply"]
+    ZeroSupplyNotAllowed { gate_id: GateId },
+    #[panic_msg = "Gate id `{}` was not found"]
+    GateIdNotFound { gate_id: GateId },
+    #[panic_msg = "Tokens for gate id `{}` have already been claimed"]
+    GateIdExhausted { gate_id: GateId },
+}
+
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl Contract {
@@ -130,17 +148,20 @@ impl Contract {
         royalty: Fraction,
     ) {
         if royalty.cmp(&self.min_royalty) == Ordering::Less {
-            panic!("Royalty `{}` of `{}` is less than min", royalty, gate_id);
+            Panics::RoyaltyMinThanAllowed { royalty, gate_id }.panic();
         }
         if royalty.cmp(&self.max_royalty) == Ordering::Greater {
-            panic!("Royalty `{}` of `{}` is greater than max", royalty, gate_id);
+            Panics::RoyaltyMaxThanAllowed { royalty, gate_id }.panic();
         }
         if self.collectibles.get(&gate_id).is_some() {
-            panic!("Gate ID `{}` already exists", gate_id);
+            Panics::GateIdAlreadyExists { gate_id }.panic();
         }
         if supply.0 == 0 {
-            panic!("Gate ID `{}` must have a positive supply", gate_id);
+            Panics::ZeroSupplyNotAllowed { gate_id }.panic();
         }
+        // if env::predecessor_account_id() != admin_id {
+        //     panic();
+        // }
 
         let creator_id = env::predecessor_account_id();
 
@@ -228,10 +249,10 @@ impl Contract {
     /// See <https://github.com/epam/mintgate/issues/6>.
     pub fn claim_token(&mut self, gate_id: String) -> TokenId {
         match self.collectibles.get(&gate_id) {
-            None => env::panic(b"Gate id not found"),
+            None => Panics::GateIdNotFound { gate_id }.panic(),
             Some(mut collectible) => {
                 if collectible.current_supply.0 == 0 {
-                    env::panic(b"All tokens for this gate id have been claimed");
+                    Panics::GateIdExhausted { gate_id }.panic()
                 }
 
                 let owner_id = env::predecessor_account_id();
