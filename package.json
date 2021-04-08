@@ -8,6 +8,7 @@
         "unit-test:contracts": "cargo test",
         "app-test:contracts": "yarn build:contracts && jest",
         "app-test:contracts:clean": "rm -rf neardev/",
+        "doc:contracts": "near-doc mg-nft/src/lib.rs > mg-nft/README.md && near-doc mg-market/src/lib.rs > mg-market/README.md",
         "dev-deploy:contract": "rm -rf neardev/ && near dev-deploy --wasmFile target/wasm32-unknown-unknown/release/mg_nft.wasm",
         "deploy:contract": "near deploy --wasmFile target/wasm32-unknown-unknown/release/mg_nft.wasm",
         "build:lib": "rm -rf lib/ && yarn tsc",
