@@ -120,22 +120,34 @@ describe('Nft contract', () => {
     });
 
     describe('errors', () => {
-      const invalidDigitMessage = 'invalid digit found in string';
-
       it('should throw an error if provided gate id already exists', async () => {
         logger.data('Attempting to create collectible with `gateId`', gateId);
 
         await expect(addTestCollectible(alice.contract, { gate_id: gateId })).rejects.toThrow(
-          `Gate ID &#x60;${gateId}&#x60; already exists`
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"GateIdAlreadyExists","gate_id":"${gateId}","msg":"Gate ID \`${gateId}\` already exists"}`,
+          })
         );
       });
 
-      it.each([
-        ['0', /Gate ID .+ must have a positive supply/],
-        ['-10', invalidDigitMessage],
-        ['1b', invalidDigitMessage],
-        ['c', invalidDigitMessage],
-      ])('should throw an error if supply is not a positive number, i.e. %s', async (supplyNew, message) => {
+      it('should throw an error if supply is zero', async () => {
+        const gateIdNew = await generateId();
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            supply: '0',
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateIdNew}","msg":"Gate ID \`${gateIdNew}\` must have a positive supply"}`,
+          })
+        );
+      });
+
+      it.each(['-10', '1b', 'c'])('should throw an error if supply is not a number, i.e. %s', async (supplyNew) => {
         logger.data('Attempting to create collectible with supply', supplyNew);
 
         const gateIdNew = await generateId();
@@ -145,7 +157,7 @@ describe('Nft contract', () => {
             gate_id: gateIdNew,
             supply: supplyNew,
           })
-        ).rejects.toThrow(message);
+        ).rejects.toThrow('invalid digit found in string');
       });
 
       it('should throw an error if royalty is less than minimum', async () => {
@@ -166,7 +178,12 @@ describe('Nft contract', () => {
               den,
             },
           })
-        ).rejects.toThrow(`Royalty &#x60;${num}&#x2F;${den}&#x60; of &#x60;${gateIdNew}&#x60; is less than min`);
+        ).rejects.toThrow(
+          expect.objectContaining({
+            panic_msg: `{"err":"RoyaltyMinThanAllowed","royalty":{"num":${num},"den":${den}},"gate_id":"${gateIdNew}","msg":"Royalty \`${num}/${den}\` of \`${gateIdNew}\` is less than min"}`,
+            type: 'GuestPanic',
+          })
+        );
       });
 
       it('should throw an error if royalty is greater than maximum', async () => {
@@ -187,7 +204,12 @@ describe('Nft contract', () => {
               den,
             },
           })
-        ).rejects.toThrow(`Royalty &#x60;${num}&#x2F;${den}&#x60; of &#x60;${gateIdNew}&#x60; is greater than max`);
+        ).rejects.toThrow(
+          expect.objectContaining({
+            panic_msg: `{"err":"RoyaltyMaxThanAllowed","royalty":{"num":${num},"den":${den}},"gate_id":"${gateIdNew}","msg":"Royalty \`${num}/${den}\` of \`${gateIdNew}\` is greater than max"}`,
+            type: 'GuestPanic',
+          })
+        );
       });
     });
   });
@@ -204,12 +226,11 @@ describe('Nft contract', () => {
       expect(collectible).toMatchObject({ gate_id: gateId });
     });
 
-    it('should throw an error if no collectible found', async () => {
+    it('should return null if no collectible found', async () => {
       const nonExistentId = await generateId();
+      const nonExistentCollectible = await alice.contract.get_collectible_by_gate_id({ gate_id: nonExistentId });
 
-      await expect(alice.contract.get_collectible_by_gate_id({ gate_id: nonExistentId })).rejects.toThrow(
-        `Gate ID \`${nonExistentId}\` was not found`
-      );
+      expect(nonExistentCollectible).toBeNull();
     });
   });
 
@@ -342,7 +363,12 @@ describe('Nft contract', () => {
 
       logger.data('Attempting to claim a token for gate id', nonExistentId);
 
-      await expect(alice.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow('Gate id not found');
+      await expect(alice.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow(
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentId}","msg":"Gate ID \`${nonExistentId}\` was not found"}`,
+        })
+      );
     });
 
     it('should throw an error if all tokens have been claimed', async () => {
@@ -358,7 +384,10 @@ describe('Nft contract', () => {
       await alice.contract.claim_token({ gate_id: gateIdNoSupply });
 
       await expect(alice.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
-        'All tokens for this gate id have been claimed'
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"GateIdExhausted","gate_id":"${gateIdNoSupply}","msg":"Tokens for gate id \`${gateIdNoSupply}\` have already been claimed"}`,
+        })
       );
     });
   });
@@ -606,7 +635,12 @@ describe('Nft contract', () => {
             receiver_id: alice.accountId,
             token_id: alicesTokenId,
           })
-        ).rejects.toThrow('The token owner and the receiver should be different');
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: '{"err":"ReceiverIsOwner","msg":"The token owner and the receiver should be different"}',
+          })
+        );
       });
 
       it("should throw when the sender doesn't own the token", async () => {
@@ -617,7 +651,12 @@ describe('Nft contract', () => {
             receiver_id: alice.accountId,
             token_id: alicesTokenId,
           })
-        ).rejects.toThrow(`Sender &#x60;${bob.accountId}&#x60; is not authorized to make transfer`);
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"SenderNotAuthToTransfer","sender_id":"${bob.accountId}","msg":"Sender \`${bob.accountId}\` is not authorized to make transfer"}`,
+          })
+        );
       });
     });
   });
@@ -658,6 +697,13 @@ describe('Nft contract', () => {
       logger.data('Token found using `nft_token`', tokenById);
 
       expect(tokenFromAllTokens).toEqual(tokenById);
+    });
+
+    it('should return null if no token found', async () => {
+      const nonExistentId = '99999';
+      const nonExistentCollectible = await bob.contract.nft_token({ token_id: nonExistentId });
+
+      expect(nonExistentCollectible).toBeNull();
     });
   });
 
@@ -735,7 +781,12 @@ describe('Nft contract', () => {
             token_id: tokenId,
             account_id: merchant.contract.contractId,
           })
-        ).rejects.toThrow(`The msg argument must contain the minimum price`);
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: '{"err":"MsgFormatNotRecognized","msg":"The msg argument must contain the minimum price"}',
+          })
+        );
       });
 
       it("should throw an error if approver doesn't own the token", async () => {
@@ -748,7 +799,12 @@ describe('Nft contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           })
-        ).rejects.toThrow(`Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${token.token_id}&#x60;`);
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+          })
+        );
       });
     });
   });
@@ -791,6 +847,8 @@ describe('Nft contract', () => {
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
+      token = await bob.contract.nft_token({ token_id: tokenId });
+
       logger.data('Attempting to revoke token, revoker', alice.accountId);
       logger.data('Attempting to revoke token, owner', token.owner_id);
 
@@ -799,7 +857,12 @@ describe('Nft contract', () => {
           token_id: token.token_id,
           account_id: merchant.contract.contractId,
         })
-      ).rejects.toThrow(`Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${token.token_id}&#x60;`);
+      ).rejects.toThrow(
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+        })
+      );
     });
 
     it('should throw an error if token is not approved for market', async () => {
@@ -813,7 +876,12 @@ describe('Nft contract', () => {
           token_id: tokenId2,
           account_id: merchant.contract.contractId,
         })
-      ).rejects.toThrow(`Could not revoke approval for &#x60;${merchant.contract.contractId}&#x60;`);
+      ).rejects.toThrow(
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"RevokeApprovalFailed","account_id":"${merchant.contract.contractId}","msg":"Could not revoke approval for \`${merchant.contract.contractId}\`"}`,
+        })
+      );
     });
   });
 
@@ -860,11 +928,16 @@ describe('Nft contract', () => {
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
+      token = await bob.contract.nft_token({ token_id: tokenId });
+
       logger.data('Attempting to revoke token, revoker', alice.accountId);
       logger.data('Attempting to revoke token, owner', token.owner_id);
 
       await expect(alice.contract.nft_revoke_all({ token_id: token.token_id })).rejects.toThrow(
-        `Account &#x60;${alice.accountId}&#x60; does not own token &#x60;${token.token_id}&#x60;`
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+        })
       );
     });
   });
