@@ -35,6 +35,14 @@ The application tests run both contracts in `testnet`.
 It creates user and contract accounts to test the contracts.
 Moreover, the script automatically deploys contracts to the `testnet` contract accounts.
 It ensures that both contracts are already built before running the tests.
+- `dev-deploy:contract`.
+*WIP*. Deploys contracts to a dev account.
+- `deploy:contract`.
+*WIP*. Deploys contracts to an already logged in account.
+- `build:lib`.
+Builds the contract client library.
+- `lint:lib`.
+Provides linting checks for the contract client library.
 
 ## Terminology
 
