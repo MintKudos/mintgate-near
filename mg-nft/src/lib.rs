@@ -226,12 +226,12 @@ impl Contract {
     /// Panics otherwise.
     ///
     /// See <https://github.com/epam/mintgate/issues/16>.
-    pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Collectible {
+    pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Option<Collectible> {
         match self.collectibles.get(&gate_id) {
-            None => Panics::GateIdNotFound { gate_id }.panic(),
+            None => None,
             Some(collectible) => {
                 assert!(collectible.gate_id == gate_id);
-                collectible
+                Some(collectible)
             }
         }
     }

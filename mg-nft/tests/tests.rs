@@ -65,7 +65,10 @@ impl MockedContext<ContractChecker> {
             },
         );
 
-        let collectible = self.contract.get_collectible_by_gate_id(gate_id.clone());
+        let collectible = self
+            .contract
+            .get_collectible_by_gate_id(gate_id.clone())
+            .unwrap();
         assert_eq!(collectible.gate_id, gate_id);
         assert_eq!(collectible.current_supply.0, supply);
 
@@ -184,10 +187,9 @@ fn initial_state() {
 }
 
 #[test]
-#[should_panic(expected = "Gate ID `Nekq22i3rvzDe7c51Yc8hU` was not found")]
-fn get_nonexistent_gate_id_should_panic() {
+fn get_nonexistent_gate_id_should_return_none() {
     init().run_as(alice(), |contract| {
-        contract.get_collectible_by_gate_id(gate_id(0));
+        assert_eq!(contract.get_collectible_by_gate_id(gate_id(0)), None);
     });
 }
 
@@ -287,7 +289,7 @@ fn claim_a_token() {
             let tokens = contract.get_tokens_by_owner(bob());
             assert_eq!(tokens.len(), 3);
 
-            let c = contract.get_collectible_by_gate_id(gate_id(1));
+            let c = contract.get_collectible_by_gate_id(gate_id(1)).unwrap();
             assert_eq!(c.current_supply.0, 7);
         });
 }
