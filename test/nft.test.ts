@@ -42,7 +42,7 @@ describe('Nft contract', () => {
     let gateUrl: string;
     let royalty: Fraction;
 
-    let collectible: Collectible;
+    let collectible: Collectible | null;
 
     beforeAll(async () => {
       gateId = await generateId();
@@ -94,7 +94,7 @@ describe('Nft contract', () => {
 
       logger.data('Metadata provided', providedMetadata);
 
-      expect(collectible.metadata).toMatchObject(providedMetadata);
+      expect(collectible!.metadata).toMatchObject(providedMetadata);
     });
 
     it("should associate a new collectible with it's creator", async () => {
@@ -108,15 +108,15 @@ describe('Nft contract', () => {
     });
 
     it("should set a correct creator's id", async () => {
-      logger.data("Creator's id of the new collectible.", collectible.creator_id);
+      logger.data("Creator's id of the new collectible.", collectible!.creator_id);
 
-      expect(collectible.creator_id).toBe(alice.accountId);
+      expect(collectible!.creator_id).toBe(alice.accountId);
     });
 
     it('should set minted tokens for a new collectible to an empty array', async () => {
-      logger.data('Minted tokens of the new collectible.', collectible.minted_tokens);
+      logger.data('Minted tokens of the new collectible.', collectible!.minted_tokens);
 
-      expect(collectible.minted_tokens).toEqual([]);
+      expect(collectible!.minted_tokens).toEqual([]);
     });
 
     describe('errors', () => {
@@ -305,7 +305,7 @@ describe('Nft contract', () => {
     });
 
     describe('token creation', () => {
-      let token: Token;
+      let token: Token | null;
       let tokensOfBob: Token[];
 
       beforeAll(async () => {
@@ -324,34 +324,34 @@ describe('Nft contract', () => {
       });
 
       it('should set correct owner of the token', async () => {
-        logger.data('Owner of the token', token.owner_id);
+        logger.data('Owner of the token', token!.owner_id);
 
-        expect(token.owner_id).toBe(bob.accountId);
+        expect(token!.owner_id).toBe(bob.accountId);
       });
 
       it('should set correct collectible of the token', async () => {
-        logger.data("Token's gate id", token.gate_id);
+        logger.data("Token's gate id", token!.gate_id);
 
-        expect(token.gate_id).toBe(gateId);
+        expect(token!.gate_id).toBe(gateId);
       });
 
       it("should set now as time of token's creation", async () => {
-        logger.data('Token created at', new Date(formatNsToMs(token.created_at)));
+        logger.data('Token created at', new Date(formatNsToMs(token!.created_at)));
 
-        expect(isWithinLastMs(formatNsToMs(token.created_at), 1000 * 5)).toBe(true);
+        expect(isWithinLastMs(formatNsToMs(token!.created_at), 1000 * 5)).toBe(true);
       });
 
       it("should set time of the token's modification equal to it's creation", async () => {
-        logger.data('Token modified at', new Date(formatNsToMs(token.modified_at)));
+        logger.data('Token modified at', new Date(formatNsToMs(token!.modified_at)));
 
-        expect(formatNsToMs(token.created_at)).toBe(formatNsToMs(token.modified_at));
+        expect(formatNsToMs(token!.created_at)).toBe(formatNsToMs(token!.modified_at));
       });
     });
 
     it('should decrement current supply of the collectible', async () => {
       logger.data("Collectible's initial supply", initialSupply);
 
-      const { current_supply } = await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
+      const { current_supply } = (await alice.contract.get_collectible_by_gate_id({ gate_id: gateId }))!;
 
       logger.data("Collectible's current supply", current_supply);
 
@@ -439,6 +439,8 @@ describe('Nft contract', () => {
           alice.contract.nft_transfer({
             receiver_id: bob.accountId,
             token_id,
+            enforce_approval_id: null,
+            memo: null,
           })
         )
       );
@@ -548,7 +550,7 @@ describe('Nft contract', () => {
       let tokensOfAlice: Token[];
       let tokensOfBob: Token[];
 
-      let token: Token;
+      let token: Token | null;
 
       beforeAll(async () => {
         bobsTokenId = await bob.contract.claim_token({ gate_id: gateId });
@@ -562,6 +564,8 @@ describe('Nft contract', () => {
         await bob.contract.nft_transfer({
           receiver_id: alice.accountId,
           token_id: bobsTokenId,
+          enforce_approval_id: null,
+          memo: null,
         });
 
         tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
@@ -591,22 +595,22 @@ describe('Nft contract', () => {
 
       it("should set token's new owner", async () => {
         logger.data("New owner's id", alice.accountId);
-        logger.data("Owner's id on token after transfer", token.owner_id);
+        logger.data("Owner's id on token after transfer", token!.owner_id);
 
-        expect(token.owner_id).toBe(alice.accountId);
+        expect(token!.owner_id).toBe(alice.accountId);
       });
 
       it("should update token's modified_at property", async () => {
-        logger.data('Token created at', new Date(formatNsToMs(token.created_at)));
-        logger.data('Token modified at', new Date(formatNsToMs(token.modified_at)));
+        logger.data('Token created at', new Date(formatNsToMs(token!.created_at)));
+        logger.data('Token modified at', new Date(formatNsToMs(token!.modified_at)));
 
-        expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
+        expect(formatNsToMs(token!.modified_at)).toBeGreaterThan(formatNsToMs(token!.created_at));
       });
 
       it("should set token's sender", () => {
-        logger.data("Token's sender", token.sender_id);
+        logger.data("Token's sender", token!.sender_id);
 
-        expect(token.sender_id).toBe(bob.accountId);
+        expect(token!.sender_id).toBe(bob.accountId);
       });
 
       it.todo('enforce_approval_id');
@@ -616,7 +620,7 @@ describe('Nft contract', () => {
 
     describe('errors', () => {
       let alicesTokenId: string;
-      let token: Token;
+      let token: Token | null;
 
       beforeAll(async () => {
         alicesTokenId = await alice.contract.claim_token({ gate_id: gateId });
@@ -634,6 +638,8 @@ describe('Nft contract', () => {
           alice.contract.nft_transfer({
             receiver_id: alice.accountId,
             token_id: alicesTokenId,
+            enforce_approval_id: null,
+            memo: null,
           })
         ).rejects.toThrow(
           expect.objectContaining({
@@ -650,6 +656,8 @@ describe('Nft contract', () => {
           bob.contract.nft_transfer({
             receiver_id: alice.accountId,
             token_id: alicesTokenId,
+            enforce_approval_id: null,
+            memo: null,
           })
         ).rejects.toThrow(
           expect.objectContaining({
@@ -710,7 +718,7 @@ describe('Nft contract', () => {
   describe('nft_approve', () => {
     let gateId: string;
     let tokenId: string;
-    let token: Token;
+    let token: Token | null;
 
     const message = {
       min_price: '5',
@@ -736,16 +744,16 @@ describe('Nft contract', () => {
     });
 
     it('should increment approval counter', () => {
-      logger.data('Token approvals counter', token.approval_counter);
+      logger.data('Token approvals counter', token!.approval_counter);
 
-      expect(token.approval_counter).toBe('1');
+      expect(token!.approval_counter).toBe('1');
     });
 
     it("should update token's approvals", () => {
-      logger.data('Token approvals', token.approvals);
+      logger.data('Token approvals', token!.approvals);
 
-      expect(token.approvals[merchant.contract.contractId]).toEqual({
-        approval_id: String(Object.keys(token.approvals).length),
+      expect(token!.approvals[merchant.contract.contractId]).toEqual({
+        approval_id: String(Object.keys(token!.approvals).length),
         min_price: message.min_price,
       });
     });
@@ -780,6 +788,7 @@ describe('Nft contract', () => {
           alice.contract.nft_approve({
             token_id: tokenId,
             account_id: merchant.contract.contractId,
+            msg: null,
           })
         ).rejects.toThrow(
           expect.objectContaining({
@@ -791,18 +800,18 @@ describe('Nft contract', () => {
 
       it("should throw an error if approver doesn't own the token", async () => {
         logger.data('Attempting to approve token, approver', alice.accountId);
-        logger.data('Attempting to approve token, owner', token.owner_id);
+        logger.data('Attempting to approve token, owner', token!.owner_id);
 
         await expect(
           alice.contract.nft_approve({
-            token_id: token.token_id,
+            token_id: token!.token_id,
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           })
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
           })
         );
       });
@@ -812,7 +821,7 @@ describe('Nft contract', () => {
   describe('nft_revoke', () => {
     let gateId: string;
     let tokenId: string;
-    let token: Token;
+    let token: Token | null;
 
     beforeAll(async () => {
       gateId = await generateId();
@@ -831,9 +840,9 @@ describe('Nft contract', () => {
       });
 
       token = await bob.contract.nft_token({ token_id: tokenId });
-      expect(token.approvals[merchant.contract.contractId]).not.toBeUndefined();
+      expect(token!.approvals[merchant.contract.contractId]).not.toBeUndefined();
 
-      logger.data('Approvals before', token.approvals);
+      logger.data('Approvals before', token!.approvals);
 
       await bob.contract.nft_revoke({
         token_id: tokenId,
@@ -841,26 +850,26 @@ describe('Nft contract', () => {
       });
 
       token = await bob.contract.nft_token({ token_id: tokenId });
-      expect(token.approvals[merchant.contract.contractId]).toBeUndefined();
+      expect(token!.approvals[merchant.contract.contractId]).toBeUndefined();
 
-      logger.data('Approvals after', token.approvals);
+      logger.data('Approvals after', token!.approvals);
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
       token = await bob.contract.nft_token({ token_id: tokenId });
 
       logger.data('Attempting to revoke token, revoker', alice.accountId);
-      logger.data('Attempting to revoke token, owner', token.owner_id);
+      logger.data('Attempting to revoke token, owner', token!.owner_id);
 
       await expect(
         alice.contract.nft_revoke({
-          token_id: token.token_id,
+          token_id: token!.token_id,
           account_id: merchant.contract.contractId,
         })
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
         })
       );
     });
@@ -869,7 +878,7 @@ describe('Nft contract', () => {
       const tokenId2 = await bob.contract.claim_token({ gate_id: gateId });
       const token2 = await bob.contract.nft_token({ token_id: tokenId2 });
 
-      logger.data("Attempting to revoke token, token's approvals", token2.approvals);
+      logger.data("Attempting to revoke token, token's approvals", token2!.approvals);
 
       await expect(
         bob.contract.nft_revoke({
@@ -914,21 +923,21 @@ describe('Nft contract', () => {
 
       await Promise.all(approvePromises);
 
-      token = await bob.contract.nft_token({ token_id: tokenId });
+      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
       expect(Object.keys(token.approvals).length).toBeTruthy();
 
       logger.data('Approvals before', token.approvals);
 
       await bob.contract.nft_revoke_all({ token_id: tokenId });
 
-      token = await bob.contract.nft_token({ token_id: tokenId });
+      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
       expect(Object.keys(token.approvals)).toHaveLength(0);
 
       logger.data('Approvals after', token.approvals);
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
-      token = await bob.contract.nft_token({ token_id: tokenId });
+      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
 
       logger.data('Attempting to revoke token, revoker', alice.accountId);
       logger.data('Attempting to revoke token, owner', token.owner_id);

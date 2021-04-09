@@ -6,9 +6,10 @@ import { CustomConsole } from '@jest/console';
 import { getConfig } from './config';
 import { createProfiler } from './deploy';
 import { contractMetadata, prefixes, royalty } from './initialData';
-import { NftMethods, MarketMethods } from '../src';
+import { NftContractMethods, MarketContractMethods } from '../src';
 
 import type { AccountContract, Fraction, NftContract, MarketContract } from '../src';
+// import { Contract } from 'near-api-js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -42,7 +43,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
     const { users: nftUsers } = await createProfiler<NftContract>(
       prefixes.nft.contract,
       'target/wasm32-unknown-unknown/release/mg_nft.wasm',
-      NftMethods,
+      NftContractMethods,
       {
         func: 'init',
         args: nftContractArguments,
@@ -56,7 +57,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
     const { users: marketUsers } = await createProfiler<MarketContract>(
       prefixes.market.contract,
       'target/wasm32-unknown-unknown/release/mg_market.wasm',
-      MarketMethods,
+      MarketContractMethods,
       {
         func: 'init',
         args: { mintgate_fee: MINTGATE_FEE },

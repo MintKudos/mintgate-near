@@ -48,7 +48,7 @@ export async function createProfiler<T extends NftContract | MarketContract>(
   const users = await Promise.all(
     userPrefixes.map(async (user) => {
       const account = await getAccountFor(user);
-      const contract = <T>new Contract(account, contractAccount.accountId, {
+      const contract = <T & Contract>new Contract(account, contractAccount.accountId, {
         ...methods,
         // signer: account.accountId
       });
