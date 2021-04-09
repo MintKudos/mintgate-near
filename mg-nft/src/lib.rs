@@ -42,7 +42,7 @@ setup_alloc!();
 /// we use `PanicOnDefault` to avoid default construction.
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
-pub struct Contract {
+pub struct NftContract {
     /// Represents a mapping from `GateId` into `Collectible`.
     collectibles: UnorderedMap<GateId, Collectible>,
     collectibles_by_creator: LookupMap<AccountId, UnorderedSet<GateId>>,
@@ -119,7 +119,7 @@ enum Panics {
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
-impl Contract {
+impl NftContract {
     /// Initializes the contract.
     /// This contract methods needs to be explicitely called
     /// since the default construction of the contract will panic.
@@ -392,7 +392,7 @@ impl Contract {
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
-impl NonFungibleTokenCore for Contract {
+impl NonFungibleTokenCore for NftContract {
     /// Returns the NFT metadata for this contract.
     fn nft_metadata(&self) -> ContractMetadata {
         self.metadata.clone()
@@ -471,7 +471,7 @@ pub trait NonFungibleTokenApprovalsReceiver {
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
-impl NonFungibleTokenApprovalMgmt for Contract {
+impl NonFungibleTokenApprovalMgmt for NftContract {
     /// Allows `account_id` to transfer `token_id` on behalf of its owner.
     /// The `msg` argument allows the caller to pass into additional information.
     /// A contract implementing the `nft_on_approve` methods must be

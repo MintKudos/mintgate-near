@@ -22,7 +22,7 @@ pub struct Token2 {
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
-pub struct Contract {
+pub struct MarketContract {
     /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
     /// This field can be set up when the contract is deployed.
     mintgate_fee: Fraction,
@@ -56,7 +56,7 @@ pub struct Contract {
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
-impl Contract {
+impl MarketContract {
     /// Initializes the contract.
     ///
     /// - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
@@ -80,7 +80,7 @@ impl Contract {
 
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
-impl NonFungibleTokenApprovalsReceiver for Contract {
+impl NonFungibleTokenApprovalsReceiver for MarketContract {
     /// Callback method to allow this contract to put a `Token` into the marketplace.
     fn nft_on_approve(
         &mut self,

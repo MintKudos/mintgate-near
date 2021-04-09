@@ -6,7 +6,7 @@ use context::MockedContext;
 use mg_core::{
     ContractMetadata, Fraction, GateId, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, TokenId,
 };
-use mg_nft::Contract;
+use mg_nft::NftContract;
 use near_sdk::{
     bs58,
     json_types::{ValidAccountId, U64},
@@ -18,12 +18,12 @@ use std::{
 };
 
 struct ContractChecker {
-    contract: Contract,
+    contract: NftContract,
     claimed_tokens: Vec<TokenId>,
 }
 
 impl Deref for ContractChecker {
-    type Target = Contract;
+    type Target = NftContract;
     fn deref(&self) -> &Self::Target {
         &self.contract
     }
@@ -117,7 +117,7 @@ impl MockedContext<ContractChecker> {
 
 fn init() -> MockedContext<ContractChecker> {
     MockedContext::new(|| ContractChecker {
-        contract: Contract::init(
+        contract: NftContract::init(
             admin(),
             metadata(),
             Fraction::new(5, 100),
