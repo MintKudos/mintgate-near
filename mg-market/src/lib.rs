@@ -1,9 +1,6 @@
 //! This module implement the MintGate marketplace.
 
-use mg_core::{
-    fraction::Fraction,
-    nft::{ApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId},
-};
+use mg_core::{ApproveMsg, Fraction, NonFungibleTokenApprovalsReceiver, TokenId};
 use near_env::near_envlog;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
@@ -18,7 +15,7 @@ setup_alloc!();
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct Token {
+pub struct Token2 {
     pub owner_id: AccountId,
     pub metadata: String,
 }

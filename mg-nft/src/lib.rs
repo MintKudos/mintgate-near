@@ -20,11 +20,8 @@
 #![deny(warnings)]
 
 use mg_core::{
-    fraction::Fraction,
-    nft::{
-        ApproveMsg, Collectible, ContractMetadata, GateId, NonFungibleTokenApprovalMgmt,
-        NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
-    },
+    ApproveMsg, Collectible, ContractMetadata, Fraction, GateId, NonFungibleTokenApprovalMgmt,
+    NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
 };
 use near_env::{near_envlog, PanicMessage};
 use near_sdk::{
@@ -32,7 +29,9 @@ use near_sdk::{
     collections::{LookupMap, UnorderedMap, UnorderedSet},
     env, ext_contract,
     json_types::{ValidAccountId, U64},
-    log, near_bindgen, setup_alloc, AccountId, CryptoHash, PanicOnDefault,
+    log, near_bindgen,
+    serde::Serialize,
+    setup_alloc, AccountId, CryptoHash, PanicOnDefault,
 };
 use std::{cmp::Ordering, collections::HashMap, convert::TryInto};
 
@@ -85,7 +84,6 @@ fn hash_account_id(account_id: &AccountId) -> CryptoHash {
     hash
 }
 
-use near_sdk::serde::Serialize;
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
 enum Panics {

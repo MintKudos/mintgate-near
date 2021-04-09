@@ -1,9 +1,8 @@
+use near_sdk::{test_utils::VMContextBuilder, testing_env, MockedBlockchain, VMContext};
 use std::{
     convert::TryInto,
     ops::{Deref, DerefMut},
 };
-
-use near_sdk::{test_utils::VMContextBuilder, testing_env, MockedBlockchain, VMContext};
 
 pub struct MockedContext<T> {
     contract: T,

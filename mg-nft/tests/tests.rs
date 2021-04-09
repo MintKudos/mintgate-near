@@ -2,15 +2,9 @@
 
 mod context;
 
-use std::{
-    convert::TryInto,
-    ops::{Deref, DerefMut},
-};
-
 use context::MockedContext;
 use mg_core::{
-    fraction::Fraction,
-    nft::{ContractMetadata, GateId, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, TokenId},
+    ContractMetadata, Fraction, GateId, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, TokenId,
 };
 use mg_nft::Contract;
 use near_sdk::{
@@ -18,6 +12,10 @@ use near_sdk::{
     json_types::{ValidAccountId, U64},
 };
 use sha2::{Digest, Sha256};
+use std::{
+    convert::TryInto,
+    ops::{Deref, DerefMut},
+};
 
 struct ContractChecker {
     contract: Contract,
