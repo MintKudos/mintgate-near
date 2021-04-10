@@ -1,7 +1,8 @@
 //! This module implement the MintGate marketplace.
+#![deny(warnings)]
 
 use mg_core::{ApproveMsg, Fraction, NonFungibleTokenApprovalsReceiver, TokenId};
-use near_env::near_envlog;
+use near_env::{near_envlog, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
@@ -79,6 +80,13 @@ impl MarketContract {
     }
 }
 
+#[derive(Serialize, PanicMessage)]
+#[serde(crate = "near_sdk::serde", tag = "err")]
+enum Panics {
+    #[panic_msg = "Could not find min_price in msg: {}"]
+    MsgFormatMinPriceMissing { reason: String },
+}
+
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalsReceiver for MarketContract {
@@ -90,12 +98,19 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         approval_id: U64,
         msg: String,
     ) {
-        let approve_msg =
-            serde_json::from_str::<ApproveMsg>(&msg).expect("Could not find min_price in msg");
-
-        self.tokens_for_sale.insert(
-            &token_id,
-            &(owner_id.into(), approval_id.0, approve_msg.min_price.0),
-        );
+        match serde_json::from_str::<ApproveMsg>(&msg) {
+            Ok(approve_msg) => {
+                self.tokens_for_sale.insert(
+                    &token_id,
+                    &(owner_id.into(), approval_id.0, approve_msg.min_price.0),
+                );
+            }
+            Err(err) => {
+                Panics::MsgFormatMinPriceMissing {
+                    reason: err.to_string(),
+                }
+                .panic();
+            }
+        }
     }
 }
