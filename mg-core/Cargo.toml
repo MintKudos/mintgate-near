@@ -9,6 +9,6 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "3.0.1"
+near-sdk = "3.1.0"
 uint = { version = "0.8.3", default-features = false }
 sha2 = "0.9.3"
