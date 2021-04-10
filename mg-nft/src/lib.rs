@@ -64,7 +64,7 @@ pub struct NftContract {
 /// a unique prefix key is needed to identify the collection.
 /// These variants keep a list of the keys used for persistent collections.
 #[derive(BorshSerialize, BorshStorageKey)]
-enum Prefix {
+enum Keys {
     Collectibles,
     CollectiblesByCreator,
     CollectiblesByCreatorValue { creator_id_hash: CryptoHash },
@@ -130,10 +130,10 @@ impl NftContract {
         max_royalty: Fraction,
     ) -> Self {
         Self {
-            collectibles: UnorderedMap::new(Prefix::Collectibles),
-            collectibles_by_creator: LookupMap::new(Prefix::CollectiblesByCreator),
-            tokens: UnorderedMap::new(Prefix::Tokens),
-            tokens_by_owner: LookupMap::new(Prefix::TokensByOwner),
+            collectibles: UnorderedMap::new(Keys::Collectibles),
+            collectibles_by_creator: LookupMap::new(Keys::CollectiblesByCreator),
+            tokens: UnorderedMap::new(Keys::Tokens),
+            tokens_by_owner: LookupMap::new(Keys::TokensByOwner),
             admin_id: admin_id.as_ref().to_string(),
             metadata,
             min_royalty,
@@ -202,7 +202,7 @@ impl NftContract {
             .collectibles_by_creator
             .get(&collectible.creator_id)
             .unwrap_or_else(|| {
-                UnorderedSet::new(Prefix::CollectiblesByCreatorValue {
+                UnorderedSet::new(Keys::CollectiblesByCreatorValue {
                     creator_id_hash: hash_account_id(&collectible.creator_id),
                 })
             });
@@ -344,7 +344,7 @@ impl NftContract {
             .tokens_by_owner
             .get(&token.owner_id)
             .unwrap_or_else(|| {
-                UnorderedSet::new(Prefix::TokensByOwnerValue {
+                UnorderedSet::new(Keys::TokensByOwnerValue {
                     owner_id_hash: hash_account_id(&token.owner_id),
                 })
             });
