@@ -20,9 +20,8 @@
 #![deny(warnings)]
 
 use mg_core::{
-    market, ApproveMsg, Collectible, ContractMetadata, Fraction, GateId,
-    NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Token, TokenApproval, TokenId,
-    TokenMetadata,
+    ApproveMsg, Collectible, ContractMetadata, Fraction, GateId, NonFungibleTokenApprovalMgmt,
+    NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
 };
 use near_env::{near_log, PanicMessage};
 use near_sdk::{
@@ -492,7 +491,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         );
         self.tokens.insert(&token_id, &token);
 
-        market::nft_on_approve(
+        mg_core::market::nft_on_approve(
             token_id,
             owner_id.try_into().unwrap(),
             U64::from(token.approval_counter),
