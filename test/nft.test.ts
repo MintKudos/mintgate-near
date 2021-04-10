@@ -34,6 +34,24 @@ describe('Nft contract', () => {
     expect(alice.accountId).not.toBe(bob.accountId);
   });
 
+  test('zero denominator royalty should panic', async () => {
+    const gateId = await generateId();
+
+    await expect(addTestCollectible(alice.contract, {
+      gate_id: gateId,
+      title: 'title',
+      description: 'desc',
+      supply: '100',
+      gate_url: 'test-url',
+      royalty: { num: 0, den: 0 },
+    })).rejects.toThrow(
+      expect.objectContaining({
+        type: 'GuestPanic',
+        panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+      })
+    );
+  });
+
   describe('create_collectible', () => {
     let gateId: string;
     let title: string;

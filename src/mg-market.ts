@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.1.1 https://github.com/acuarica/near-doc on 2021-04-09 16:06:08.583960 UTC
+// TypeScript bindings generated with near-ts v0.1.1 https://github.com/acuarica/near-doc on 2021-04-10 18:33:42.079950 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -9,12 +9,16 @@ export type ValidAccountId = string;
 /**
  *  Represents a number between `0` and `1`.
  *  It is meant to be used as percentage to calculate both fees and royalties.
+ *  As with usual fractions, `den`ominator cannot be `0`.
+ *  Morever, `num` must be less or equal than `den`.
  */
 export interface Fraction {
     /**
+     *  The *numerator* of this `Fraction`.
      */
     num: number;
     /**
+     *  The *denominator* of this `Fraction`.
      */
     den: number;
 }
@@ -201,16 +205,21 @@ export interface Token2 {
 
 export interface Self {
     /**
-     *  Initializes the contract.
+     *  Initializes the Market contract.
      * 
      *  - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
      */
     init(args: { mintgate_fee: Fraction }): Promise<Self>;
 
     /**
-     *  Returns all `TokenId` available for sale.
+     *  Returns all available `TokenId`s for sale.
+     *  Use the `nft_on_approve` method to add an item for sale.
      */
     get_tokens_for_sale(): Promise<TokenId[]>;
+
+    /**
+     */
+    buy_token(args: { token_id: TokenId }): Promise<void>;
 
 }
 
@@ -230,6 +239,7 @@ export const MarketContractMethods = {
     ],
     changeMethods: [
         "init",
+        "buy_token",
         "nft_on_approve",
     ],
 };

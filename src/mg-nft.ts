@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.1.1 https://github.com/acuarica/near-doc on 2021-04-09 16:06:08.351962 UTC
+// TypeScript bindings generated with near-ts v0.1.1 https://github.com/acuarica/near-doc on 2021-04-10 18:33:41.847555 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -9,12 +9,16 @@ export type ValidAccountId = string;
 /**
  *  Represents a number between `0` and `1`.
  *  It is meant to be used as percentage to calculate both fees and royalties.
+ *  As with usual fractions, `den`ominator cannot be `0`.
+ *  Morever, `num` must be less or equal than `den`.
  */
 export interface Fraction {
     /**
+     *  The *numerator* of this `Fraction`.
      */
     num: number;
     /**
+     *  The *denominator* of this `Fraction`.
      */
     den: number;
 }
