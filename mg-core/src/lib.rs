@@ -1,5 +1,7 @@
 #![deny(warnings)]
 
+pub mod mocked_context;
+
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     json_types::{ValidAccountId, U128, U64},
