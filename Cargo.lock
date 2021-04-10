@@ -239,6 +239,7 @@ name = "mg-core"
 version = "0.1.0"
 dependencies = [
  "near-sdk",
+ "sha2",
  "uint",
 ]
 
@@ -260,7 +261,6 @@ dependencies = [
  "near-sdk",
  "serde",
  "serde_json",
- "sha2",
 ]
 
 [[package]]
