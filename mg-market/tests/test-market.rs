@@ -63,3 +63,19 @@ fn nft_on_approve_with_no_price_should_panic() {
         assert_eq!(contract.get_tokens_for_sale().len(), 1);
     });
 }
+
+#[test]
+#[should_panic(expected = "Token ID `U64(99)` was not found")]
+fn buy_a_non_existent_token_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.buy_token(99.into());
+    });
+}
+
+#[test]
+fn buy_a_token() {
+    init().run_as(alice(), |contract| {
+        contract.nft_on_approve(1.into(), alice(), 0.into(), min_price(10).unwrap());
+        contract.buy_token(1.into());
+    });
+}

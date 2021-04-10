@@ -1,15 +1,18 @@
 //! This module implement the MintGate marketplace.
 #![deny(warnings)]
 
+use std::convert::TryInto;
+
 use mg_core::{ApproveMsg, Fraction, NonFungibleTokenApprovalsReceiver, TokenId};
 use near_env::{near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
+    env,
     json_types::{ValidAccountId, U64},
     near_bindgen,
     serde::{Deserialize, Serialize},
-    serde_json, setup_alloc, AccountId, PanicOnDefault,
+    serde_json, setup_alloc, AccountId, PanicOnDefault, Promise,
 };
 
 setup_alloc!();
@@ -55,6 +58,15 @@ pub struct MarketContract {
 
 // }
 
+#[derive(Serialize, PanicMessage)]
+#[serde(crate = "near_sdk::serde", tag = "err")]
+enum Panics {
+    #[panic_msg = "Could not find min_price in msg: {}"]
+    MsgFormatMinPriceMissing { reason: String },
+    #[panic_msg = "Token ID `{:?}` was not found"]
+    TokenIdNotFound { token_id: TokenId },
+}
+
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl MarketContract {
@@ -63,6 +75,8 @@ impl MarketContract {
     /// - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
     #[init]
     pub fn init(mintgate_fee: Fraction) -> Self {
+        mintgate_fee.check();
+
         Self {
             mintgate_fee,
             tokens_for_sale: UnorderedMap::new(vec![b'0']),
@@ -78,13 +92,28 @@ impl MarketContract {
         }
         result
     }
-}
 
-#[derive(Serialize, PanicMessage)]
-#[serde(crate = "near_sdk::serde", tag = "err")]
-enum Panics {
-    #[panic_msg = "Could not find min_price in msg: {}"]
-    MsgFormatMinPriceMissing { reason: String },
+    #[payable]
+    pub fn buy_token(&mut self, token_id: TokenId) {
+        if let Some((owner_id, _approval_id, min_price)) = self.tokens_for_sale.get(&token_id) {
+            let nft_id = env::signer_account_id();
+            let receiver_id = env::predecessor_account_id();
+
+            mg_core::nft::nft_transfer(
+                receiver_id.try_into().unwrap(),
+                token_id,
+                None,
+                None,
+                &nft_id,
+                0,
+                env::prepaid_gas() / 4,
+            );
+
+            Promise::new(owner_id).transfer(min_price);
+        } else {
+            Panics::TokenIdNotFound { token_id }.panic();
+        }
+    }
 }
 
 #[near_log(skip_args, only_pub)]
@@ -106,10 +135,8 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
                 );
             }
             Err(err) => {
-                Panics::MsgFormatMinPriceMissing {
-                    reason: err.to_string(),
-                }
-                .panic();
+                let reason = err.to_string();
+                Panics::MsgFormatMinPriceMissing { reason }.panic();
             }
         }
     }
