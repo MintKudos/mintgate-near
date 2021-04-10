@@ -183,6 +183,8 @@ pub struct TokenApproval {
     pub min_price: U128,
 }
 
+#[near_ext]
+#[ext_contract(nft)]
 pub trait NonFungibleTokenCore {
     fn nft_metadata(&self) -> ContractMetadata;
 
