@@ -259,8 +259,6 @@ dependencies = [
  "mg-core",
  "near-env",
  "near-sdk",
- "serde",
- "serde_json",
 ]
 
 [[package]]
