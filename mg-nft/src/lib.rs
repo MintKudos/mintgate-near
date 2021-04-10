@@ -129,6 +129,9 @@ impl NftContract {
         min_royalty: Fraction,
         max_royalty: Fraction,
     ) -> Self {
+        min_royalty.check();
+        max_royalty.check();
+
         Self {
             collectibles: UnorderedMap::new(Keys::Collectibles),
             collectibles_by_creator: LookupMap::new(Keys::CollectiblesByCreator),
@@ -156,6 +159,7 @@ impl NftContract {
         gate_url: String,
         royalty: Fraction,
     ) {
+        royalty.check();
         if royalty.cmp(&self.min_royalty) == Ordering::Less {
             Panics::RoyaltyMinThanAllowed { royalty, gate_id }.panic();
         }
@@ -168,6 +172,7 @@ impl NftContract {
         if supply.0 == 0 {
             Panics::ZeroSupplyNotAllowed { gate_id }.panic();
         }
+
         // if env::predecessor_account_id() != admin_id {
         //     panic();
         // }

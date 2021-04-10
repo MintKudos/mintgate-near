@@ -36,7 +36,7 @@ impl MockedContext<MarketContractChecker> {}
 
 fn init() -> MockedContext<MarketContractChecker> {
     MockedContext::new(|| MarketContractChecker {
-        contract: MarketContract::init(Fraction::new(5, 100)),
+        contract: MarketContract::init(Fraction { num: 5, den: 100 }),
     })
 }
 
