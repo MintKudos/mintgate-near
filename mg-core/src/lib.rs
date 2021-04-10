@@ -2,10 +2,10 @@
 
 pub mod mocked_context;
 
-use near_env::near_ext;
+use near_env::{near_ext, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    env, ext_contract,
+    ext_contract,
     json_types::{ValidAccountId, U128, U64},
     serde::{Deserialize, Serialize},
     AccountId, Balance,
@@ -16,6 +16,15 @@ use uint::construct_uint;
 construct_uint! {
     /// 256-bit unsigned integer.
     struct U256(4);
+}
+
+#[derive(Serialize, PanicMessage)]
+#[serde(crate = "near_sdk::serde", tag = "err")]
+enum Panics {
+    #[panic_msg = "Denominator must be a positive number, but was 0"]
+    ZeroDenominatorFraction,
+    #[panic_msg = "The fraction must be less or equal to 1"]
+    FractionGreaterThanOne,
 }
 
 /// Represents a number between `0` and `1`.
@@ -38,10 +47,10 @@ impl Fraction {
     /// - The `num` is less or equal than `den`ominator.
     pub fn check(&self) {
         if self.den == 0 {
-            env::panic(b"Denominator must be a positive number, but was 0");
+            Panics::ZeroDenominatorFraction.panic();
         }
         if self.num > self.den {
-            env::panic(b"The fraction must be less or equal to 1");
+            Panics::FractionGreaterThanOne.panic();
         }
     }
 
