@@ -48,7 +48,7 @@ fn initial_state() {
 }
 
 #[test]
-fn app() {
+fn nft_on_approve_should_add_token_for_sale() {
     init().run_as(alice(), |contract| {
         contract.nft_on_approve(1.into(), alice(), 0.into(), min_price(10).unwrap());
         assert_eq!(contract.get_tokens_for_sale().len(), 1);
