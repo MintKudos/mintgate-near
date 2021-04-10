@@ -24,7 +24,7 @@ use mg_core::{
     NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Token, TokenApproval, TokenId,
     TokenMetadata,
 };
-use near_env::{near_envlog, PanicMessage};
+use near_env::{near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
@@ -112,7 +112,7 @@ enum Panics {
     RevokeApprovalFailed { account_id: AccountId },
 }
 
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NftContract {
     /// Initializes the contract.
@@ -379,7 +379,7 @@ impl NftContract {
     }
 }
 
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenCore for NftContract {
     /// Returns the NFT metadata for this contract.
@@ -447,7 +447,7 @@ impl NonFungibleTokenCore for NftContract {
     }
 }
 
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalMgmt for NftContract {
     /// Allows `account_id` to transfer `token_id` on behalf of its owner.

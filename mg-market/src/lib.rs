@@ -2,7 +2,7 @@
 #![deny(warnings)]
 
 use mg_core::{ApproveMsg, Fraction, NonFungibleTokenApprovalsReceiver, TokenId};
-use near_env::{near_envlog, PanicMessage};
+use near_env::{near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
@@ -55,7 +55,7 @@ pub struct MarketContract {
 
 // }
 
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl MarketContract {
     /// Initializes the Market contract.
@@ -87,7 +87,7 @@ enum Panics {
     MsgFormatMinPriceMissing { reason: String },
 }
 
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalsReceiver for MarketContract {
     /// Callback method to allow this contract to put a `Token` into the marketplace.

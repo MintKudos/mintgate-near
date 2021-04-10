@@ -10,5 +10,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 near-sdk = "3.1.0"
-near-env = "0.1.8"
+near-env = "0.1.9"
 mg-core = { path = "../mg-core" }
