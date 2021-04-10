@@ -8,7 +8,7 @@ use near_sdk::{
     json_types::{ValidAccountId, U64},
     near_bindgen,
     serde::{Deserialize, Serialize},
-    setup_alloc, AccountId, PanicOnDefault,
+    serde_json, setup_alloc, AccountId, PanicOnDefault,
 };
 
 setup_alloc!();
@@ -57,7 +57,7 @@ pub struct MarketContract {
 #[near_envlog(skip_args, only_pub)]
 #[near_bindgen]
 impl MarketContract {
-    /// Initializes the contract.
+    /// Initializes the Market contract.
     ///
     /// - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
     #[init]
@@ -68,7 +68,8 @@ impl MarketContract {
         }
     }
 
-    /// Returns all `TokenId` available for sale.
+    /// Returns all available `TokenId`s for sale.
+    /// Use the `nft_on_approve` method to add an item for sale.
     pub fn get_tokens_for_sale(&self) -> Vec<TokenId> {
         let mut result = Vec::new();
         for (token_id, _) in self.tokens_for_sale.iter() {
@@ -89,8 +90,8 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         approval_id: U64,
         msg: String,
     ) {
-        let approve_msg = near_sdk::serde_json::from_str::<ApproveMsg>(&msg)
-            .expect("Could not find min_price in msg");
+        let approve_msg =
+            serde_json::from_str::<ApproveMsg>(&msg).expect("Could not find min_price in msg");
 
         self.tokens_for_sale.insert(
             &token_id,
