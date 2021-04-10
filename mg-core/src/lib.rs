@@ -2,6 +2,7 @@
 
 pub mod mocked_context;
 
+use near_env::near_ext;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     ext_contract,
@@ -196,16 +197,8 @@ pub struct ApproveMsg {
     pub min_price: U128,
 }
 
+#[near_ext]
 #[ext_contract(market)]
-pub trait NonFungibleTokenApprovalsReceiver {
-    fn nft_on_approve(
-        &mut self,
-        token_id: TokenId,
-        owner_id: ValidAccountId,
-        approval_id: U64,
-        msg: String,
-    );
-}
 pub trait NonFungibleTokenApprovalsReceiver {
     fn nft_on_approve(
         &mut self,
