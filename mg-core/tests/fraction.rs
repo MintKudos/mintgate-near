@@ -1,6 +1,5 @@
+use mg_core::Fraction;
 use std::cmp::Ordering;
-
-use mg_core::fraction::Fraction;
 
 #[test]
 fn multiply_by_0() {
