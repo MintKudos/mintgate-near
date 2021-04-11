@@ -19,6 +19,12 @@ On the other hand, `near-doc` is a utility to generate Markdown documentation fr
 You can install it with
 
 ```sh
+cargo install near-syn
+```
+
+Or alternatively you can install it directly from GitHub
+
+```sh
 cargo install --git https://github.com/acuarica/near-syn --branch main
 ```
 
