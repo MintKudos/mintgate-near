@@ -50,10 +50,10 @@ macro_rules! mock_context {
                 self
             }
 
-            // pub fn attach_deposit(&mut self, attached_deposit: u128) -> &mut Self {
-            //     self.context.attached_deposit = attached_deposit;
-            //     self
-            // }
+            pub fn attach_deposit(&mut self, attached_deposit: u128) -> &mut Self {
+                self.context.attached_deposit = attached_deposit;
+                self
+            }
 
             pub fn pred_id(&self) -> ValidAccountId {
                 self.context.predecessor_account_id.clone().try_into().unwrap()
