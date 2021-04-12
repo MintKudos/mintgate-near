@@ -3,7 +3,7 @@
 use mg_core::{
     mock_context,
     mocked_context::{self, alice, any},
-    Fraction, NonFungibleTokenApprovalsReceiver,
+    NonFungibleTokenApprovalsReceiver,
 };
 use mg_market::MarketContract;
 use mocked_context::min_price;
@@ -34,10 +34,14 @@ impl DerefMut for MarketContractChecker {
 
 impl MockedContext<MarketContractChecker> {}
 
-fn init() -> MockedContext<MarketContractChecker> {
+fn init_contract(mintgate_fee: &str) -> MockedContext<MarketContractChecker> {
     MockedContext::new(|| MarketContractChecker {
-        contract: MarketContract::init(Fraction { num: 5, den: 100 }),
+        contract: MarketContract::init(mintgate_fee.parse().unwrap()),
     })
+}
+
+fn init() -> MockedContext<MarketContractChecker> {
+    init_contract("25/1000")
 }
 
 #[test]
@@ -45,6 +49,18 @@ fn initial_state() {
     init().run_as(any(), |contract| {
         assert_eq!(contract.get_tokens_for_sale().len(), 0);
     });
+}
+
+#[test]
+#[should_panic(expected = "Denominator must be a positive number, but was 0")]
+fn init_state_with_zero_den_mintgate_fee_should_panic() {
+    init_contract("5/0");
+}
+
+#[test]
+#[should_panic(expected = "The fraction must be less or equal to 1")]
+fn init_state_with_invalid_mintgate_fee_should_panic() {
+    init_contract("5/4");
 }
 
 #[test]
