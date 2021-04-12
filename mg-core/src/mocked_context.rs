@@ -93,6 +93,10 @@ pub fn charlie() -> ValidAccountId {
     "charlie".try_into().unwrap()
 }
 
+pub fn nft() -> ValidAccountId {
+    "nft".try_into().unwrap()
+}
+
 pub fn market() -> ValidAccountId {
     "market".try_into().unwrap()
 }
@@ -103,8 +107,4 @@ pub fn gate_id(n: u64) -> String {
     let result = hasher.finalize();
     let data: &[u8] = result[..16].try_into().unwrap();
     bs58::encode(data).into_string()
-}
-
-pub fn min_price(price: u64) -> Option<String> {
-    Some(format!(r#"{{"min_price": "{}"}}"#, price))
 }

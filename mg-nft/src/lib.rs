@@ -20,7 +20,7 @@
 #![deny(warnings)]
 
 use mg_core::{
-    ApproveMsg, Collectible, ContractMetadata, Fraction, GateId, NonFungibleTokenApprovalMgmt,
+    Collectible, ContractMetadata, Fraction, GateId, NftApproveMsg, NonFungibleTokenApprovalMgmt,
     NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
 };
 use near_env::{near_log, PanicMessage};
@@ -447,7 +447,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
     fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
         let min_price = {
             if let Some(msg) = msg.clone() {
-                match near_sdk::serde_json::from_str::<ApproveMsg>(&msg) {
+                match near_sdk::serde_json::from_str::<NftApproveMsg>(&msg) {
                     Ok(approve_msg) => approve_msg.min_price,
                     Err(err) => {
                         Panics::MsgFormatMinPriceMissing { reason: err.to_string() }.panic()

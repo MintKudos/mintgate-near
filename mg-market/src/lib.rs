@@ -3,26 +3,19 @@
 
 use std::convert::TryInto;
 
-use mg_core::{ApproveMsg, Fraction, NonFungibleTokenApprovalsReceiver, TokenId};
+use mg_core::{Fraction, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId};
 use near_env::{near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    collections::UnorderedMap,
+    collections::{LookupMap, UnorderedMap, UnorderedSet},
     env,
-    json_types::{ValidAccountId, U64},
+    json_types::{ValidAccountId, U128, U64},
     near_bindgen,
     serde::{Deserialize, Serialize},
     serde_json, setup_alloc, AccountId, BorshStorageKey, PanicOnDefault, Promise,
 };
 
 setup_alloc!();
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
-pub struct Token2 {
-    pub owner_id: AccountId,
-    pub metadata: String,
-}
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -31,7 +24,21 @@ pub struct MarketContract {
     /// This field can be set up when the contract is deployed.
     mintgate_fee: Fraction,
     /// Lists all tokens for sale.
-    tokens_for_sale: UnorderedMap<TokenId, (AccountId, u64, u128)>,
+    tokens_for_sale: UnorderedMap<TokenId, TokenForSale>,
+    /// Token gate id
+    tokens_by_gate_id: LookupMap<GateId, UnorderedSet<TokenId>>,
+    /// Token gate id
+    tokens_by_owner_id: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    /// Token gate id
+    tokens_by_creator_id: LookupMap<AccountId, UnorderedSet<TokenId>>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TokenForSale {
+    pub owner_id: AccountId,
+    pub approval_id: U64,
+    pub min_price: U128,
 }
 
 // fn asdf() {
@@ -61,6 +68,15 @@ pub struct MarketContract {
 #[derive(BorshSerialize, BorshStorageKey)]
 enum Keys {
     TokensForSale,
+    TokensByGateId,
+    // TokensByGateIdValue { token_id: TokenId },
+    TokensByGateIdValue(TokenId),
+    TokensByOwnerId,
+    // TokensByOwnerIdValue { token_id: TokenId },
+    TokensByOwnerIdValue(TokenId),
+    TokensByCreatorId,
+    // TokensByCreatorIdValue { token_id: TokenId },
+    TokensByCreatorIdValue(TokenId),
 }
 
 #[derive(Serialize, PanicMessage)]
@@ -82,7 +98,13 @@ impl MarketContract {
     pub fn init(mintgate_fee: Fraction) -> Self {
         mintgate_fee.check();
 
-        Self { mintgate_fee, tokens_for_sale: UnorderedMap::new(Keys::TokensForSale) }
+        Self {
+            mintgate_fee,
+            tokens_for_sale: UnorderedMap::new(Keys::TokensForSale),
+            tokens_by_gate_id: LookupMap::new(Keys::TokensByGateId),
+            tokens_by_owner_id: LookupMap::new(Keys::TokensByOwnerId),
+            tokens_by_creator_id: LookupMap::new(Keys::TokensByCreatorId),
+        }
     }
 
     /// Returns all available `TokenId`s for sale.
@@ -95,9 +117,26 @@ impl MarketContract {
         result
     }
 
+    /// Returns all `TokenId`s for sale whose collectible's gate ID is `gate_id`.
+    pub fn get_tokens_by_gate_id(&self, gate_id: GateId) -> Vec<TokenId> {
+        get_tokens_by(&self.tokens_by_gate_id, &gate_id)
+    }
+
+    /// Returns all `TokenId`s for sale owned by `owner_id`.
+    pub fn get_tokens_by_owner_id(&self, owner_id: ValidAccountId) -> Vec<TokenId> {
+        get_tokens_by(&self.tokens_by_owner_id, owner_id.as_ref())
+    }
+
+    /// Returns all `TokenId`s for sale whose collectible's creator ID is `creator_id`.
+    pub fn get_tokens_by_creator_id(&self, creator_id: ValidAccountId) -> Vec<TokenId> {
+        get_tokens_by(&self.tokens_by_creator_id, creator_id.as_ref())
+    }
+
+    /// Buys the token.
     #[payable]
     pub fn buy_token(&mut self, token_id: TokenId) {
-        if let Some((owner_id, _approval_id, min_price)) = self.tokens_for_sale.get(&token_id) {
+        if let Some(TokenForSale { owner_id, min_price, .. }) = self.tokens_for_sale.get(&token_id)
+        {
             let nft_id = env::signer_account_id();
             let receiver_id = env::predecessor_account_id();
 
@@ -111,7 +150,7 @@ impl MarketContract {
                 env::prepaid_gas() / 4,
             );
 
-            Promise::new(owner_id).transfer(min_price);
+            Promise::new(owner_id).transfer(min_price.0);
         } else {
             Panics::TokenIdNotFound { token_id }.panic();
         }
@@ -129,10 +168,35 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         approval_id: U64,
         msg: String,
     ) {
-        match serde_json::from_str::<ApproveMsg>(&msg) {
+        match serde_json::from_str::<MarketApproveMsg>(&msg) {
             Ok(approve_msg) => {
-                self.tokens_for_sale
-                    .insert(&token_id, &(owner_id.into(), approval_id.0, approve_msg.min_price.0));
+                self.tokens_for_sale.insert(
+                    &token_id,
+                    &TokenForSale {
+                        owner_id: owner_id.clone().into(),
+                        approval_id,
+                        min_price: approve_msg.min_price,
+                    },
+                );
+
+                append(
+                    &mut self.tokens_by_gate_id,
+                    &approve_msg.gate_id,
+                    token_id,
+                    Keys::TokensByGateIdValue,
+                );
+                append(
+                    &mut self.tokens_by_owner_id,
+                    &owner_id.into(),
+                    token_id,
+                    Keys::TokensByOwnerIdValue,
+                );
+                append(
+                    &mut self.tokens_by_creator_id,
+                    &approve_msg.creator_id,
+                    token_id,
+                    Keys::TokensByCreatorIdValue,
+                );
             }
             Err(err) => {
                 let reason = err.to_string();
@@ -140,4 +204,22 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
             }
         }
     }
+}
+
+fn append<K: BorshSerialize, F: FnOnce(TokenId) -> Keys>(
+    tokens_map: &mut LookupMap<K, UnorderedSet<TokenId>>,
+    key: &K,
+    token_id: TokenId,
+    f: F,
+) {
+    let mut tids = tokens_map.get(&key).unwrap_or_else(|| UnorderedSet::new(f(token_id)));
+    tids.insert(&token_id);
+    tokens_map.insert(key, &tids);
+}
+
+fn get_tokens_by<K: BorshSerialize>(
+    tokens_map: &LookupMap<K, UnorderedSet<TokenId>>,
+    key: &K,
+) -> Vec<TokenId> {
+    tokens_map.get(&key).map_or_else(Vec::new, |s| s.to_vec())
 }

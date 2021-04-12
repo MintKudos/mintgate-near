@@ -2,11 +2,15 @@
 
 use mg_core::{
     mock_context,
-    mocked_context::{admin, alice, any, bob, charlie, gate_id, market, min_price},
-    ContractMetadata, GateId, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, TokenId,
+    mocked_context::{admin, alice, any, bob, charlie, gate_id, market},
+    ContractMetadata, GateId, NftApproveMsg, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore,
+    TokenId,
 };
 use mg_nft::NftContract;
-use near_sdk::json_types::{ValidAccountId, U64};
+use near_sdk::{
+    json_types::{ValidAccountId, U64},
+    serde_json,
+};
 use std::{
     convert::TryInto,
     ops::{Deref, DerefMut},
@@ -93,6 +97,10 @@ impl MockedContext<NftContractChecker> {
     pub fn last_claimed_token(&self) -> TokenId {
         *self.claimed_tokens.get(0).unwrap()
     }
+}
+
+fn approve_msg(price: u128) -> Option<String> {
+    serde_json::to_string(&NftApproveMsg { min_price: price.into() }).ok()
 }
 
 fn init_contract(min_royalty: &str, max_royalty: &str) -> MockedContext<NftContractChecker> {
@@ -366,7 +374,7 @@ fn approve_and_transfer_token() {
         })
         .run_as(bob(), |contract| {
             let token_id = contract.claim_token(gate_id(1));
-            contract.nft_approve(token_id, market(), min_price(10));
+            contract.nft_approve(token_id, market(), approve_msg(10));
         })
         .run_as(market(), |contract| {
             let token_id = contract.last_claimed_token();
@@ -394,7 +402,7 @@ fn nft_approve_with_invalid_msg_should_panic() {
 #[should_panic(expected = "Token ID `U64(99)` was not found")]
 fn nft_approve_a_non_existent_token_should_panic() {
     init().run_as(alice(), |contract| {
-        contract.nft_approve(99.into(), bob(), min_price(10));
+        contract.nft_approve(99.into(), bob(), approve_msg(10));
     });
 }
 
@@ -403,7 +411,7 @@ fn nft_approve_a_token() {
     init().run_as(alice(), |contract| {
         contract.create_test_collectible(gate_id(1), 10);
         let token_id = contract.claim_token(gate_id(1));
-        contract.nft_approve(token_id, bob(), min_price(10));
+        contract.nft_approve(token_id, bob(), approve_msg(10));
 
         let token = contract.nft_token(token_id).unwrap();
         assert_eq!(token.approval_counter.0, 1);

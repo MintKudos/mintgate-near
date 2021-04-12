@@ -221,10 +221,19 @@ pub trait NonFungibleTokenApprovalMgmt {
 /// - The `msg` argument must contain a value, *i.e.*, cannot be `None`.
 /// - The value of `msg` must be a valid JSON,
 ///   that deserializes to this struct.
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct ApproveMsg {
+pub struct NftApproveMsg {
     pub min_price: U128,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct MarketApproveMsg {
+    pub min_price: U128,
+    pub gate_id: GateId,
+    pub creator_id: AccountId,
+    pub royalty: Fraction,
 }
 
 #[near_ext]
