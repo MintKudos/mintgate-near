@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+#[cfg(not(target_arch = "wasm"))]
 pub mod mocked_context;
 
 use near_env::{near_ext, PanicMessage};
