@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-12 12:26:59.081618 UTC
+// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-12 21:30:46.100628 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;

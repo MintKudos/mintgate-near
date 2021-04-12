@@ -5,12 +5,13 @@ use mg_core::{
     mocked_context::{alice, any, bob, charlie, gate_id, nft},
     GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId,
 };
-use mg_market::MarketContract;
+use mg_market::{MarketContract, TokenForSale};
 use near_sdk::{
     json_types::{ValidAccountId, U64},
     serde_json,
 };
 use std::{
+    collections::BTreeSet,
     convert::TryInto,
     ops::{Deref, DerefMut},
 };
@@ -42,12 +43,24 @@ impl MockedContext<MarketContractChecker> {
         approval_id: U64,
         msg: MarketApproveMsg,
     ) {
-        fn set_cmp(a: &Vec<TokenId>, b: &mut Vec<TokenId>, t: TokenId) {
+        fn set_cmp(a: &Vec<TokenForSale>, b: &mut Vec<TokenForSale>, t: TokenForSale) {
+            let f = |t: &TokenForSale| {
+                (
+                    t.token_id.0,
+                    t.owner_id.clone(),
+                    t.approval_id.0,
+                    t.min_price.0,
+                    t.nft_id.clone(),
+                    t.gate_id.clone(),
+                    t.creator_id.clone(),
+                    t.royalty,
+                )
+            };
             b.push(t);
-            let a = a.into_iter().map(|e| e.0).collect::<std::collections::BTreeSet<u64>>();
-            let b = b.into_iter().map(|e| e.0).collect::<std::collections::BTreeSet<u64>>();
+            let a: BTreeSet<_> = a.into_iter().map(f).collect();
+            let b: &Vec<TokenForSale> = b;
+            let b: BTreeSet<_> = b.into_iter().map(f).collect();
 
-            println!("Check a == b+t: {:?} {:?}", a, b);
             assert_eq!(a, b);
         }
 
@@ -55,7 +68,7 @@ impl MockedContext<MarketContractChecker> {
             contract: &MarketContract,
             msg: &MarketApproveMsg,
             owner_id: ValidAccountId,
-        ) -> [Vec<TokenId>; 4] {
+        ) -> [Vec<TokenForSale>; 4] {
             [
                 contract.get_tokens_for_sale(),
                 contract.get_tokens_by_gate_id(msg.gate_id.clone()),
@@ -73,9 +86,22 @@ impl MockedContext<MarketContractChecker> {
             serde_json::to_string(&msg).unwrap(),
         );
 
-        let a = snapshot(&self.contract, &msg, owner_id);
+        let a = snapshot(&self.contract, &msg, owner_id.clone());
         a.iter().zip(b.iter_mut()).for_each(|(x, y)| {
-            set_cmp(x, y, token_id);
+            set_cmp(
+                x,
+                y,
+                TokenForSale {
+                    token_id,
+                    owner_id: owner_id.to_string(),
+                    approval_id,
+                    min_price: msg.min_price,
+                    nft_id: self.context.signer_account_id.clone(),
+                    gate_id: msg.gate_id.clone(),
+                    creator_id: msg.creator_id.clone(),
+                    royalty: msg.royalty,
+                },
+            );
         });
     }
 }
@@ -233,7 +259,6 @@ mod buy_token {
             .run_as(nft(), |contract| {
                 let msg = approve_msg(1000, gate_id(1), charlie(), "1/100");
                 contract.nft_on_approve(token_id, bob(), 0.into(), msg);
-                assert_eq!(contract.get_tokens_for_sale().len(), 1);
             })
             .run_as(alice(), |contract| {
                 assert_eq!(contract.get_tokens_for_sale().len(), 1);

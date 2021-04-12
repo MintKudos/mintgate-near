@@ -33,7 +33,7 @@ enum Panics {
 /// As with usual fractions, `den`ominator cannot be `0`.
 /// Morever, `num` must be less or equal than `den`.
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Eq)]
-#[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
+#[cfg_attr(not(target_arch = "wasm"), derive(Debug, Clone, Copy))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Fraction {
     /// The *numerator* of this `Fraction`.

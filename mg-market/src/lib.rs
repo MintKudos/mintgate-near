@@ -37,8 +37,10 @@ pub struct MarketContract {
     tokens_by_creator_id: LookupMap<AccountId, UnorderedSet<TokenId>>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct TokenForSale {
+    pub token_id: TokenId,
     pub owner_id: AccountId,
     pub approval_id: U64,
     pub min_price: U128,
@@ -93,29 +95,29 @@ impl MarketContract {
         }
     }
 
-    /// Returns all available `TokenId`s for sale.
-    /// Use the `nft_on_approve` method to add an item for sale.
-    pub fn get_tokens_for_sale(&self) -> Vec<TokenId> {
+    /// Returns all available tokens for sale.
+    /// Use the `nft_on_approve` method to add a token for sale.
+    pub fn get_tokens_for_sale(&self) -> Vec<TokenForSale> {
         let mut result = Vec::new();
-        for (token_id, _) in self.tokens_for_sale.iter() {
-            result.push(token_id);
+        for (_, token) in self.tokens_for_sale.iter() {
+            result.push(token);
         }
         result
     }
 
-    /// Returns all `TokenId`s for sale whose collectible's gate ID is `gate_id`.
-    pub fn get_tokens_by_gate_id(&self, gate_id: GateId) -> Vec<TokenId> {
-        get_tokens_by(&self.tokens_by_gate_id, &gate_id)
+    /// Returns all tokens for sale whose collectible's gate ID is `gate_id`.
+    pub fn get_tokens_by_gate_id(&self, gate_id: GateId) -> Vec<TokenForSale> {
+        get_tokens_by(&self.tokens_for_sale, &self.tokens_by_gate_id, &gate_id)
     }
 
-    /// Returns all `TokenId`s for sale owned by `owner_id`.
-    pub fn get_tokens_by_owner_id(&self, owner_id: ValidAccountId) -> Vec<TokenId> {
-        get_tokens_by(&self.tokens_by_owner_id, owner_id.as_ref())
+    /// Returns all tokens for sale owned by `owner_id`.
+    pub fn get_tokens_by_owner_id(&self, owner_id: ValidAccountId) -> Vec<TokenForSale> {
+        get_tokens_by(&self.tokens_for_sale, &self.tokens_by_owner_id, owner_id.as_ref())
     }
 
-    /// Returns all `TokenId`s for sale whose collectible's creator ID is `creator_id`.
-    pub fn get_tokens_by_creator_id(&self, creator_id: ValidAccountId) -> Vec<TokenId> {
-        get_tokens_by(&self.tokens_by_creator_id, creator_id.as_ref())
+    /// Returns all tokens for sale whose collectible's creator ID is `creator_id`.
+    pub fn get_tokens_by_creator_id(&self, creator_id: ValidAccountId) -> Vec<TokenForSale> {
+        get_tokens_by(&self.tokens_for_sale, &self.tokens_by_creator_id, creator_id.as_ref())
     }
 
     /// Buys the token.
@@ -193,6 +195,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
                 self.tokens_for_sale.insert(
                     &token_id,
                     &TokenForSale {
+                        token_id,
                         owner_id: owner_id.clone().into(),
                         approval_id,
                         min_price: approve_msg.min_price,
@@ -242,10 +245,16 @@ fn insert_token_id_to<F: FnOnce(CryptoHash) -> Keys>(
 }
 
 fn get_tokens_by<K: BorshSerialize>(
+    ts: &UnorderedMap<TokenId, TokenForSale>,
     tokens_map: &LookupMap<K, UnorderedSet<TokenId>>,
     key: &K,
-) -> Vec<TokenId> {
-    tokens_map.get(&key).map_or_else(Vec::new, |tids| tids.to_vec())
+) -> Vec<TokenForSale> {
+    match tokens_map.get(&key) {
+        None => Vec::new(),
+        Some(tids) => {
+            tids.iter().map(|token_id| ts.get(&token_id).expect("Token not found")).collect()
+        }
+    }
 }
 
 fn remove_token_id_from<K: BorshSerialize>(
