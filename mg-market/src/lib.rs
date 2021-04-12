@@ -12,7 +12,7 @@ use near_sdk::{
     json_types::{ValidAccountId, U64},
     near_bindgen,
     serde::{Deserialize, Serialize},
-    serde_json, setup_alloc, AccountId, PanicOnDefault, Promise,
+    serde_json, setup_alloc, AccountId, BorshStorageKey, PanicOnDefault, Promise,
 };
 
 setup_alloc!();
@@ -58,6 +58,11 @@ pub struct MarketContract {
 
 // }
 
+#[derive(BorshSerialize, BorshStorageKey)]
+enum Keys {
+    TokensForSale,
+}
+
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
 enum Panics {
@@ -79,7 +84,7 @@ impl MarketContract {
 
         Self {
             mintgate_fee,
-            tokens_for_sale: UnorderedMap::new(vec![b'0']),
+            tokens_for_sale: UnorderedMap::new(Keys::TokensForSale),
         }
     }
 
