@@ -35,10 +35,7 @@ macro_rules! mock_context {
             {
                 let context = ::near_sdk::test_utils::VMContextBuilder::new().build();
                 testing_env!(context.clone());
-                Self {
-                    contract: init(),
-                    context,
-                }
+                Self { contract: init(), context }
             }
 
             /// Runs the given `action` as account `account_id`.
@@ -59,11 +56,7 @@ macro_rules! mock_context {
             // }
 
             pub fn pred_id(&self) -> ValidAccountId {
-                self.context
-                    .predecessor_account_id
-                    .clone()
-                    .try_into()
-                    .unwrap()
+                self.context.predecessor_account_id.clone().try_into().unwrap()
             }
 
             fn update_context(&mut self) {

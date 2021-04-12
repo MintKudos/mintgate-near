@@ -82,10 +82,7 @@ fn hash_account_id(account_id: &AccountId) -> CryptoHash {
 #[serde(crate = "near_sdk::serde", tag = "err")]
 enum Panics {
     #[panic_msg = "Min royalty `{}` must be less or equal to max royalty `{}`"]
-    MaxRoyaltyLessThanMinRoyalty {
-        min_royalty: Fraction,
-        max_royalty: Fraction,
-    },
+    MaxRoyaltyLessThanMinRoyalty { min_royalty: Fraction, max_royalty: Fraction },
     #[panic_msg = "Royalty `{}` of `{}` is less than min"]
     RoyaltyMinThanAllowed { royalty: Fraction, gate_id: String },
     #[panic_msg = "Royalty `{}` of `{}` is greater than max"]
@@ -137,11 +134,7 @@ impl NftContract {
         max_royalty.check();
 
         if max_royalty.cmp(&min_royalty) == Ordering::Less {
-            Panics::MaxRoyaltyLessThanMinRoyalty {
-                min_royalty,
-                max_royalty,
-            }
-            .panic();
+            Panics::MaxRoyaltyLessThanMinRoyalty { min_royalty, max_royalty }.panic();
         }
 
         Self {
@@ -215,18 +208,15 @@ impl NftContract {
         };
         self.collectibles.insert(&collectible.gate_id, &collectible);
 
-        let mut gids = self
-            .collectibles_by_creator
-            .get(&collectible.creator_id)
-            .unwrap_or_else(|| {
+        let mut gids =
+            self.collectibles_by_creator.get(&collectible.creator_id).unwrap_or_else(|| {
                 UnorderedSet::new(Keys::CollectiblesByCreatorValue {
                     creator_id_hash: hash_account_id(&collectible.creator_id),
                 })
             });
         gids.insert(&collectible.gate_id);
 
-        self.collectibles_by_creator
-            .insert(&collectible.creator_id, &gids);
+        self.collectibles_by_creator.insert(&collectible.creator_id, &gids);
     }
 
     /// Returns the `Collectible` with the given `gate_id`.
@@ -252,10 +242,7 @@ impl NftContract {
             Some(list) => list
                 .iter()
                 .map(|gate_id| {
-                    let collectible = self
-                        .collectibles
-                        .get(&gate_id)
-                        .expect("Collectible not found");
+                    let collectible = self.collectibles.get(&gate_id).expect("Gate Id not found");
                     assert!(collectible.gate_id == gate_id);
                     assert!(&collectible.creator_id == creator_id.as_ref());
                     collectible
@@ -357,14 +344,11 @@ impl NftContract {
     fn insert_token(&mut self, token: &Token) {
         self.tokens.insert(&token.token_id, token);
 
-        let mut tids = self
-            .tokens_by_owner
-            .get(&token.owner_id)
-            .unwrap_or_else(|| {
-                UnorderedSet::new(Keys::TokensByOwnerValue {
-                    owner_id_hash: hash_account_id(&token.owner_id),
-                })
-            });
+        let mut tids = self.tokens_by_owner.get(&token.owner_id).unwrap_or_else(|| {
+            UnorderedSet::new(Keys::TokensByOwnerValue {
+                owner_id_hash: hash_account_id(&token.owner_id),
+            })
+        });
         tids.insert(&token.token_id);
 
         self.tokens_by_owner.insert(&token.owner_id, &tids);
@@ -374,18 +358,10 @@ impl NftContract {
     /// Panics if `owner` does not own the corgi with `id`.
     fn delete_token_from(&mut self, token_id: TokenId, owner_id: &AccountId) {
         match self.tokens_by_owner.get(&owner_id) {
-            None => Panics::TokenIdNotOwnedBy {
-                token_id,
-                owner_id: owner_id.clone(),
-            }
-            .panic(),
+            None => Panics::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() }.panic(),
             Some(mut list) => {
                 if !list.remove(&token_id) {
-                    Panics::TokenIdNotOwnedBy {
-                        token_id,
-                        owner_id: owner_id.clone(),
-                    }
-                    .panic();
+                    Panics::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() }.panic();
                 }
                 self.tokens_by_owner.insert(&owner_id, &list);
 
@@ -426,10 +402,7 @@ impl NonFungibleTokenCore for NftContract {
         }
 
         if let Some(enforce_approval_id) = enforce_approval_id {
-            let TokenApproval {
-                approval_id,
-                min_price: _,
-            } = token
+            let TokenApproval { approval_id, min_price: _ } = token
                 .approvals
                 .get(receiver_id.as_ref())
                 .expect("Receiver not an approver of this token.");
@@ -476,10 +449,9 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
             if let Some(msg) = msg.clone() {
                 match near_sdk::serde_json::from_str::<ApproveMsg>(&msg) {
                     Ok(approve_msg) => approve_msg.min_price,
-                    Err(err) => Panics::MsgFormatMinPriceMissing {
-                        reason: err.to_string(),
+                    Err(err) => {
+                        Panics::MsgFormatMinPriceMissing { reason: err.to_string() }.panic()
                     }
-                    .panic(),
                 }
             } else {
                 Panics::MsgFormatNotRecognized.panic();
@@ -497,10 +469,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         token.approval_counter.0 = token.approval_counter.0 + 1;
         token.approvals.insert(
             account_id.clone().into(),
-            TokenApproval {
-                approval_id: token.approval_counter,
-                min_price,
-            },
+            TokenApproval { approval_id: token.approval_counter, min_price },
         );
         self.tokens.insert(&token_id, &token);
 
@@ -523,10 +492,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
             Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
         if token.approvals.remove(account_id.as_ref()).is_none() {
-            Panics::RevokeApprovalFailed {
-                account_id: account_id.to_string(),
-            }
-            .panic();
+            Panics::RevokeApprovalFailed { account_id: account_id.to_string() }.panic();
         }
         self.tokens.insert(&token_id, &token);
     }

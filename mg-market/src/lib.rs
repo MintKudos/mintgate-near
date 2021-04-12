@@ -82,10 +82,7 @@ impl MarketContract {
     pub fn init(mintgate_fee: Fraction) -> Self {
         mintgate_fee.check();
 
-        Self {
-            mintgate_fee,
-            tokens_for_sale: UnorderedMap::new(Keys::TokensForSale),
-        }
+        Self { mintgate_fee, tokens_for_sale: UnorderedMap::new(Keys::TokensForSale) }
     }
 
     /// Returns all available `TokenId`s for sale.
@@ -134,10 +131,8 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     ) {
         match serde_json::from_str::<ApproveMsg>(&msg) {
             Ok(approve_msg) => {
-                self.tokens_for_sale.insert(
-                    &token_id,
-                    &(owner_id.into(), approval_id.0, approve_msg.min_price.0),
-                );
+                self.tokens_for_sale
+                    .insert(&token_id, &(owner_id.into(), approval_id.0, approve_msg.min_price.0));
             }
             Err(err) => {
                 let reason = err.to_string();

@@ -91,10 +91,7 @@ impl FromStr for Fraction {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s.split("/").collect::<Vec<&str>>();
-        Ok(Self {
-            num: parts[0].parse::<u32>()?,
-            den: parts[1].parse::<u32>()?,
-        })
+        Ok(Self { num: parts[0].parse::<u32>()?, den: parts[1].parse::<u32>()? })
     }
 }
 

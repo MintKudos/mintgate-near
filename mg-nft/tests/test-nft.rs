@@ -46,10 +46,7 @@ impl MockedContext<NftContractChecker> {
             royalty.parse().unwrap(),
         );
 
-        let collectible = self
-            .contract
-            .get_collectible_by_gate_id(gate_id.clone())
-            .unwrap();
+        let collectible = self.contract.get_collectible_by_gate_id(gate_id.clone()).unwrap();
         assert_eq!(collectible.gate_id, gate_id);
         assert_eq!(collectible.current_supply.0, supply);
 
