@@ -3,7 +3,9 @@
 
 use std::convert::TryInto;
 
-use mg_core::{Fraction, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId};
+use mg_core::{
+    crypto_hash, Fraction, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId,
+};
 use near_env::{near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
@@ -12,7 +14,7 @@ use near_sdk::{
     json_types::{ValidAccountId, U128, U64},
     near_bindgen,
     serde::{Deserialize, Serialize},
-    serde_json, setup_alloc, AccountId, BorshStorageKey, PanicOnDefault, Promise,
+    serde_json, setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
 };
 
 setup_alloc!();
@@ -39,6 +41,9 @@ pub struct TokenForSale {
     pub owner_id: AccountId,
     pub approval_id: U64,
     pub min_price: U128,
+    pub nft_id: AccountId,
+    pub gate_id: GateId,
+    pub creator_id: AccountId,
 }
 
 // fn asdf() {
@@ -69,14 +74,11 @@ pub struct TokenForSale {
 enum Keys {
     TokensForSale,
     TokensByGateId,
-    // TokensByGateIdValue { token_id: TokenId },
-    TokensByGateIdValue(TokenId),
+    TokensByGateIdValue(CryptoHash),
     TokensByOwnerId,
-    // TokensByOwnerIdValue { token_id: TokenId },
-    TokensByOwnerIdValue(TokenId),
+    TokensByOwnerIdValue(CryptoHash),
     TokensByCreatorId,
-    // TokensByCreatorIdValue { token_id: TokenId },
-    TokensByCreatorIdValue(TokenId),
+    TokensByCreatorIdValue(CryptoHash),
 }
 
 #[derive(Serialize, PanicMessage)]
@@ -135,22 +137,27 @@ impl MarketContract {
     /// Buys the token.
     #[payable]
     pub fn buy_token(&mut self, token_id: TokenId) {
-        if let Some(TokenForSale { owner_id, min_price, .. }) = self.tokens_for_sale.get(&token_id)
+        if let Some(TokenForSale { owner_id, min_price, nft_id, gate_id, creator_id, .. }) =
+            self.tokens_for_sale.get(&token_id)
         {
-            let nft_id = env::signer_account_id();
-            let receiver_id = env::predecessor_account_id();
+            let buyer_id = env::predecessor_account_id();
 
             mg_core::nft::nft_transfer(
-                receiver_id.try_into().unwrap(),
+                buyer_id.try_into().unwrap(),
                 token_id,
                 None,
                 None,
                 &nft_id,
                 0,
-                env::prepaid_gas() / 4,
+                env::prepaid_gas() / 3,
             );
 
-            Promise::new(owner_id).transfer(min_price.0);
+            Promise::new(owner_id.clone()).transfer(min_price.0);
+
+            self.tokens_for_sale.remove(&token_id);
+            remove_token_id_from(&mut self.tokens_by_gate_id, &gate_id, token_id);
+            remove_token_id_from(&mut self.tokens_by_owner_id, &owner_id, token_id);
+            remove_token_id_from(&mut self.tokens_by_creator_id, &creator_id, token_id);
         } else {
             Panics::TokenIdNotFound { token_id }.panic();
         }
@@ -170,28 +177,33 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     ) {
         match serde_json::from_str::<MarketApproveMsg>(&msg) {
             Ok(approve_msg) => {
+                let nft_id = env::signer_account_id();
+
                 self.tokens_for_sale.insert(
                     &token_id,
                     &TokenForSale {
                         owner_id: owner_id.clone().into(),
                         approval_id,
                         min_price: approve_msg.min_price,
+                        nft_id,
+                        gate_id: approve_msg.gate_id.clone(),
+                        creator_id: approve_msg.creator_id.clone(),
                     },
                 );
 
-                append(
+                insert_token_id_to(
                     &mut self.tokens_by_gate_id,
                     &approve_msg.gate_id,
                     token_id,
                     Keys::TokensByGateIdValue,
                 );
-                append(
+                insert_token_id_to(
                     &mut self.tokens_by_owner_id,
                     &owner_id.into(),
                     token_id,
                     Keys::TokensByOwnerIdValue,
                 );
-                append(
+                insert_token_id_to(
                     &mut self.tokens_by_creator_id,
                     &approve_msg.creator_id,
                     token_id,
@@ -206,13 +218,13 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     }
 }
 
-fn append<K: BorshSerialize, F: FnOnce(TokenId) -> Keys>(
-    tokens_map: &mut LookupMap<K, UnorderedSet<TokenId>>,
-    key: &K,
+fn insert_token_id_to<F: FnOnce(CryptoHash) -> Keys>(
+    tokens_map: &mut LookupMap<String, UnorderedSet<TokenId>>,
+    key: &String,
     token_id: TokenId,
     f: F,
 ) {
-    let mut tids = tokens_map.get(&key).unwrap_or_else(|| UnorderedSet::new(f(token_id)));
+    let mut tids = tokens_map.get(&key).unwrap_or_else(|| UnorderedSet::new(f(crypto_hash(key))));
     tids.insert(&token_id);
     tokens_map.insert(key, &tids);
 }
@@ -221,5 +233,22 @@ fn get_tokens_by<K: BorshSerialize>(
     tokens_map: &LookupMap<K, UnorderedSet<TokenId>>,
     key: &K,
 ) -> Vec<TokenId> {
-    tokens_map.get(&key).map_or_else(Vec::new, |s| s.to_vec())
+    tokens_map.get(&key).map_or_else(Vec::new, |tids| tids.to_vec())
+}
+
+fn remove_token_id_from<K: BorshSerialize>(
+    tokens_map: &mut LookupMap<K, UnorderedSet<TokenId>>,
+    key: &K,
+    token_id: TokenId,
+) {
+    match tokens_map.get(&key) {
+        None => Panics::TokenIdNotFound { token_id }.panic(),
+        Some(mut tids) => {
+            if !tids.remove(&token_id) {
+                Panics::TokenIdNotFound { token_id }.panic();
+            }
+
+            tokens_map.insert(&key, &tids);
+        }
+    }
 }

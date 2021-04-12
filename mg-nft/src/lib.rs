@@ -20,8 +20,9 @@
 #![deny(warnings)]
 
 use mg_core::{
-    Collectible, ContractMetadata, Fraction, GateId, NftApproveMsg, NonFungibleTokenApprovalMgmt,
-    NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
+    crypto_hash, Collectible, ContractMetadata, Fraction, GateId, MarketApproveMsg, NftApproveMsg,
+    NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Token, TokenApproval, TokenId,
+    TokenMetadata,
 };
 use near_env::{near_log, PanicMessage};
 use near_sdk::{
@@ -70,12 +71,6 @@ enum Keys {
     Tokens,
     TokensByOwner,
     TokensByOwnerValue { owner_id_hash: CryptoHash },
-}
-
-fn hash_account_id(account_id: &AccountId) -> CryptoHash {
-    let mut hash = CryptoHash::default();
-    hash.copy_from_slice(&env::sha256(account_id.as_bytes()));
-    hash
 }
 
 #[derive(Serialize, PanicMessage)]
@@ -211,7 +206,7 @@ impl NftContract {
         let mut gids =
             self.collectibles_by_creator.get(&collectible.creator_id).unwrap_or_else(|| {
                 UnorderedSet::new(Keys::CollectiblesByCreatorValue {
-                    creator_id_hash: hash_account_id(&collectible.creator_id),
+                    creator_id_hash: crypto_hash(&collectible.creator_id),
                 })
             });
         gids.insert(&collectible.gate_id);
@@ -346,7 +341,7 @@ impl NftContract {
 
         let mut tids = self.tokens_by_owner.get(&token.owner_id).unwrap_or_else(|| {
             UnorderedSet::new(Keys::TokensByOwnerValue {
-                owner_id_hash: hash_account_id(&token.owner_id),
+                owner_id_hash: crypto_hash(&token.owner_id),
             })
         });
         tids.insert(&token.token_id);
@@ -473,15 +468,26 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         );
         self.tokens.insert(&token_id, &token);
 
-        mg_core::market::nft_on_approve(
-            token_id,
-            owner_id.try_into().unwrap(),
-            U64::from(token.approval_counter),
-            msg.unwrap(),
-            account_id.as_ref(),
-            0,
-            env::prepaid_gas() / 3,
-        );
+        match self.collectibles.get(&token.gate_id) {
+            None => Panics::GateIdNotFound { gate_id: token.gate_id }.panic(),
+            Some(collectible) => {
+                let market_msg = MarketApproveMsg {
+                    min_price,
+                    gate_id: token.gate_id,
+                    creator_id: collectible.creator_id,
+                    royalty: collectible.royalty,
+                };
+                mg_core::market::nft_on_approve(
+                    token_id,
+                    owner_id.try_into().unwrap(),
+                    U64::from(token.approval_counter),
+                    near_sdk::serde_json::to_string(&market_msg).unwrap(),
+                    account_id.as_ref(),
+                    0,
+                    env::prepaid_gas() / 2,
+                );
+            }
+        }
     }
 
     /// Revokes approval for `token_id` from `account_id`.

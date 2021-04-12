@@ -6,10 +6,10 @@ pub mod mocked_context;
 use near_env::{near_ext, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    ext_contract,
+    env, ext_contract,
     json_types::{ValidAccountId, U128, U64},
     serde::{Deserialize, Serialize},
-    AccountId, Balance,
+    AccountId, Balance, CryptoHash,
 };
 use std::{collections::HashMap, fmt::Display, num::ParseIntError, str::FromStr, u128};
 use uint::construct_uint;
@@ -108,6 +108,13 @@ pub type TokenId = U64;
 /// Therefore, this type cannot be used in public interfaces.
 /// Only for internal `struct`s.
 pub type Timestamp = u64;
+
+/// Returns the sha256 of `value`.
+pub fn crypto_hash(value: &String) -> CryptoHash {
+    let mut hash = CryptoHash::default();
+    hash.copy_from_slice(&env::sha256(value.as_bytes()));
+    hash
+}
 
 /// Associated metadata for the NFT contract as defined by
 /// https://github.com/near/NEPs/discussions/177
