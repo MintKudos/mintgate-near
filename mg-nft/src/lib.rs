@@ -81,6 +81,11 @@ fn hash_account_id(account_id: &AccountId) -> CryptoHash {
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
 enum Panics {
+    #[panic_msg = "Min royalty `{}` must be less or equal to max royalty `{}`"]
+    MaxRoyaltyLessThanMinRoyalty {
+        min_royalty: Fraction,
+        max_royalty: Fraction,
+    },
     #[panic_msg = "Royalty `{}` of `{}` is less than min"]
     RoyaltyMinThanAllowed { royalty: Fraction, gate_id: String },
     #[panic_msg = "Royalty `{}` of `{}` is greater than max"]
@@ -130,6 +135,14 @@ impl NftContract {
     ) -> Self {
         min_royalty.check();
         max_royalty.check();
+
+        if max_royalty.cmp(&min_royalty) == Ordering::Less {
+            Panics::MaxRoyaltyLessThanMinRoyalty {
+                min_royalty,
+                max_royalty,
+            }
+            .panic();
+        }
 
         Self {
             collectibles: UnorderedMap::new(Keys::Collectibles),

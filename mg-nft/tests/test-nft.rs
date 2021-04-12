@@ -137,14 +137,32 @@ fn initial_state() {
 
 #[test]
 #[should_panic(expected = "Denominator must be a positive number, but was 0")]
-fn zero_den_royalty_when_init_state_should_panic() {
+fn init_state_with_zero_den_min_royalty_should_panic() {
     init_contract("1/0", "5/10");
 }
 
 #[test]
+#[should_panic(expected = "Denominator must be a positive number, but was 0")]
+fn init_state_with_zero_den_max_royalty_should_panic() {
+    init_contract("1/1", "5/0");
+}
+
+#[test]
 #[should_panic(expected = "The fraction must be less or equal to 1")]
-fn invalid_royalty_when_init_state_should_panic() {
+fn init_state_with_invalid_min_royalty_should_panic() {
+    init_contract("5/4", "2/3");
+}
+
+#[test]
+#[should_panic(expected = "The fraction must be less or equal to 1")]
+fn init_state_with_invalid_max_royalty_should_panic() {
     init_contract("5/10", "3/2");
+}
+
+#[test]
+#[should_panic(expected = "Min royalty `5/100` must be less or equal to max royalty `2/100`")]
+fn init_state_with_max_royalty_less_than_min_royalty_should_panic() {
+    init_contract("5/100", "2/100");
 }
 
 #[test]
