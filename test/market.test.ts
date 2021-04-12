@@ -1,6 +1,7 @@
 import { addTestCollectible, generateId } from './utils';
 
 import type { AccountContract, NftContract, MarketContract } from '../src';
+import { MarketApproveMsg, NftApproveMsg } from '../src/mg-market';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -26,7 +27,7 @@ describe('Market contract', () => {
   describe('get_tokens_for_sale', () => {
     it('returns a list of ids of tokens for sale', async () => {
       const numberOfTokensToAdd = 3;
-      const message = { min_price: '5' };
+      const message: NftApproveMsg = { min_price: '5' };
 
       const initialTokensForSale = await merchant.contract.get_tokens_for_sale();
 
@@ -57,12 +58,19 @@ describe('Market contract', () => {
     let gateId: string;
     let tokenId: string;
 
-    const message = {
+    let message: MarketApproveMsg = {
       min_price: '5',
+      gate_id: '',
+      creator_id: '',
+      royalty: { num: 2, den: 100 }
     };
 
     beforeAll(async () => {
       gateId = await generateId();
+
+      message.creator_id = bob.contract.contractId;
+      message.gate_id = gateId;
+
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });

@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.0 https://github.com/acuarica/near-syn on 2021-04-11 17:20:26.828372 UTC
+// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-12 12:26:59.081618 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -224,10 +224,31 @@ export interface TokenApproval {
  *  - The value of `msg` must be a valid JSON,
  *    that deserializes to this struct.
  */
-export interface ApproveMsg {
+export interface NftApproveMsg {
     /**
      */
     min_price: U128;
+
+}
+
+/**
+ */
+export interface MarketApproveMsg {
+    /**
+     */
+    min_price: U128;
+
+    /**
+     */
+    gate_id: GateId;
+
+    /**
+     */
+    creator_id: AccountId;
+
+    /**
+     */
+    royalty: Fraction;
 
 }
 

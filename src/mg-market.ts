@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.0 https://github.com/acuarica/near-syn on 2021-04-11 17:20:27.054551 UTC
+// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-12 12:26:59.304300 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -224,7 +224,7 @@ export interface TokenApproval {
  *  - The value of `msg` must be a valid JSON,
  *    that deserializes to this struct.
  */
-export interface ApproveMsg {
+export interface NftApproveMsg {
     /**
      */
     min_price: U128;
@@ -233,14 +233,39 @@ export interface ApproveMsg {
 
 /**
  */
-export interface Token2 {
+export interface MarketApproveMsg {
+    /**
+     */
+    min_price: U128;
+
+    /**
+     */
+    gate_id: GateId;
+
+    /**
+     */
+    creator_id: AccountId;
+
+    /**
+     */
+    royalty: Fraction;
+
+}
+
+/**
+ */
+export interface TokenForSale {
     /**
      */
     owner_id: AccountId;
 
     /**
      */
-    metadata: string;
+    approval_id: U64;
+
+    /**
+     */
+    min_price: U128;
 
 }
 
@@ -259,6 +284,22 @@ export interface Self {
     get_tokens_for_sale(): Promise<TokenId[]>;
 
     /**
+     *  Returns all `TokenId`s for sale whose collectible's gate ID is `gate_id`.
+     */
+    get_tokens_by_gate_id(args: { gate_id: GateId }): Promise<TokenId[]>;
+
+    /**
+     *  Returns all `TokenId`s for sale owned by `owner_id`.
+     */
+    get_tokens_by_owner_id(args: { owner_id: ValidAccountId }): Promise<TokenId[]>;
+
+    /**
+     *  Returns all `TokenId`s for sale whose collectible's creator ID is `creator_id`.
+     */
+    get_tokens_by_creator_id(args: { creator_id: ValidAccountId }): Promise<TokenId[]>;
+
+    /**
+     *  Buys the token.
      */
     buy_token(args: { token_id: TokenId }): Promise<void>;
 
@@ -277,6 +318,9 @@ export type MarketContract = Self & NonFungibleTokenApprovalsReceiver;
 export const MarketContractMethods = {
     viewMethods: [
         "get_tokens_for_sale",
+        "get_tokens_by_gate_id",
+        "get_tokens_by_owner_id",
+        "get_tokens_by_creator_id",
     ],
     changeMethods: [
         "init",
