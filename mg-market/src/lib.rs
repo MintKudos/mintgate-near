@@ -13,7 +13,7 @@ use near_sdk::{
     env,
     json_types::{ValidAccountId, U128, U64},
     near_bindgen,
-    serde::{Deserialize, Serialize},
+    serde::Serialize,
     serde_json, setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
 };
 
@@ -37,8 +37,7 @@ pub struct MarketContract {
     tokens_by_creator_id: LookupMap<AccountId, UnorderedSet<TokenId>>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct TokenForSale {
     pub owner_id: AccountId,
     pub approval_id: U64,
@@ -187,6 +186,8 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     ) {
         match serde_json::from_str::<MarketApproveMsg>(&msg) {
             Ok(approve_msg) => {
+                approve_msg.royalty.check();
+
                 let nft_id = env::signer_account_id();
 
                 self.tokens_for_sale.insert(
