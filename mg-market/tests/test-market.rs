@@ -3,10 +3,13 @@
 use mg_core::{
     mock_context,
     mocked_context::{alice, any, bob, charlie, gate_id, nft},
-    GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver,
+    GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId,
 };
 use mg_market::MarketContract;
-use near_sdk::{json_types::ValidAccountId, serde_json};
+use near_sdk::{
+    json_types::{ValidAccountId, U64},
+    serde_json,
+};
 use std::{
     convert::TryInto,
     ops::{Deref, DerefMut},
@@ -31,16 +34,64 @@ impl DerefMut for MarketContractChecker {
     }
 }
 
-impl MockedContext<MarketContractChecker> {}
+impl MockedContext<MarketContractChecker> {
+    fn nft_on_approve(
+        &mut self,
+        token_id: TokenId,
+        owner_id: ValidAccountId,
+        approval_id: U64,
+        msg: MarketApproveMsg,
+    ) {
+        fn set_cmp(a: &Vec<TokenId>, b: &mut Vec<TokenId>, t: TokenId) {
+            b.push(t);
+            let a = a.into_iter().map(|e| e.0).collect::<std::collections::BTreeSet<u64>>();
+            let b = b.into_iter().map(|e| e.0).collect::<std::collections::BTreeSet<u64>>();
 
-fn approve_msg(price: u128, gate_id: GateId, creator_id: ValidAccountId, royalty: &str) -> String {
-    serde_json::to_string(&MarketApproveMsg {
+            println!("Check a == b+t: {:?} {:?}", a, b);
+            assert_eq!(a, b);
+        }
+
+        fn snapshot(
+            contract: &MarketContract,
+            msg: &MarketApproveMsg,
+            owner_id: ValidAccountId,
+        ) -> [Vec<TokenId>; 4] {
+            [
+                contract.get_tokens_for_sale(),
+                contract.get_tokens_by_gate_id(msg.gate_id.clone()),
+                contract.get_tokens_by_owner_id(owner_id),
+                contract.get_tokens_by_creator_id(msg.creator_id.clone().try_into().unwrap()),
+            ]
+        }
+
+        let mut b = snapshot(&self.contract, &msg, owner_id.clone());
+
+        self.contract.nft_on_approve(
+            token_id,
+            owner_id.clone(),
+            approval_id,
+            serde_json::to_string(&msg).unwrap(),
+        );
+
+        let a = snapshot(&self.contract, &msg, owner_id);
+        a.iter().zip(b.iter_mut()).for_each(|(x, y)| {
+            set_cmp(x, y, token_id);
+        });
+    }
+}
+
+fn approve_msg(
+    price: u128,
+    gate_id: GateId,
+    creator_id: ValidAccountId,
+    royalty: &str,
+) -> MarketApproveMsg {
+    MarketApproveMsg {
         min_price: price.into(),
         gate_id,
         creator_id: creator_id.to_string(),
         royalty: royalty.parse().unwrap(),
-    })
-    .unwrap()
+    }
 }
 
 fn init_contract(mintgate_fee: &str) -> MockedContext<MarketContractChecker> {
@@ -53,121 +104,150 @@ fn init() -> MockedContext<MarketContractChecker> {
     init_contract("25/1000")
 }
 
-#[test]
-fn initial_state() {
-    init().run_as(any(), |contract| {
-        assert_eq!(contract.get_tokens_for_sale().len(), 0);
-    });
-}
+mod initial_state {
 
-#[test]
-#[should_panic(expected = "Denominator must be a positive number, but was 0")]
-fn init_state_with_zero_den_mintgate_fee_should_panic() {
-    init_contract("5/0");
-}
+    use super::*;
 
-#[test]
-#[should_panic(expected = "The fraction must be less or equal to 1")]
-fn init_state_with_invalid_mintgate_fee_should_panic() {
-    init_contract("5/4");
-}
+    #[test]
+    #[should_panic(expected = "Denominator must be a positive number, but was 0")]
+    fn init_state_with_zero_den_mintgate_fee_should_panic() {
+        init_contract("5/0");
+    }
 
-#[test]
-fn nft_on_approve_should_add_token_for_sale() {
-    init().run_as(nft(), |contract| {
-        let token_id = 5.into();
-        contract.nft_on_approve(
-            token_id,
-            alice(),
-            0.into(),
-            approve_msg(10, gate_id(1), bob(), "1/100"),
-        );
-        assert_eq!(contract.get_tokens_for_sale(), vec![token_id]);
-        assert_eq!(contract.get_tokens_by_gate_id(gate_id(1)), vec![token_id]);
-        assert_eq!(contract.get_tokens_by_owner_id(alice()), vec![token_id]);
-        assert_eq!(contract.get_tokens_by_creator_id(bob()), vec![token_id]);
-    });
-}
+    #[test]
+    #[should_panic(expected = "The fraction must be less or equal to 1")]
+    fn init_state_with_invalid_mintgate_fee_should_panic() {
+        init_contract("5/4");
+    }
 
-#[test]
-#[should_panic(expected = "Could not find min_price in msg: ")]
-fn nft_on_approve_with_no_price_should_panic() {
-    init().run_as(nft(), |contract| {
-        let token_id = 5.into();
-        contract.nft_on_approve(token_id, alice(), 0.into(), "".to_string());
-    });
-}
-
-#[test]
-#[should_panic(expected = "Token ID `U64(99)` was not found")]
-fn buy_a_non_existent_token_should_panic() {
-    init().run_as(alice(), |contract| {
-        contract.buy_token(99.into());
-    });
-}
-
-#[test]
-#[should_panic(expected = "Buyer cannot buy own token")]
-fn buy_own_token_should_panic() {
-    let token_id = 5.into();
-    init()
-        .run_as(nft(), |contract| {
-            contract.nft_on_approve(
-                token_id,
-                bob(),
-                0.into(),
-                approve_msg(10, gate_id(1), charlie(), "1/100"),
-            );
-        })
-        .run_as(bob(), |contract| {
-            contract.buy_token(token_id);
-        });
-}
-
-#[test]
-#[should_panic(expected = "Not enough deposit to cover token minimum price")]
-fn buy_a_token_with_no_deposit_should_panic() {
-    let token_id = 5.into();
-    init()
-        .run_as(nft(), |contract| {
-            contract.nft_on_approve(
-                token_id,
-                bob(),
-                0.into(),
-                approve_msg(1000, gate_id(1), charlie(), "1/100"),
-            );
-        })
-        .run_as(alice(), |contract| {
-            contract.attach_deposit(700);
-            contract.buy_token(token_id);
-        });
-}
-
-#[test]
-fn buy_a_token() {
-    let token_id = 5.into();
-    init()
-        .run_as(nft(), |contract| {
-            contract.nft_on_approve(
-                token_id,
-                bob(),
-                0.into(),
-                approve_msg(1000, gate_id(1), charlie(), "1/100"),
-            );
-            assert_eq!(contract.get_tokens_for_sale().len(), 1);
-        })
-        .run_as(alice(), |contract| {
-            assert_eq!(contract.get_tokens_for_sale().len(), 1);
-            assert_eq!(contract.get_tokens_by_gate_id(gate_id(1)).len(), 1);
-            assert_eq!(contract.get_tokens_by_owner_id(bob()).len(), 1);
-            assert_eq!(contract.get_tokens_by_creator_id(charlie()).len(), 1);
-
-            contract.attach_deposit(1500);
-            contract.buy_token(token_id);
-
+    #[test]
+    fn init_state() {
+        init().run_as(any(), |contract| {
             assert_eq!(contract.get_tokens_for_sale().len(), 0);
-            assert_eq!(contract.get_tokens_by_gate_id(gate_id(1)).len(), 0);
-            assert_eq!(contract.get_tokens_by_owner_id(bob()).len(), 0);
-            assert_eq!(contract.get_tokens_by_creator_id(charlie()).len(), 0);
+            assert_eq!(contract.get_tokens_by_gate_id(gate_id(99)).len(), 0);
+            assert_eq!(contract.get_tokens_by_owner_id(any()).len(), 0);
+            assert_eq!(contract.get_tokens_by_creator_id(any()).len(), 0);
         });
+    }
+}
+
+mod nft_on_approve {
+
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Could not find min_price in msg: ")]
+    fn nft_on_approve_with_no_msg_should_panic() {
+        init().run_as(nft(), |contract| {
+            contract.contract.nft_on_approve(0.into(), alice(), 0.into(), "".to_string());
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not find min_price in msg: ")]
+    fn nft_on_approve_with_invalid_msg_should_panic() {
+        init().run_as(nft(), |contract| {
+            contract.contract.nft_on_approve(0.into(), alice(), 0.into(), "min_price".to_string());
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Denominator must be a positive number, but was 0")]
+    fn nft_on_approve_with_zero_den_royalty_should_panic() {
+        init().run_as(nft(), |contract| {
+            let msg = approve_msg(10, gate_id(1), bob(), "1/0");
+            contract.nft_on_approve(0.into(), any(), 0.into(), msg);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "The fraction must be less or equal to 1")]
+    fn nft_on_approve_with_invalid_royalty_should_panic() {
+        init().run_as(nft(), |contract| {
+            let msg = approve_msg(10, gate_id(1), bob(), "2/1");
+            contract.nft_on_approve(0.into(), any(), 0.into(), msg);
+        });
+    }
+
+    #[test]
+    fn nft_on_approve_should_add_token_for_sale() {
+        init().run_as(nft(), |contract| {
+            let ids = [alice(), bob(), charlie()];
+            for token_id in 1..12 {
+                contract.nft_on_approve(
+                    token_id.into(),
+                    ids[token_id as usize % 3].clone(),
+                    0.into(),
+                    approve_msg((token_id * 10).into(), gate_id(token_id % 4), bob(), "1/100"),
+                );
+            }
+        });
+    }
+}
+
+mod buy_token {
+
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Token ID `U64(99)` was not found")]
+    fn buy_a_non_existent_token_should_panic() {
+        init().run_as(alice(), |contract| {
+            contract.buy_token(99.into());
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Buyer cannot buy own token")]
+    fn buy_own_token_should_panic() {
+        let token_id = 5.into();
+        init()
+            .run_as(nft(), |contract| {
+                let msg = approve_msg(10, gate_id(1), charlie(), "1/100");
+                contract.nft_on_approve(token_id, bob(), 0.into(), msg);
+            })
+            .run_as(bob(), |contract| {
+                contract.buy_token(token_id);
+            });
+    }
+
+    #[test]
+    #[should_panic(expected = "Not enough deposit to cover token minimum price")]
+    fn buy_a_token_with_no_deposit_should_panic() {
+        let token_id = 5.into();
+        init()
+            .run_as(nft(), |contract| {
+                let msg = approve_msg(1000, gate_id(1), charlie(), "1/100");
+                contract.nft_on_approve(token_id, bob(), 0.into(), msg);
+            })
+            .run_as(alice(), |contract| {
+                contract.attach_deposit(700);
+                contract.buy_token(token_id);
+            });
+    }
+
+    #[test]
+    fn buy_a_token() {
+        let token_id = 5.into();
+        init()
+            .run_as(nft(), |contract| {
+                let msg = approve_msg(1000, gate_id(1), charlie(), "1/100");
+                contract.nft_on_approve(token_id, bob(), 0.into(), msg);
+                assert_eq!(contract.get_tokens_for_sale().len(), 1);
+            })
+            .run_as(alice(), |contract| {
+                assert_eq!(contract.get_tokens_for_sale().len(), 1);
+                assert_eq!(contract.get_tokens_by_gate_id(gate_id(1)).len(), 1);
+                assert_eq!(contract.get_tokens_by_owner_id(bob()).len(), 1);
+                assert_eq!(contract.get_tokens_by_creator_id(charlie()).len(), 1);
+
+                contract.attach_deposit(1500);
+                contract.buy_token(token_id);
+
+                assert_eq!(contract.get_tokens_for_sale().len(), 0);
+                assert_eq!(contract.get_tokens_by_gate_id(gate_id(1)).len(), 0);
+                assert_eq!(contract.get_tokens_by_owner_id(bob()).len(), 0);
+                assert_eq!(contract.get_tokens_by_creator_id(charlie()).len(), 0);
+            });
+    }
 }
