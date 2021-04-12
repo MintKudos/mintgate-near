@@ -1,12 +1,16 @@
 #![deny(warnings)]
 
+pub mod mocked_context;
+
+use near_env::{near_ext, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
+    ext_contract,
     json_types::{ValidAccountId, U128, U64},
     serde::{Deserialize, Serialize},
     AccountId, Balance,
 };
-use std::{collections::HashMap, fmt::Display, u128};
+use std::{collections::HashMap, fmt::Display, num::ParseIntError, str::FromStr, u128};
 use uint::construct_uint;
 
 construct_uint! {
@@ -14,23 +18,40 @@ construct_uint! {
     struct U256(4);
 }
 
+#[derive(Serialize, PanicMessage)]
+#[serde(crate = "near_sdk::serde", tag = "err")]
+enum Panics {
+    #[panic_msg = "Denominator must be a positive number, but was 0"]
+    ZeroDenominatorFraction,
+    #[panic_msg = "The fraction must be less or equal to 1"]
+    FractionGreaterThanOne,
+}
+
 /// Represents a number between `0` and `1`.
 /// It is meant to be used as percentage to calculate both fees and royalties.
+/// As with usual fractions, `den`ominator cannot be `0`.
+/// Morever, `num` must be less or equal than `den`.
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Eq)]
 #[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Fraction {
+    /// The *numerator* of this `Fraction`.
     pub num: u32,
+    /// The *denominator* of this `Fraction`.
     pub den: u32,
 }
 
 impl Fraction {
-    /// Creates a new `Fraction` with the given `num`erator and `den`ominator.
-    pub fn new(num: u32, den: u32) -> Self {
-        assert_ne!(den, 0, "Denominator must be a positive number, but was 0");
-        assert!(num <= den, "The fraction must be less or equal to 1");
-
-        Self { num, den }
+    /// Checks the given `Fraction` is valid, *i.e.*,
+    /// - Has a non-zero denominator, and
+    /// - The `num` is less or equal than `den`ominator.
+    pub fn check(&self) {
+        if self.den == 0 {
+            Panics::ZeroDenominatorFraction.panic();
+        }
+        if self.num > self.den {
+            Panics::FractionGreaterThanOne.panic();
+        }
     }
 
     /// Multiplies this `Fraction` by the given `value`.
@@ -63,6 +84,19 @@ impl Display for Fraction {
     }
 }
 
+#[cfg(not(target_arch = "wasm"))]
+impl FromStr for Fraction {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts = s.split("/").collect::<Vec<&str>>();
+        Ok(Self {
+            num: parts[0].parse::<u32>()?,
+            den: parts[1].parse::<u32>()?,
+        })
+    }
+}
+
 /// The `GateId` type represents the identifier of each `Collectible`.
 pub type GateId = String;
 
@@ -81,7 +115,7 @@ pub type Timestamp = u64;
 /// https://github.com/near/NEPs/discussions/177
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "near_sdk::serde", deny_unknown_fields)]
 pub struct ContractMetadata {
     pub spec: String,              // required, essentially a version like "nft-1.0.0"
     pub name: String, // required, ex. "Mochi Rising — Digital Edition" or "Metaverse 3"
@@ -158,6 +192,8 @@ pub struct TokenApproval {
     pub min_price: U128,
 }
 
+#[near_ext]
+#[ext_contract(nft)]
 pub trait NonFungibleTokenCore {
     fn nft_metadata(&self) -> ContractMetadata;
 
@@ -193,6 +229,8 @@ pub struct ApproveMsg {
     pub min_price: U128,
 }
 
+#[near_ext]
+#[ext_contract(market)]
 pub trait NonFungibleTokenApprovalsReceiver {
     fn nft_on_approve(
         &mut self,

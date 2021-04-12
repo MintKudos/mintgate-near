@@ -12,14 +12,20 @@ Add `wasm32` target to Rust
 rustup target add wasm32-unknown-unknown
 ```
 
-### Install `near-ts` and `near-doc`
+### Install `near-ts` and `near-doc` (optional)
 
 `near-ts` is a utility to generate TypeScript bindings from a Rust contract.
 On the other hand, `near-doc` is a utility to generate Markdown documentation from a Rust contract.
 You can install it with
 
 ```sh
-cargo install --git https://github.com/acuarica/near-doc --branch main
+cargo install near-syn
+```
+
+Or alternatively you can install it directly from GitHub
+
+```sh
+cargo install --git https://github.com/acuarica/near-syn --branch main
 ```
 
 ## To Explore

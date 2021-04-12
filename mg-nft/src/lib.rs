@@ -23,15 +23,15 @@ use mg_core::{
     ApproveMsg, Collectible, ContractMetadata, Fraction, GateId, NonFungibleTokenApprovalMgmt,
     NonFungibleTokenCore, Token, TokenApproval, TokenId, TokenMetadata,
 };
-use near_env::{near_envlog, PanicMessage};
+use near_env::{near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
-    env, ext_contract,
+    env,
     json_types::{ValidAccountId, U64},
     log, near_bindgen,
     serde::Serialize,
-    setup_alloc, AccountId, CryptoHash, PanicOnDefault,
+    setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault,
 };
 use std::{cmp::Ordering, collections::HashMap, convert::TryInto};
 
@@ -62,20 +62,14 @@ pub struct NftContract {
 /// `UnorderedMap` or `LookupMap`,
 /// a unique prefix key is needed to identify the collection.
 /// These variants keep a list of the keys used for persistent collections.
-#[derive(BorshSerialize)]
-enum Prefix {
+#[derive(BorshSerialize, BorshStorageKey)]
+enum Keys {
     Collectibles,
     CollectiblesByCreator,
     CollectiblesByCreatorValue { creator_id_hash: CryptoHash },
     Tokens,
     TokensByOwner,
     TokensByOwnerValue { owner_id_hash: CryptoHash },
-}
-
-impl Into<Vec<u8>> for Prefix {
-    fn into(self) -> Vec<u8> {
-        self.try_to_vec().unwrap()
-    }
 }
 
 fn hash_account_id(account_id: &AccountId) -> CryptoHash {
@@ -117,7 +111,7 @@ enum Panics {
     RevokeApprovalFailed { account_id: AccountId },
 }
 
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NftContract {
     /// Initializes the contract.
@@ -134,11 +128,14 @@ impl NftContract {
         min_royalty: Fraction,
         max_royalty: Fraction,
     ) -> Self {
+        min_royalty.check();
+        max_royalty.check();
+
         Self {
-            collectibles: UnorderedMap::new(Prefix::Collectibles.into()),
-            collectibles_by_creator: LookupMap::new(Prefix::CollectiblesByCreator.into()),
-            tokens: UnorderedMap::new(Prefix::Tokens.into()),
-            tokens_by_owner: LookupMap::new(Prefix::TokensByOwner.into()),
+            collectibles: UnorderedMap::new(Keys::Collectibles),
+            collectibles_by_creator: LookupMap::new(Keys::CollectiblesByCreator),
+            tokens: UnorderedMap::new(Keys::Tokens),
+            tokens_by_owner: LookupMap::new(Keys::TokensByOwner),
             admin_id: admin_id.as_ref().to_string(),
             metadata,
             min_royalty,
@@ -161,6 +158,7 @@ impl NftContract {
         gate_url: String,
         royalty: Fraction,
     ) {
+        royalty.check();
         if royalty.cmp(&self.min_royalty) == Ordering::Less {
             Panics::RoyaltyMinThanAllowed { royalty, gate_id }.panic();
         }
@@ -173,6 +171,7 @@ impl NftContract {
         if supply.0 == 0 {
             Panics::ZeroSupplyNotAllowed { gate_id }.panic();
         }
+
         // if env::predecessor_account_id() != admin_id {
         //     panic();
         // }
@@ -207,12 +206,9 @@ impl NftContract {
             .collectibles_by_creator
             .get(&collectible.creator_id)
             .unwrap_or_else(|| {
-                UnorderedSet::new(
-                    Prefix::CollectiblesByCreatorValue {
-                        creator_id_hash: hash_account_id(&collectible.creator_id),
-                    }
-                    .into(),
-                )
+                UnorderedSet::new(Keys::CollectiblesByCreatorValue {
+                    creator_id_hash: hash_account_id(&collectible.creator_id),
+                })
             });
         gids.insert(&collectible.gate_id);
 
@@ -352,12 +348,9 @@ impl NftContract {
             .tokens_by_owner
             .get(&token.owner_id)
             .unwrap_or_else(|| {
-                UnorderedSet::new(
-                    Prefix::TokensByOwnerValue {
-                        owner_id_hash: hash_account_id(&token.owner_id),
-                    }
-                    .into(),
-                )
+                UnorderedSet::new(Keys::TokensByOwnerValue {
+                    owner_id_hash: hash_account_id(&token.owner_id),
+                })
             });
         tids.insert(&token.token_id);
 
@@ -390,7 +383,7 @@ impl NftContract {
     }
 }
 
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenCore for NftContract {
     /// Returns the NFT metadata for this contract.
@@ -458,18 +451,7 @@ impl NonFungibleTokenCore for NftContract {
     }
 }
 
-#[ext_contract(market)]
-pub trait NonFungibleTokenApprovalsReceiver {
-    fn nft_on_approve(
-        &mut self,
-        token_id: TokenId,
-        owner_id: ValidAccountId,
-        approval_id: U64,
-        msg: String,
-    );
-}
-
-#[near_envlog(skip_args, only_pub)]
+#[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalMgmt for NftContract {
     /// Allows `account_id` to transfer `token_id` on behalf of its owner.
@@ -509,7 +491,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         );
         self.tokens.insert(&token_id, &token);
 
-        market::nft_on_approve(
+        mg_core::market::nft_on_approve(
             token_id,
             owner_id.try_into().unwrap(),
             U64::from(token.approval_counter),

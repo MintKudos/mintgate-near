@@ -1,49 +1,38 @@
 #![deny(warnings)]
 
-mod context;
-
-use context::MockedContext;
 use mg_core::{
-    ContractMetadata, Fraction, GateId, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, TokenId,
+    mock_context,
+    mocked_context::{admin, alice, any, bob, charlie, gate_id, market, min_price},
+    ContractMetadata, GateId, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, TokenId,
 };
 use mg_nft::NftContract;
-use near_sdk::{
-    bs58,
-    json_types::{ValidAccountId, U64},
-};
-use sha2::{Digest, Sha256};
+use near_sdk::json_types::{ValidAccountId, U64};
 use std::{
     convert::TryInto,
     ops::{Deref, DerefMut},
 };
 
-struct ContractChecker {
+mock_context!();
+
+struct NftContractChecker {
     contract: NftContract,
     claimed_tokens: Vec<TokenId>,
 }
 
-impl Deref for ContractChecker {
+impl Deref for NftContractChecker {
     type Target = NftContract;
     fn deref(&self) -> &Self::Target {
         &self.contract
     }
 }
 
-impl DerefMut for ContractChecker {
+impl DerefMut for NftContractChecker {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.contract
     }
 }
 
-impl MockedContext<ContractChecker> {
-    fn pred_id(&self) -> ValidAccountId {
-        self.context
-            .predecessor_account_id
-            .clone()
-            .try_into()
-            .unwrap()
-    }
-
+impl MockedContext<NftContractChecker> {
     fn create_collectible(&mut self, gate_id: String, supply: u64, royalty: &str) {
         let collectibles_by_owner = self.get_collectibles_by_creator(self.pred_id());
 
@@ -54,13 +43,7 @@ impl MockedContext<ContractChecker> {
             "NFT description".to_string(),
             U64::from(supply),
             "someurl".to_string(),
-            {
-                let parts = royalty.split("/").collect::<Vec<&str>>();
-                Fraction::new(
-                    parts[0].parse::<u32>().unwrap(),
-                    parts[1].parse::<u32>().unwrap(),
-                )
-            },
+            royalty.parse().unwrap(),
         );
 
         let collectible = self
@@ -115,16 +98,20 @@ impl MockedContext<ContractChecker> {
     }
 }
 
-fn init() -> MockedContext<ContractChecker> {
-    MockedContext::new(|| ContractChecker {
+fn init_contract(min_royalty: &str, max_royalty: &str) -> MockedContext<NftContractChecker> {
+    MockedContext::new(|| NftContractChecker {
         contract: NftContract::init(
             admin(),
             metadata(),
-            Fraction::new(5, 100),
-            Fraction::new(30, 100),
+            min_royalty.parse().unwrap(),
+            max_royalty.parse().unwrap(),
         ),
         claimed_tokens: Vec::new(),
     })
+}
+
+fn init() -> MockedContext<NftContractChecker> {
+    init_contract("5/100", "30/100")
 }
 
 fn metadata() -> ContractMetadata {
@@ -139,42 +126,6 @@ fn metadata() -> ContractMetadata {
     }
 }
 
-fn admin() -> ValidAccountId {
-    "admin".try_into().unwrap()
-}
-
-fn alice() -> ValidAccountId {
-    "alice".try_into().unwrap()
-}
-
-fn bob() -> ValidAccountId {
-    "bob".try_into().unwrap()
-}
-
-fn charlie() -> ValidAccountId {
-    "charlie".try_into().unwrap()
-}
-
-fn market() -> ValidAccountId {
-    "market".try_into().unwrap()
-}
-
-fn any() -> ValidAccountId {
-    "any".try_into().unwrap()
-}
-
-fn gate_id(n: u64) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(n.to_ne_bytes());
-    let result = hasher.finalize();
-    let data: &[u8] = result[..16].try_into().unwrap();
-    bs58::encode(data).into_string()
-}
-
-fn min_price(price: u64) -> Option<String> {
-    Some(format!(r#"{{"min_price": "{}"}}"#, price))
-}
-
 #[test]
 fn initial_state() {
     init().run_as(any(), |contract| {
@@ -185,9 +136,37 @@ fn initial_state() {
 }
 
 #[test]
+#[should_panic(expected = "Denominator must be a positive number, but was 0")]
+fn zero_den_royalty_when_init_state_should_panic() {
+    init_contract("1/0", "5/10");
+}
+
+#[test]
+#[should_panic(expected = "The fraction must be less or equal to 1")]
+fn invalid_royalty_when_init_state_should_panic() {
+    init_contract("5/10", "3/2");
+}
+
+#[test]
 fn get_nonexistent_gate_id_should_return_none() {
     init().run_as(alice(), |contract| {
         assert_eq!(contract.get_collectible_by_gate_id(gate_id(0)), None);
+    });
+}
+
+#[test]
+#[should_panic(expected = "Denominator must be a positive number, but was 0")]
+fn create_a_collectible_with_zero_den_royalty_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.create_collectible(gate_id(1), 10, "1/0");
+    });
+}
+
+#[test]
+#[should_panic(expected = "The fraction must be less or equal to 1")]
+fn create_a_collectible_with_invalid_royalty_should_panic() {
+    init().run_as(alice(), |contract| {
+        contract.create_collectible(gate_id(1), 10, "2/1");
     });
 }
 
@@ -242,16 +221,16 @@ fn create_a_collectible() {
 fn create_a_few_collectibles() {
     init()
         .run_as(alice(), |contract| {
-            for i in 0..20 {
+            for i in 0..10 {
                 contract.create_test_collectible(gate_id(i), i + 1);
             }
-            assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 20);
+            assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 10);
         })
         .run_as(bob(), |contract| {
-            for i in 20..50 {
+            for i in 10..25 {
                 contract.create_test_collectible(gate_id(i), i + 1);
             }
-            assert_eq!(contract.get_collectibles_by_creator(bob()).len(), 30);
+            assert_eq!(contract.get_collectibles_by_creator(bob()).len(), 15);
         });
 }
 

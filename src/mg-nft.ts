@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.1.1 https://github.com/acuarica/near-doc on 2021-04-09 16:06:08.351962 UTC
+// TypeScript bindings generated with near-ts v0.2.0 https://github.com/acuarica/near-syn on 2021-04-11 17:20:26.828372 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -9,14 +9,20 @@ export type ValidAccountId = string;
 /**
  *  Represents a number between `0` and `1`.
  *  It is meant to be used as percentage to calculate both fees and royalties.
+ *  As with usual fractions, `den`ominator cannot be `0`.
+ *  Morever, `num` must be less or equal than `den`.
  */
 export interface Fraction {
     /**
+     *  The *numerator* of this `Fraction`.
      */
     num: number;
+
     /**
+     *  The *denominator* of this `Fraction`.
      */
     den: number;
+
 }
 
 export type GateId = string;
@@ -33,24 +39,31 @@ export interface ContractMetadata {
     /**
      */
     spec: string;
+
     /**
      */
     name: string;
+
     /**
      */
     symbol: string;
+
     /**
      */
     icon: string|null;
+
     /**
      */
     base_uri: string|null;
+
     /**
      */
     reference: string|null;
+
     /**
      */
     reference_hash: string|null;
+
 }
 
 /**
@@ -61,39 +74,51 @@ export interface TokenMetadata {
     /**
      */
     title: string|null;
+
     /**
      */
     description: string|null;
+
     /**
      */
     media: string|null;
+
     /**
      */
     media_hash: string|null;
+
     /**
      */
     copies: U64|null;
+
     /**
      */
     issued_at: Timestamp|null;
+
     /**
      */
     expires_at: Timestamp|null;
+
     /**
      */
     starts_at: Timestamp|null;
+
     /**
      */
     updated_at: Timestamp|null;
+
     /**
      */
     extra: string|null;
+
     /**
      */
     reference: string|null;
+
     /**
      */
     reference_hash: string|null;
+
 }
 
 /**
@@ -102,24 +127,31 @@ export interface Collectible {
     /**
      */
     gate_id: GateId;
+
     /**
      */
     creator_id: AccountId;
+
     /**
      */
     current_supply: U64;
+
     /**
      */
     gate_url: string;
+
     /**
      */
     minted_tokens: TokenId[];
+
     /**
      */
     royalty: Fraction;
+
     /**
      */
     metadata: TokenMetadata;
+
 }
 
 /**
@@ -131,37 +163,45 @@ export interface Token {
      *  even if they belong to different `gate_id`s.
      */
     token_id: TokenId;
+
     /**
      */
     gate_id: GateId;
+
     /**
      *  The owner of this token.
      */
     owner_id: AccountId;
+
     /**
      *  Represents when this `Token` was minted, in nanoseconds.
      *  Once this `Token` is minted, this field remains unchanged.
      */
     created_at: number;
+
     /**
      *  Represents when this `Token` was last modified, in nanoseconds.
      *  Either when created or transferred.
      */
     modified_at: number;
+
     /**
      *  If this `Token` was transferred, this field holds the previous owner.
      *  Otherwise is empty.
      */
     sender_id: AccountId;
+
     /**
      *  Holds the list of accounts that can `transfer_token`s on behalf of the token's owner.
      *  It is mapped to the approval id and minimum amount that this token should be transfer for.
      */
     approvals: Record<AccountId, TokenApproval>;
+
     /**
      *  Counter to assign next approval ID.
      */
     approval_counter: U64;
+
 }
 
 /**
@@ -170,9 +210,11 @@ export interface TokenApproval {
     /**
      */
     approval_id: U64;
+
     /**
      */
     min_price: U128;
+
 }
 
 /**
@@ -186,6 +228,7 @@ export interface ApproveMsg {
     /**
      */
     min_price: U128;
+
 }
 
 export interface Self {
