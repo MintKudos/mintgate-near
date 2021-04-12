@@ -2,6 +2,7 @@ import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger } 
 import { contractMetadata, royalty as royaltySetting } from './initialData';
 
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
+import { NftApproveMsg } from '../src/mg-nft';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -738,7 +739,7 @@ describe('Nft contract', () => {
     let tokenId: string;
     let token: Token | null;
 
-    const message = {
+    const message: NftApproveMsg = {
       min_price: '5',
     };
 
@@ -849,12 +850,14 @@ describe('Nft contract', () => {
     });
 
     it('should remove approval for specified market', async () => {
+      const msg: NftApproveMsg = {
+        min_price: '5',
+      };
+
       await bob.contract.nft_approve({
         token_id: tokenId,
         account_id: merchant.contract.contractId,
-        msg: JSON.stringify({
-          min_price: '5',
-        }),
+        msg: JSON.stringify(msg),
       });
 
       token = await bob.contract.nft_token({ token_id: tokenId });
@@ -928,13 +931,14 @@ describe('Nft contract', () => {
       const approvePromises: Promise<void>[] = [];
 
       [merchant.contract.contractId, `${merchant2.contract.contractId}-1`].forEach((contractId) => {
+        const msg: NftApproveMsg = {
+          min_price: '6',
+        };
         approvePromises.push(
           bob.contract.nft_approve({
             token_id: tokenId,
             account_id: contractId,
-            msg: JSON.stringify({
-              min_price: '6',
-            }),
+            msg: JSON.stringify(msg),
           })
         );
       });

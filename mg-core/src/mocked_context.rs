@@ -35,10 +35,7 @@ macro_rules! mock_context {
             {
                 let context = ::near_sdk::test_utils::VMContextBuilder::new().build();
                 testing_env!(context.clone());
-                Self {
-                    contract: init(),
-                    context,
-                }
+                Self { contract: init(), context }
             }
 
             /// Runs the given `action` as account `account_id`.
@@ -59,11 +56,7 @@ macro_rules! mock_context {
             // }
 
             pub fn pred_id(&self) -> ValidAccountId {
-                self.context
-                    .predecessor_account_id
-                    .clone()
-                    .try_into()
-                    .unwrap()
+                self.context.predecessor_account_id.clone().try_into().unwrap()
             }
 
             fn update_context(&mut self) {
@@ -100,6 +93,10 @@ pub fn charlie() -> ValidAccountId {
     "charlie".try_into().unwrap()
 }
 
+pub fn nft() -> ValidAccountId {
+    "nft".try_into().unwrap()
+}
+
 pub fn market() -> ValidAccountId {
     "market".try_into().unwrap()
 }
@@ -110,8 +107,4 @@ pub fn gate_id(n: u64) -> String {
     let result = hasher.finalize();
     let data: &[u8] = result[..16].try_into().unwrap();
     bs58::encode(data).into_string()
-}
-
-pub fn min_price(price: u64) -> Option<String> {
-    Some(format!(r#"{{"min_price": "{}"}}"#, price))
 }

@@ -1,14 +1,15 @@
 #![deny(warnings)]
 
+#[cfg(not(target_arch = "wasm"))]
 pub mod mocked_context;
 
 use near_env::{near_ext, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    ext_contract,
+    env, ext_contract,
     json_types::{ValidAccountId, U128, U64},
     serde::{Deserialize, Serialize},
-    AccountId, Balance,
+    AccountId, Balance, CryptoHash,
 };
 use std::{collections::HashMap, fmt::Display, num::ParseIntError, str::FromStr, u128};
 use uint::construct_uint;
@@ -90,10 +91,7 @@ impl FromStr for Fraction {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s.split("/").collect::<Vec<&str>>();
-        Ok(Self {
-            num: parts[0].parse::<u32>()?,
-            den: parts[1].parse::<u32>()?,
-        })
+        Ok(Self { num: parts[0].parse::<u32>()?, den: parts[1].parse::<u32>()? })
     }
 }
 
@@ -110,6 +108,13 @@ pub type TokenId = U64;
 /// Therefore, this type cannot be used in public interfaces.
 /// Only for internal `struct`s.
 pub type Timestamp = u64;
+
+/// Returns the sha256 of `value`.
+pub fn crypto_hash(value: &String) -> CryptoHash {
+    let mut hash = CryptoHash::default();
+    hash.copy_from_slice(&env::sha256(value.as_bytes()));
+    hash
+}
 
 /// Associated metadata for the NFT contract as defined by
 /// https://github.com/near/NEPs/discussions/177
@@ -223,10 +228,19 @@ pub trait NonFungibleTokenApprovalMgmt {
 /// - The `msg` argument must contain a value, *i.e.*, cannot be `None`.
 /// - The value of `msg` must be a valid JSON,
 ///   that deserializes to this struct.
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct ApproveMsg {
+pub struct NftApproveMsg {
     pub min_price: U128,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct MarketApproveMsg {
+    pub min_price: U128,
+    pub gate_id: GateId,
+    pub creator_id: AccountId,
+    pub royalty: Fraction,
 }
 
 #[near_ext]

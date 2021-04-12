@@ -4,10 +4,7 @@ use std::cmp::Ordering;
 
 #[test]
 fn parse_fraction() {
-    assert_eq!(
-        "0/1".parse::<Fraction>().unwrap(),
-        Fraction { num: 0, den: 1 }
-    );
+    assert_eq!("0/1".parse::<Fraction>().unwrap(), Fraction { num: 0, den: 1 });
 }
 
 #[test]
@@ -53,22 +50,10 @@ fn equality() {
 #[test]
 fn less_than_and_greater_than() {
     assert_eq!(
-        Fraction { num: 0, den: 1 }.cmp(&Fraction {
-            num: 1,
-            den: u32::MAX
-        }),
+        Fraction { num: 0, den: 1 }.cmp(&Fraction { num: 1, den: u32::MAX }),
         Ordering::Less
     );
-    assert_eq!(
-        Fraction { num: 1, den: 3 }.cmp(&Fraction { num: 5, den: 10 }),
-        Ordering::Less
-    );
-    assert_eq!(
-        Fraction { num: 1, den: 1 }.cmp(&Fraction { num: 9, den: 10 }),
-        Ordering::Greater
-    );
-    assert_eq!(
-        Fraction { num: 2, den: 3 }.cmp(&Fraction { num: 5, den: 10 }),
-        Ordering::Greater
-    );
+    assert_eq!(Fraction { num: 1, den: 3 }.cmp(&Fraction { num: 5, den: 10 }), Ordering::Less);
+    assert_eq!(Fraction { num: 1, den: 1 }.cmp(&Fraction { num: 9, den: 10 }), Ordering::Greater);
+    assert_eq!(Fraction { num: 2, den: 3 }.cmp(&Fraction { num: 5, den: 10 }), Ordering::Greater);
 }
