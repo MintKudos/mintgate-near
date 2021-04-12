@@ -38,14 +38,16 @@ describe('Nft contract', () => {
   test('zero denominator royalty should panic', async () => {
     const gateId = await generateId();
 
-    await expect(addTestCollectible(alice.contract, {
-      gate_id: gateId,
-      title: 'title',
-      description: 'desc',
-      supply: '100',
-      gate_url: 'test-url',
-      royalty: { num: 0, den: 0 },
-    })).rejects.toThrow(
+    await expect(
+      addTestCollectible(alice.contract, {
+        gate_id: gateId,
+        title: 'title',
+        description: 'desc',
+        supply: '100',
+        gate_url: 'test-url',
+        royalty: { num: 0, den: 0 },
+      })
+    ).rejects.toThrow(
       expect.objectContaining({
         type: 'GuestPanic',
         panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
@@ -830,7 +832,9 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${
+              alice.accountId
+            }","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
           })
         );
       });
@@ -890,7 +894,9 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${
+            alice.accountId
+          }","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
         })
       );
     });

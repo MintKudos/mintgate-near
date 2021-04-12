@@ -58,11 +58,11 @@ describe('Market contract', () => {
     let gateId: string;
     let tokenId: string;
 
-    let message: MarketApproveMsg = {
+    const message: MarketApproveMsg = {
       min_price: '5',
       gate_id: '',
       creator_id: '',
-      royalty: { num: 2, den: 100 }
+      royalty: { num: 2, den: 100 },
     };
 
     beforeAll(async () => {
