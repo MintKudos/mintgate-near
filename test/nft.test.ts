@@ -359,7 +359,7 @@ describe('Nft contract', () => {
       it("should set now as time of token's creation", async () => {
         logger.data('Token created at', new Date(formatNsToMs(token!.created_at)));
 
-        expect(isWithinLastMs(formatNsToMs(token!.created_at), 1000 * 5)).toBe(true);
+        expect(isWithinLastMs(formatNsToMs(token!.created_at), 1000 * 60)).toBe(true);
       });
 
       it("should set time of the token's modification equal to it's creation", async () => {
@@ -417,35 +417,34 @@ describe('Nft contract', () => {
     const numberOfTokensToClaim = 3;
 
     let gateId: string;
-    let initialTokensOfAlice: Token[];
-    let tokensOfAlice: Token[];
+    let tokensOfAliceBefore: Token[];
+    let tokensOfAliceAfter: Token[];
 
     beforeAll(async () => {
       gateId = await generateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
-      initialTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-      logger.data('Tokens before', initialTokensOfAlice.length);
+      tokensOfAliceBefore = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+      logger.data('Tokens before', tokensOfAliceBefore.length);
 
       await Promise.all(
         new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId }))
       );
 
+      tokensOfAliceAfter = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+
       logger.data('Tokens claimed', numberOfTokensToClaim);
     });
 
     it('should return all tokens claimed by a specific user', async () => {
-      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-      logger.data('Total number of tokens after', tokensOfAlice.length);
+      logger.data('Total number of tokens after', tokensOfAliceAfter.length);
 
-      expect(tokensOfAlice.length).toBe(initialTokensOfAlice.length + numberOfTokensToClaim);
+      expect(tokensOfAliceAfter.length).toBe(tokensOfAliceBefore.length + numberOfTokensToClaim);
     });
 
     it('should return only tokens of a specific owner', async () => {
-      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
-
-      const uniqueOwnerIds = [...new Set(tokensOfAlice.map(({ owner_id }) => owner_id))];
+      const uniqueOwnerIds = [...new Set(tokensOfAliceAfter.map(({ owner_id }) => owner_id))];
 
       logger.data("Unique owners' ids", uniqueOwnerIds);
 
