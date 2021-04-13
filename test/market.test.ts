@@ -37,11 +37,9 @@ describe('Market contract', () => {
   });
 
   describe('get_tokens_for_sale', () => {
-    it('returns a list of ids of tokens for sale', async () => {
+    it('returns a list of tokens for sale', async () => {
       const numberOfTokensToAdd = 3;
       const message: NftApproveMsg = { min_price: '5' };
-
-      const initialTokensForSale = await merchant.contract.get_tokens_for_sale();
 
       const gateId = await generateId();
       await addTestCollectible(bob.contract, { gate_id: gateId });
@@ -61,8 +59,7 @@ describe('Market contract', () => {
 
       const tokensForSale = await merchant.contract.get_tokens_for_sale();
 
-      expect(tokensForSale.length).toBe(initialTokensForSale.length + numberOfTokensToAdd);
-      expect(tokensForSale).toEqual(expect.arrayContaining(newTokensIds));
+      expect(tokensForSale.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(newTokensIds));
     });
   });
 
@@ -98,7 +95,7 @@ describe('Market contract', () => {
     test('that market lists the token as for sale', async () => {
       const tokensForSale = await merchant.contract.get_tokens_for_sale();
 
-      expect(tokensForSale).toContain(tokenId);
+      expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
   });
 
@@ -195,7 +192,7 @@ describe('Market contract', () => {
       const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore);
       const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter);
 
-      expect(+sellerBalanceBeforeHr + sellerShare).toBeCloseTo(+sellerBalanceAfterHr, 5);
+      expect(+sellerBalanceBeforeHr + sellerShare).toBeCloseTo(+sellerBalanceAfterHr, 2);
     });
 
     it("should deduct token's price from buyer's wallet", async () => {

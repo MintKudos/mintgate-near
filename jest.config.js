@@ -5,4 +5,5 @@ module.exports = {
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.tsx?$',
   testTimeout: 500000,
   verbose: true,
+  maxWorkers: 1,
 };

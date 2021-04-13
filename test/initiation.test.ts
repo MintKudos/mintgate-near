@@ -12,6 +12,17 @@ import { createAccount } from './setup';
 
 import type { ConfigLocal, ConfigNet } from '../lib';
 import type { Fraction } from '../src';
+import { AccountContract, MarketContract, NftContract } from '../src';
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace NodeJS {
+    interface Global {
+      nftUsers: AccountContract<NftContract>[];
+      marketUsers: AccountContract<MarketContract>[];
+    }
+  }
+}
 
 const GAS = new BN(300000000000000);
 
@@ -45,6 +56,8 @@ const callNftInit = async (contractAccount: Account, min_royalty: Fraction, max_
 };
 
 describe('Initiation of contracts', () => {
+  let mintgate: AccountContract<NftContract>;
+
   const keyDir = `${homedir()}/.near-credentials`;
   const keyStore = new keyStores.UnencryptedFileSystemKeyStore(keyDir);
 
@@ -52,6 +65,8 @@ describe('Initiation of contracts', () => {
   let near: Near;
 
   beforeAll(async () => {
+    [, , mintgate] = global.nftUsers;
+
     config = await getConfig('development', '');
     near = new Near({
       deps: { keyStore },
@@ -191,6 +206,7 @@ describe('Initiation of contracts', () => {
           'init',
           {
             mintgate_fee,
+            mintgate_account_id: mintgate.accountId,
           },
           GAS,
           new BN(0)
@@ -215,6 +231,7 @@ describe('Initiation of contracts', () => {
           'init',
           {
             mintgate_fee,
+            mintgate_account_id: mintgate.accountId,
           },
           GAS,
           new BN(0)

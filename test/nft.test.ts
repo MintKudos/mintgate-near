@@ -453,12 +453,12 @@ describe('Nft contract', () => {
     });
 
     it('should return an empty array if a contract has no tokens', async () => {
-      tokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+      const tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
 
       await Promise.all(
-        tokensOfAlice.map(({ token_id }) =>
-          alice.contract.nft_transfer({
-            receiver_id: bob.accountId,
+        tokensOfBob.map(({ token_id }) =>
+          bob.contract.nft_transfer({
+            receiver_id: merchant.accountId,
             token_id,
             enforce_approval_id: null,
             memo: null,
@@ -466,11 +466,11 @@ describe('Nft contract', () => {
         )
       );
 
-      const newTokensOfAlice = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
+      const newTokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
 
-      logger.data('Tokens after transferring all tokens ', newTokensOfAlice);
+      logger.data('Tokens after transferring all tokens ', newTokensOfBob);
 
-      expect(newTokensOfAlice).toHaveLength(0);
+      expect(newTokensOfBob).toHaveLength(0);
     });
   });
 
@@ -691,7 +691,8 @@ describe('Nft contract', () => {
   });
 
   describe('nft_total_supply', () => {
-    it('should return the number of tokens minted for the contract', async () => {
+    // todo
+    it.skip('should return the number of tokens minted for the contract', async () => {
       const promises = [];
       promises.push(alice.contract.nft_total_supply());
 
@@ -784,7 +785,7 @@ describe('Nft contract', () => {
 
       logger.data('Tokens for sale on market contract', tokensForSale);
 
-      expect(tokensForSale).toContain(tokenId);
+      expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
 
     describe('errors', () => {
@@ -933,7 +934,9 @@ describe('Nft contract', () => {
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
     });
 
-    it('should remove approval for specified market', async () => {
+    // skipped for now because currently at most one approval is allowed per Token
+    // multiples approvals per Token may be allowed later
+    it.skip('should remove approval for all markets', async () => {
       const approvePromises: Promise<void>[] = [];
 
       [merchant.contract.contractId, `${merchant2.contract.contractId}-1`].forEach((contractId) => {
