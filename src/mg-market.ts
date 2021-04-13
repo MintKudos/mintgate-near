@@ -1,8 +1,10 @@
-// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-13 07:58:05.051291 UTC
+// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-13 12:54:00.895865 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
+export type I64 = string;
 export type U128 = string;
+export type I128 = string;
 export type AccountId = string;
 export type ValidAccountId = string;
 
@@ -324,7 +326,7 @@ export interface Self {
     /**
      *  Buys the token.
      */
-    buy_token(args: { token_id: TokenId }): Promise<void>;
+    buy_token(args: { token_id: TokenId }, gas?: any, amount?: any): Promise<void>;
 
 }
 
@@ -333,7 +335,7 @@ export interface NonFungibleTokenApprovalsReceiver {
      *  Callback method to allow this contract to put a `Token` into the marketplace.
      *  The msg must contain the following fields:
      */
-    nft_on_approve(args: { token_id: TokenId, owner_id: ValidAccountId, approval_id: U64, msg: string }): Promise<void>;
+    nft_on_approve(args: { token_id: TokenId, owner_id: ValidAccountId, approval_id: U64, msg: string }, gas?: any): Promise<void>;
 
 }
 
