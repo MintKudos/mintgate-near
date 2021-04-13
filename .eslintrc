@@ -58,5 +58,5 @@
       }
     }
   ],
-  "ignorePatterns": ["lib/*", "src/*", "!src/index.ts"]
+  "ignorePatterns": ["lib/*", "src/mg-*.ts"]
 }
