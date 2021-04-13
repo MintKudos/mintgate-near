@@ -94,6 +94,8 @@ enum Panics {
     TokenIdNotFound { token_id: U64 },
     #[panic_msg = "Token ID `{:?}` does not belong to account `{}`"]
     TokenIdNotOwnedBy { token_id: U64, owner_id: AccountId },
+    #[panic_msg = "At most one approval is allowed per Token"]
+    OneApprovalAllowed,
     #[panic_msg = "Sender `{}` is not authorized to make transfer"]
     SenderNotAuthToTransfer { sender_id: AccountId },
     #[panic_msg = "The token owner and the receiver should be different"]
@@ -459,6 +461,10 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
 
         if &owner_id != &token.owner_id {
             Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
+        }
+
+        if token.approvals.len() > 0 {
+            Panics::OneApprovalAllowed.panic();
         }
 
         token.approval_counter.0 = token.approval_counter.0 + 1;

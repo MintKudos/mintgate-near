@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-12 21:30:46.100628 UTC
+// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-13 07:58:04.828512 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -235,10 +235,12 @@ export interface NftApproveMsg {
  */
 export interface MarketApproveMsg {
     /**
+     *  Indicates the minimum price (in NEARs) that an account must pay to buy a token.
      */
     min_price: U128;
 
     /**
+     *  Represents the `gate_id` of the token being approved.
      */
     gate_id: GateId;
 
