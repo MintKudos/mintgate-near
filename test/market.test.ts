@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import { utils } from 'near-api-js';
 
-import { addTestCollectible, generateId, logger, getShare, formatNsToMs } from './utils';
+import { addTestCollectible, generateId, getShare, formatNsToMs } from './utils';
 import { MINTGATE_FEE } from './initialData';
 
 import type { AccountContract, NftContract, MarketContract, Token, Fraction } from '../src';
@@ -205,7 +205,7 @@ describe('Market contract', () => {
       expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 2);
     });
 
-    describe('test transfer', () => {
+    describe('token transfer', () => {
       it("should associate token with it's new owner", () => {
         expect(token).not.toBeUndefined();
       });
@@ -254,23 +254,23 @@ describe('Market contract', () => {
         ]);
       });
 
-      test('all from the market', async () => {
+      test('all tokens', async () => {
         expect(tokensForSale).not.toContainEqual(expect.objectContaining({ token_id: token.token_id }));
       });
 
-      test('by gate id from the market', async () => {
+      test('by gate id', async () => {
         expect(tokensByGateId).not.toContainEqual(expect.objectContaining({ token_id: token.token_id }));
       });
 
-      test('by previous owner id from the market', async () => {
+      test('by previous owner id', async () => {
         expect(tokensByPreviousOwnerId).not.toContainEqual(expect.objectContaining({ token_id: token.token_id }));
       });
 
-      test('by owner id from the market', async () => {
+      test('by owner id', async () => {
         expect(tokensByOwnerId).not.toContainEqual(expect.objectContaining({ token_id: token.token_id }));
       });
 
-      test('by creator id from the market', async () => {
+      test('by creator id', async () => {
         expect(tokensByCreatorId).not.toContainEqual(expect.objectContaining({ token_id: token.token_id }));
       });
     });
@@ -301,12 +301,6 @@ describe('Market contract', () => {
           approval_id: '10',
           msg: JSON.stringify(approveMessage),
         });
-
-        try {
-          await merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
-        } catch (e) {
-          logger.data('', e);
-        }
 
         await expect(
           merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!))
