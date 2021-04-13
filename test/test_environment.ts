@@ -29,7 +29,7 @@ const MINTGATE_FEE: Fraction = {
 };
 
 // todo: use more realistic data
-const nftContractArguments = {
+const nftContractArguments: Parameters<NftContract['init']>[0] = {
   admin_id: 'zzz-1111111111111-111111',
   metadata: contractMetadata,
   ...royalty,
@@ -60,7 +60,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
       MarketContractMethods,
       {
         func: 'init',
-        args: { mintgate_fee: MINTGATE_FEE },
+        args: { mintgate_fee: MINTGATE_FEE, mintgate_account_id: nftUsers[2].accountId },
       },
       config,
       ...prefixes.market.users

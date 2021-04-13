@@ -3,7 +3,7 @@ import { ContractMetadata, Fraction } from '../src';
 export const prefixes = {
   nft: {
     contract: 'nft',
-    users: ['alice', 'bob'],
+    users: ['alice', 'bob', 'mintgate-fee'],
   },
   market: {
     contract: 'market',

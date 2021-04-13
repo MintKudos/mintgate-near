@@ -237,7 +237,9 @@ pub struct NftApproveMsg {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MarketApproveMsg {
+    /// Indicates the minimum price (in NEARs) that an account must pay to buy a token.
     pub min_price: U128,
+    /// Represents the `gate_id` of the token being approved.
     pub gate_id: GateId,
     pub creator_id: AccountId,
     pub royalty: Fraction,

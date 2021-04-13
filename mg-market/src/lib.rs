@@ -179,6 +179,7 @@ impl MarketContract {
 #[near_bindgen]
 impl NonFungibleTokenApprovalsReceiver for MarketContract {
     /// Callback method to allow this contract to put a `Token` into the marketplace.
+    /// The msg must contain the following fields:
     fn nft_on_approve(
         &mut self,
         token_id: TokenId,
