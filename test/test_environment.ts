@@ -5,10 +5,10 @@ import { CustomConsole } from '@jest/console';
 
 import { getConfig } from './config';
 import { createProfiler } from './deploy';
-import { contractMetadata, prefixes, royalty } from './initialData';
+import { contractMetadata, prefixes, royalty, MINTGATE_FEE } from './initialData';
 import { NftContractMethods, MarketContractMethods } from '../src';
 
-import type { AccountContract, Fraction, NftContract, MarketContract } from '../src';
+import type { AccountContract, NftContract, MarketContract } from '../src';
 // import { Contract } from 'near-api-js';
 
 declare global {
@@ -22,11 +22,6 @@ declare global {
 }
 
 global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
-
-const MINTGATE_FEE: Fraction = {
-  num: 25,
-  den: 1000,
-};
 
 // todo: use more realistic data
 const nftContractArguments: Parameters<NftContract['init']>[0] = {

@@ -108,3 +108,5 @@ export const logger = {
     this.out.write(this.ok('\u2713\n'));
   },
 };
+
+export const getShare = (totalAmount: number, { num, den }: Fraction) => (totalAmount * num) / den;

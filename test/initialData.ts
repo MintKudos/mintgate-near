@@ -31,3 +31,8 @@ export const royalty: { min_royalty: Fraction; max_royalty: Fraction } = {
     den: 100,
   },
 };
+
+export const MINTGATE_FEE: Fraction = {
+  num: 25,
+  den: 1000,
+};
