@@ -16,7 +16,7 @@ const accountExists = (prefix: string) => fs.existsSync(path.resolve(__dirname, 
 
 const generateUniqueAccountId = (prefix: string) => `${prefix}-${Date.now()}-${Math.round(Math.random() * 1000000)}`;
 
-const createAccount = async (
+export const createAccount = async (
   prefix: string,
   config: ConfigLocal | ConfigNet,
   near: Near,

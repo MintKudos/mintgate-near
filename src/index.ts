@@ -1,32 +1,32 @@
 import { Account, Contract } from 'near-api-js';
+import { NearConfig } from 'near-api-js/lib/near';
 import { MarketContract } from './mg-market';
 import { NftContract } from './mg-nft';
-import { NearConfig } from 'near-api-js/lib/near';
 
 export { Fraction, ContractMetadata, NftContract, NftContractMethods, Collectible, Token } from './mg-nft';
 export { MarketContract, MarketContractMethods } from './mg-market';
 
 export interface Config extends NearConfig {
-    contractName: string;
+  contractName: string;
 }
 
 export interface ConfigLocal extends Config {
-    keyPath: string;
+  keyPath: string;
 }
 
 export interface ConfigNet extends Config {
-    helperUrl: string;
+  helperUrl: string;
 }
 
 export type Environment = 'production' | 'development' | 'testnet' | 'betanet' | 'local';
 
 export type AccountContract<T extends NftContract | MarketContract> = {
-    contract: T & Contract;
-    accountId: string;
-    account: Account;
+  contract: T & Contract;
+  accountId: string;
+  account: Account;
 };
 
 export interface Methods {
-    viewMethods: string[];
-    changeMethods: string[];
+  viewMethods: string[];
+  changeMethods: string[];
 }
