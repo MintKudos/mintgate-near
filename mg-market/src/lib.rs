@@ -191,7 +191,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
             Ok(approve_msg) => {
                 approve_msg.royalty.check();
 
-                let nft_id = env::signer_account_id();
+                let nft_id = env::predecessor_account_id();
 
                 self.tokens_for_sale.insert(
                     &token_id,

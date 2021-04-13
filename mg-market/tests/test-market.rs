@@ -96,7 +96,7 @@ impl MockedContext<MarketContractChecker> {
                     owner_id: owner_id.to_string(),
                     approval_id,
                     min_price: msg.min_price,
-                    nft_id: self.context.signer_account_id.clone(),
+                    nft_id: self.context.predecessor_account_id.clone(),
                     gate_id: msg.gate_id.clone(),
                     creator_id: msg.creator_id.clone(),
                     royalty: msg.royalty,
