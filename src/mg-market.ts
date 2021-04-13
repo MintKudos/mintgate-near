@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-13 12:54:00.895865 UTC
+// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-13 16:10:10.677698 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -300,7 +300,7 @@ export interface Self {
      *  - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
      *  - `mintgate_account_id`: Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
      */
-    init(args: { mintgate_fee: Fraction, mintgate_account_id: ValidAccountId }): Promise<Self>;
+    init: { mintgate_fee: Fraction, mintgate_account_id: ValidAccountId };
 
     /**
      *  Returns all available tokens for sale.
@@ -349,7 +349,6 @@ export const MarketContractMethods = {
         "get_tokens_by_creator_id",
     ],
     changeMethods: [
-        "init",
         "buy_token",
         "nft_on_approve",
     ],

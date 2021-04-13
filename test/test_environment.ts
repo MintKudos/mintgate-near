@@ -24,7 +24,7 @@ declare global {
 global.console = new CustomConsole(process.stdout, process.stderr, (_type, message) => message);
 
 // todo: use more realistic data
-const nftContractArguments: Parameters<NftContract['init']>[0] = {
+const nftContractArguments: NftContract['init'] = {
   admin_id: 'zzz-1111111111111-111111',
   metadata: contractMetadata,
   ...royalty,
@@ -35,7 +35,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
     await super.setup();
 
     const config = await getConfig('development', '');
-    const { users: nftUsers } = await createProfiler<NftContract>(
+    const { users: nftUsers } = await createProfiler<NftContract>()(
       prefixes.nft.contract,
       'target/wasm32-unknown-unknown/release/mg_nft.wasm',
       NftContractMethods,
@@ -49,7 +49,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
 
     this.global.nftUsers = nftUsers;
 
-    const { users: marketUsers } = await createProfiler<MarketContract>(
+    const { users: marketUsers } = await createProfiler<MarketContract>()(
       prefixes.market.contract,
       'target/wasm32-unknown-unknown/release/mg_market.wasm',
       MarketContractMethods,

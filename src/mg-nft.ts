@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-13 12:54:00.675838 UTC
+// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-13 16:10:10.453701 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -266,7 +266,7 @@ export interface Self {
      *  - `metadata` represents the general information of the contract.
      *  - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
      */
-    init(args: { admin_id: ValidAccountId, metadata: ContractMetadata, min_royalty: Fraction, max_royalty: Fraction }): Promise<Self>;
+    init: { admin_id: ValidAccountId, metadata: ContractMetadata, min_royalty: Fraction, max_royalty: Fraction };
 
     /**
      *  Creates a new `Collectible`, identified by `gate_id`.
@@ -379,7 +379,6 @@ export const NftContractMethods = {
         "nft_token",
     ],
     changeMethods: [
-        "init",
         "create_collectible",
         "claim_token",
         "nft_transfer",
