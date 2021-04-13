@@ -1,8 +1,10 @@
-// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-13 07:58:04.828512 UTC
+// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-13 12:54:00.675838 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
+export type I64 = string;
 export type U128 = string;
+export type I128 = string;
 export type AccountId = string;
 export type ValidAccountId = string;
 
@@ -274,7 +276,7 @@ export interface Self {
      * 
      *  See <https://github.com/epam/mintgate/issues/3>.
      */
-    create_collectible(args: { gate_id: string, title: string, description: string, supply: U64, gate_url: string, royalty: Fraction }): Promise<void>;
+    create_collectible(args: { gate_id: string, title: string, description: string, supply: U64, gate_url: string, royalty: Fraction }, gas?: any): Promise<void>;
 
     /**
      *  Returns the `Collectible` with the given `gate_id`.
@@ -299,7 +301,7 @@ export interface Self {
      * 
      *  See <https://github.com/epam/mintgate/issues/6>.
      */
-    claim_token(args: { gate_id: string }): Promise<TokenId>;
+    claim_token(args: { gate_id: string }, gas?: any): Promise<TokenId>;
 
     /**
      *  Returns all `Token`s owned by `owner_id`.
@@ -326,7 +328,7 @@ export interface NonFungibleTokenCore {
      * 
      *  See <https://github.com/epam/mintgate/issues/18>.
      */
-    nft_transfer(args: { receiver_id: ValidAccountId, token_id: TokenId, enforce_approval_id: U64|null, memo: string|null }): Promise<void>;
+    nft_transfer(args: { receiver_id: ValidAccountId, token_id: TokenId, enforce_approval_id: U64|null, memo: string|null }, gas?: any): Promise<void>;
 
     /**
      *  Returns the total token supply.
@@ -350,17 +352,17 @@ export interface NonFungibleTokenApprovalMgmt {
      *  A contract implementing the `nft_on_approve` methods must be
      *  deployed into `account_id`.
      */
-    nft_approve(args: { token_id: TokenId, account_id: ValidAccountId, msg: string|null }): Promise<void>;
+    nft_approve(args: { token_id: TokenId, account_id: ValidAccountId, msg: string|null }, gas?: any): Promise<void>;
 
     /**
      *  Revokes approval for `token_id` from `account_id`.
      */
-    nft_revoke(args: { token_id: TokenId, account_id: ValidAccountId }): Promise<void>;
+    nft_revoke(args: { token_id: TokenId, account_id: ValidAccountId }, gas?: any): Promise<void>;
 
     /**
      *  Revokes all approval for `token_id`.
      */
-    nft_revoke_all(args: { token_id: TokenId }): Promise<void>;
+    nft_revoke_all(args: { token_id: TokenId }, gas?: any): Promise<void>;
 
 }
 
