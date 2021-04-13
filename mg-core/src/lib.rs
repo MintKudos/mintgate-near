@@ -33,7 +33,7 @@ enum Panics {
 /// As with usual fractions, `den`ominator cannot be `0`.
 /// Morever, `num` must be less or equal than `den`.
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Eq)]
-#[cfg_attr(not(target_arch = "wasm"), derive(Debug))]
+#[cfg_attr(not(target_arch = "wasm"), derive(Debug, Clone, Copy))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Fraction {
     /// The *numerator* of this `Fraction`.
@@ -237,7 +237,9 @@ pub struct NftApproveMsg {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MarketApproveMsg {
+    /// Indicates the minimum price (in NEARs) that an account must pay to buy a token.
     pub min_price: U128,
+    /// Represents the `gate_id` of the token being approved.
     pub gate_id: GateId,
     pub creator_id: AccountId,
     pub royalty: Fraction,

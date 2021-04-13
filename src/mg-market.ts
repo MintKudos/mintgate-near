@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-12 12:26:59.304300 UTC
+// TypeScript bindings generated with near-ts v0.2.1 https://github.com/acuarica/near-syn on 2021-04-13 07:58:05.051291 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -235,10 +235,12 @@ export interface NftApproveMsg {
  */
 export interface MarketApproveMsg {
     /**
+     *  Indicates the minimum price (in NEARs) that an account must pay to buy a token.
      */
     min_price: U128;
 
     /**
+     *  Represents the `gate_id` of the token being approved.
      */
     gate_id: GateId;
 
@@ -257,6 +259,10 @@ export interface MarketApproveMsg {
 export interface TokenForSale {
     /**
      */
+    token_id: TokenId;
+
+    /**
+     */
     owner_id: AccountId;
 
     /**
@@ -267,6 +273,22 @@ export interface TokenForSale {
      */
     min_price: U128;
 
+    /**
+     */
+    nft_id: AccountId;
+
+    /**
+     */
+    gate_id: GateId;
+
+    /**
+     */
+    creator_id: AccountId;
+
+    /**
+     */
+    royalty: Fraction;
+
 }
 
 export interface Self {
@@ -274,29 +296,30 @@ export interface Self {
      *  Initializes the Market contract.
      * 
      *  - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
+     *  - `mintgate_account_id`: Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
      */
-    init(args: { mintgate_fee: Fraction }): Promise<Self>;
+    init(args: { mintgate_fee: Fraction, mintgate_account_id: ValidAccountId }): Promise<Self>;
 
     /**
-     *  Returns all available `TokenId`s for sale.
-     *  Use the `nft_on_approve` method to add an item for sale.
+     *  Returns all available tokens for sale.
+     *  Use the `nft_on_approve` method to add a token for sale.
      */
-    get_tokens_for_sale(): Promise<TokenId[]>;
+    get_tokens_for_sale(): Promise<TokenForSale[]>;
 
     /**
-     *  Returns all `TokenId`s for sale whose collectible's gate ID is `gate_id`.
+     *  Returns all tokens for sale whose collectible's gate ID is `gate_id`.
      */
-    get_tokens_by_gate_id(args: { gate_id: GateId }): Promise<TokenId[]>;
+    get_tokens_by_gate_id(args: { gate_id: GateId }): Promise<TokenForSale[]>;
 
     /**
-     *  Returns all `TokenId`s for sale owned by `owner_id`.
+     *  Returns all tokens for sale owned by `owner_id`.
      */
-    get_tokens_by_owner_id(args: { owner_id: ValidAccountId }): Promise<TokenId[]>;
+    get_tokens_by_owner_id(args: { owner_id: ValidAccountId }): Promise<TokenForSale[]>;
 
     /**
-     *  Returns all `TokenId`s for sale whose collectible's creator ID is `creator_id`.
+     *  Returns all tokens for sale whose collectible's creator ID is `creator_id`.
      */
-    get_tokens_by_creator_id(args: { creator_id: ValidAccountId }): Promise<TokenId[]>;
+    get_tokens_by_creator_id(args: { creator_id: ValidAccountId }): Promise<TokenForSale[]>;
 
     /**
      *  Buys the token.
@@ -308,6 +331,7 @@ export interface Self {
 export interface NonFungibleTokenApprovalsReceiver {
     /**
      *  Callback method to allow this contract to put a `Token` into the marketplace.
+     *  The msg must contain the following fields:
      */
     nft_on_approve(args: { token_id: TokenId, owner_id: ValidAccountId, approval_id: U64, msg: string }): Promise<void>;
 
