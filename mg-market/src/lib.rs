@@ -72,6 +72,8 @@ enum Panics {
     BuyOwnTokenNotAllowed,
     #[panic_msg = "Not enough deposit to cover token minimum price"]
     NotEnoughDepositToBuyToken,
+    #[panic_msg = "Only nft approved contract can delist a token"]
+    RevokeNotAllowed,
 }
 
 #[near_log(skip_args, only_pub)]
@@ -165,13 +167,23 @@ impl MarketContract {
                 env::prepaid_gas() / 3,
             );
 
-            self.tokens_for_sale.remove(&token_id);
-            remove_token_id_from(&mut self.tokens_by_gate_id, &gate_id, token_id);
-            remove_token_id_from(&mut self.tokens_by_owner_id, &owner_id, token_id);
-            remove_token_id_from(&mut self.tokens_by_creator_id, &creator_id, token_id);
+            self.remove_token_id(token_id, &gate_id, &owner_id, &creator_id);
         } else {
             Panics::TokenIdNotFound { token_id }.panic();
         }
+    }
+
+    fn remove_token_id(
+        &mut self,
+        token_id: TokenId,
+        gate_id: &GateId,
+        owner_id: &AccountId,
+        creator_id: &AccountId,
+    ) {
+        self.tokens_for_sale.remove(&token_id);
+        remove_token_id_from(&mut self.tokens_by_gate_id, &gate_id, token_id);
+        remove_token_id_from(&mut self.tokens_by_owner_id, &owner_id, token_id);
+        remove_token_id_from(&mut self.tokens_by_creator_id, &creator_id, token_id);
     }
 }
 
@@ -230,6 +242,20 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
                 let reason = err.to_string();
                 Panics::MsgFormatMinPriceMissing { reason }.panic();
             }
+        }
+    }
+
+    fn nft_on_revoke(&mut self, token_id: TokenId) {
+        let nft_id = env::predecessor_account_id();
+
+        if let Some(token) = self.tokens_for_sale.get(&token_id) {
+            if token.nft_id == nft_id {
+                self.remove_token_id(token_id, &token.gate_id, &token.owner_id, &token.creator_id);
+            } else {
+                Panics::RevokeNotAllowed.panic();
+            }
+        } else {
+            Panics::TokenIdNotFound { token_id }.panic();
         }
     }
 }
