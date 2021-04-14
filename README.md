@@ -12,10 +12,10 @@ Add `wasm32` target to Rust
 rustup target add wasm32-unknown-unknown
 ```
 
-### Install `near-ts` and `near-doc` (optional)
+### Install `near-ts` and `near-md` (optional)
 
 `near-ts` is a utility to generate TypeScript bindings from a Rust contract.
-On the other hand, `near-doc` is a utility to generate Markdown documentation from a Rust contract.
+On the other hand, `near-md` is a utility to generate Markdown documentation from a Rust contract.
 You can install it with
 
 ```sh
@@ -56,9 +56,10 @@ It ensures that both contracts are already built before running the tests.
 Removes the `neardev` folder which contains the account IDs created for `app-test:contracts`.
 - `ts:contracts`.
 Generates both `mg-nft` and `mg-market` contracts TypeScript bindings in `src` folder.
-- `doc:contracts`.
-Generates both `mg-nft` and `mg-market` contracts documentation in their respective `README.md` folders.
-The `near-doc` utility needs to be installed to execute this script.
+The `near-ts` utility (from `near-syn` package) needs to be installed to execute this script.
+- `md:contracts`.
+Generates both `mg-nft` and `mg-market` contracts documentation `README.md` in their respective folders.
+The `near-md` utility (from `near-syn` package) needs to be installed to execute this script.
 - `dev-deploy:contract`.
 *WIP*. Deploys contracts to a dev account.
 - `deploy:contract`.
