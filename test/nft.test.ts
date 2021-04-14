@@ -35,29 +35,6 @@ describe('Nft contract', () => {
     expect(alice.accountId).not.toBe(bob.accountId);
   });
 
-  test('zero denominator royalty should panic', async () => {
-    const gateId = await generateId();
-
-    await expect(
-      addTestCollectible(alice.contract, {
-        gate_id: gateId,
-        title: 'title',
-        description: 'desc',
-        supply: '100',
-        gate_url: 'test-url',
-        royalty: {
-          num: 0,
-          den: 0,
-        },
-      })
-    ).rejects.toThrow(
-      expect.objectContaining({
-        type: 'GuestPanic',
-        panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
-      })
-    );
-  });
-
   describe('create_collectible', () => {
     let gateId: string;
     let title: string;
@@ -144,7 +121,7 @@ describe('Nft contract', () => {
     });
 
     describe('errors', () => {
-      it('should throw an error if provided gate id already exists', async () => {
+      it('should throw if provided gate id already exists', async () => {
         logger.data('Attempting to create collectible with `gateId`', gateId);
 
         await expect(addTestCollectible(alice.contract, { gate_id: gateId })).rejects.toThrow(
@@ -155,23 +132,23 @@ describe('Nft contract', () => {
         );
       });
 
-      it('should throw an error if supply is zero', async () => {
-        const gateIdNew = await generateId();
+      it('should throw if supply is zero', async () => {
+        const gateId2 = await generateId();
 
         await expect(
           addTestCollectible(alice.contract, {
-            gate_id: gateIdNew,
+            gate_id: gateId2,
             supply: '0',
           })
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateIdNew}","msg":"Gate ID \`${gateIdNew}\` must have a positive supply"}`,
+            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateId2}","msg":"Gate ID \`${gateId2}\` must have a positive supply"}`,
           })
         );
       });
 
-      it.each(['-10', '1b', 'c'])('should throw an error if supply is not a number, i.e. %s', async (supplyNew) => {
+      it.each(['-10', '1b', 'c'])('should throw if supply is not a number, i.e. %s', async (supplyNew) => {
         logger.data('Attempting to create collectible with supply', supplyNew);
 
         const gateIdNew = await generateId();
@@ -184,7 +161,7 @@ describe('Nft contract', () => {
         ).rejects.toThrow('invalid digit found in string');
       });
 
-      it('should throw an error if royalty is less than minimum', async () => {
+      it('should throw if royalty is less than minimum', async () => {
         const num = royaltySetting.min_royalty.num - 1;
         const { den } = royaltySetting.min_royalty;
         const gateIdNew = await generateId();
@@ -210,7 +187,7 @@ describe('Nft contract', () => {
         );
       });
 
-      it('should throw an error if royalty is greater than maximum', async () => {
+      it('should throw if royalty is greater than maximum', async () => {
         const num = royaltySetting.max_royalty.num + 1;
         const { den } = royaltySetting.max_royalty;
         const gateIdNew = await generateId();
@@ -232,6 +209,27 @@ describe('Nft contract', () => {
           expect.objectContaining({
             panic_msg: `{"err":"RoyaltyMaxThanAllowed","royalty":{"num":${num},"den":${den}},"gate_id":"${gateIdNew}","msg":"Royalty \`${num}/${den}\` of \`${gateIdNew}\` is greater than max"}`,
             type: 'GuestPanic',
+          })
+        );
+      });
+
+      it('should throw if provided with royalty with zero denominator', async () => {
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateId,
+            title: 'title',
+            description: 'desc',
+            supply: '100',
+            gate_url: 'test-url',
+            royalty: {
+              num: 0,
+              den: 0,
+            },
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
           })
         );
       });
