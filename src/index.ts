@@ -24,6 +24,7 @@ export type AccountContract<T extends NftContract | MarketContract> = {
   contract: T & Contract;
   accountId: string;
   account: Account;
+  contractAccount: Account;
 };
 
 export interface Methods {

@@ -57,6 +57,7 @@ export function createProfiler<T extends NftContract | MarketContract>() {
           account,
           contract,
           user,
+          contractAccount,
         };
       })
     );
@@ -115,11 +116,13 @@ export function createProfiler<T extends NftContract | MarketContract>() {
     return {
       contractName: contractAccount.accountId,
 
-      users: users.map(({ account, contract }) => {
+      // eslint-disable-next-line no-shadow
+      users: users.map(({ account, contract, contractAccount }) => {
         return {
           accountId: account.accountId,
           account,
           contract,
+          contractAccount,
         };
       }),
     };
