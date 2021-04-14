@@ -133,7 +133,7 @@ pub struct ContractMetadata {
 
 /// Associated metadata with a `GateId` as defined by
 /// https://github.com/near/NEPs/discussions/177
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenMetadata {
@@ -151,7 +151,7 @@ pub struct TokenMetadata {
     pub reference_hash: Option<String>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Collectible {
@@ -255,4 +255,6 @@ pub trait NonFungibleTokenApprovalsReceiver {
         approval_id: U64,
         msg: String,
     );
+
+    fn nft_on_revoke(&mut self, token_id: TokenId);
 }
