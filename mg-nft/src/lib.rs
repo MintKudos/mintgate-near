@@ -507,6 +507,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
             Panics::RevokeApprovalFailed { account_id: account_id.to_string() }.panic();
         }
         self.tokens.insert(&token_id, &token);
+        mg_core::market::nft_on_revoke(token_id, account_id.as_ref(), 0, env::prepaid_gas() / 2);
     }
 
     /// Revokes all approval for `token_id`.
@@ -516,6 +517,10 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         if &owner_id != &token.owner_id {
             Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
+        for (nft_id, _) in &token.approvals {
+            mg_core::market::nft_on_revoke(token_id, nft_id, 0, env::prepaid_gas() / 2);
+        }
+
         token.approvals.clear();
         self.tokens.insert(&token_id, &token);
     }
