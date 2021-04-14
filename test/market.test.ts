@@ -45,16 +45,18 @@ describe('Market contract', () => {
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
       const newTokensIds = await Promise.all(
-        new Array(numberOfTokensToAdd).fill(0).map(async () => {
-          const tokenId = await bob.contract.claim_token({ gate_id: gateId });
-          await bob.contract.nft_approve({
-            token_id: tokenId,
-            account_id: merchant.contract.contractId,
-            msg: JSON.stringify(message),
-          });
+        new Array(numberOfTokensToAdd).fill(0).map(() =>
+          (async () => {
+            const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+            await bob.contract.nft_approve({
+              token_id: tokenId,
+              account_id: merchant.contract.contractId,
+              msg: JSON.stringify(message),
+            });
 
-          return tokenId;
-        })
+            return tokenId;
+          })()
+        )
       );
 
       const tokensForSale = await merchant.contract.get_tokens_for_sale();
