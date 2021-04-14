@@ -40,22 +40,22 @@ describe('Market contract', () => {
     it('returns a list of tokens for sale', async () => {
       const numberOfTokensToAdd = 3;
       const message: NftApproveMsg = { min_price: '5' };
+      const newTokensIds: string[] = [];
 
       const gateId = await generateId();
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
-      const newTokensIds = await Promise.all(
-        new Array(numberOfTokensToAdd).fill(0).map(() =>
-          (async () => {
-            const tokenId = await bob.contract.claim_token({ gate_id: gateId });
-            await bob.contract.nft_approve({
-              token_id: tokenId,
-              account_id: merchant.contract.contractId,
-              msg: JSON.stringify(message),
-            });
+      for (let i = 0; i < numberOfTokensToAdd; i += 1) {
+        newTokensIds.push(await bob.contract.claim_token({ gate_id: gateId }));
+      }
 
-            return tokenId;
-          })()
+      await Promise.all(
+        newTokensIds.map((tokenId) =>
+          bob.contract.nft_approve({
+            token_id: tokenId,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(message),
+          })
         )
       );
 

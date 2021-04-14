@@ -45,7 +45,10 @@ describe('Nft contract', () => {
         description: 'desc',
         supply: '100',
         gate_url: 'test-url',
-        royalty: { num: 0, den: 0 },
+        royalty: {
+          num: 0,
+          den: 0,
+        },
       })
     ).rejects.toThrow(
       expect.objectContaining({
@@ -428,9 +431,9 @@ describe('Nft contract', () => {
       tokensOfAliceBefore = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
       logger.data('Tokens before', tokensOfAliceBefore.length);
 
-      await Promise.all(
-        new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId }))
-      );
+      for (let i = 0; i < numberOfTokensToClaim; i += 1) {
+        await alice.contract.claim_token({ gate_id: gateId });
+      }
 
       tokensOfAliceAfter = await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId });
 
@@ -489,10 +492,10 @@ describe('Nft contract', () => {
         addTestCollectible(alice.contract, { gate_id: gateId2 }),
       ]);
 
-      await Promise.all([
-        ...new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId1 })),
-        ...new Array(numberOfTokensToClaim).fill(0).map(() => alice.contract.claim_token({ gate_id: gateId2 })),
-      ]);
+      for (let i = 0; i < numberOfTokensToClaim; i += 1) {
+        await alice.contract.claim_token({ gate_id: gateId1 });
+        await alice.contract.claim_token({ gate_id: gateId2 });
+      }
 
       logger.data('Tokens claimed for new collectible', numberOfTokensToClaim);
 
