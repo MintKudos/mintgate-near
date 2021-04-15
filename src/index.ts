@@ -21,7 +21,7 @@ export interface ConfigNet extends Config {
 export type Environment = 'production' | 'development' | 'testnet' | 'betanet' | 'local';
 
 export type AccountContract<T extends NftContract | MarketContract> = {
-  contract: T & Contract;
+  contract: T & (Contract & { [key: string]: (args: unknown) => unknown });
   accountId: string;
   account: Account;
   contractAccount: Account;

@@ -21,7 +21,7 @@ export function createProfiler<T extends NftContract | MarketContract>() {
     contractPrefix: string,
     wasmPath: string,
     methods: Methods,
-    init: { func: S, args: T[S] } | null,
+    init: { func: S; args: T[S] } | null,
     config: NearConfig,
     ...userPrefixes: string[]
   ): Promise<{
@@ -49,10 +49,12 @@ export function createProfiler<T extends NftContract | MarketContract>() {
     const users = await Promise.all(
       userPrefixes.map(async (user) => {
         const account = await getAccountFor(user);
-        const contract = <T & Contract>new Contract(account, contractAccount.accountId, {
-          ...methods,
-          // signer: account.accountId
-        });
+        const contract = <T & Contract & { [key: string]: (args: unknown) => unknown }>(
+          new Contract(account, contractAccount.accountId, {
+            ...methods,
+            // signer: account.accountId
+          })
+        );
         return {
           account,
           contract,
@@ -62,17 +64,17 @@ export function createProfiler<T extends NftContract | MarketContract>() {
       })
     );
 
-    const append = async (outcome: FinalExecutionOutcome | {}) => {
+    const append = async (outcome: FinalExecutionOutcome | Record<string, unknown>) => {
       const getState = async (account: Account, prefix: string) => {
         const state = await account.state();
         const balance = await account.getAccountBalance();
 
         if (!new BN(balance.total).eq(new BN(balance.stateStaked).add(new BN(balance.available)))) {
-          console.log('Total neq staked+available');
+          logger.infoln('Total neq staked+available');
         }
 
         const amountf = (value: string) => logger.warn(utils.format.formatNearAmount(value, 4));
-        const isContract = state.code_hash == '11111111111111111111111111111111' ? '\u261e' : '\u270e';
+        const isContract = state.code_hash === '11111111111111111111111111111111' ? '\u261e' : '\u270e';
         logger.info(`${isContract}${prefix}: Ⓝ S${amountf(balance.stateStaked)}+A${amountf(balance.available)}`);
 
         return { ...state, ...balance };
@@ -129,5 +131,4 @@ export function createProfiler<T extends NftContract | MarketContract>() {
   }
 
   return prof;
-
 }

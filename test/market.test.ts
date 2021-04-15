@@ -73,10 +73,6 @@ describe('Market contract', () => {
       min_price: '5',
       gate_id: '',
       creator_id: '',
-      royalty: {
-        num: 2,
-        den: 100,
-      },
     };
 
     beforeAll(async () => {
@@ -284,10 +280,6 @@ describe('Market contract', () => {
           min_price: '5',
           gate_id: '',
           creator_id: '',
-          royalty: {
-            num: 2,
-            den: 100,
-          },
         };
 
         await alice.contract.nft_transfer({
@@ -350,7 +342,7 @@ describe('Market contract', () => {
   describe.each(['gate_id', 'owner_id', 'creator_id'])('get_tokens_by_%s', (by) => {
     const numberOfTokensToCreate = 3;
 
-    let bys: { gate_id: string; owner_id: string; creator_id: string };
+    let bys: { [key: string]: string; gate_id: string; owner_id: string; creator_id: string };
     let gateId: string;
     const newTokensIds: string[] = [];
 
@@ -381,16 +373,15 @@ describe('Market contract', () => {
     });
 
     it(`should return a list of tokens for sale by ${by}`, async () => {
-      expect(
-        // @ts-ignore
-        (await merchant.contract[`get_tokens_by_${by}`]({ [by]: bys[by] })).map(({ token_id }) => token_id)
-      ).toEqual(expect.arrayContaining(newTokensIds));
+      const tokensForSale = <(TokenForSale & { [key: string]: string })[]>await merchant.contract.get_tokens_for_sale();
+      const tokensForSaleBy = await merchant.contract[`get_tokens_by_${by}`]({ [by]: bys[by] });
+
+      expect(tokensForSale.filter((token) => token[by] === bys[by])).toEqual(tokensForSaleBy);
     });
 
     it('should return an empty array if no tokens found', async () => {
       const nonExistentId = 'non_existent_id';
 
-      // @ts-ignore
       expect(await merchant.contract[`get_tokens_by_${by}`]({ [by]: nonExistentId })).toEqual([]);
     });
   });
