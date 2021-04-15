@@ -12,6 +12,11 @@ Add `wasm32` target to Rust
 rustup target add wasm32-unknown-unknown
 ```
 
+arrayvec v0.7.0
+rust version 1.51.0
+<https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html#const-generics-mvp>
+<https://github.com/bluss/arrayvec/pull/172>
+
 ### Install `near-ts` and `near-md` (optional)
 
 `near-ts` is a utility to generate TypeScript bindings from a Rust contract.
