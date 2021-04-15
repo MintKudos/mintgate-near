@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-14 12:23:46.425520400 UTC
+// TypeScript bindings generated with near-ts v0.2.3 https://github.com/acuarica/near-syn on 2021-04-15 12:19:38.190712 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -32,6 +32,8 @@ export type GateId = string;
 export type TokenId = U64;
 
 export type Timestamp = number;
+
+export type Payout = Record<AccountId, U128>;
 
 /**
  *  Associated metadata for the NFT contract as defined by
@@ -250,10 +252,6 @@ export interface MarketApproveMsg {
      */
     creator_id: AccountId;
 
-    /**
-     */
-    royalty: Fraction;
-
 }
 
 /**
@@ -286,10 +284,6 @@ export interface TokenForSale {
     /**
      */
     creator_id: AccountId;
-
-    /**
-     */
-    royalty: Fraction;
 
 }
 

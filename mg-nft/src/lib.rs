@@ -21,7 +21,7 @@
 
 use mg_core::{
     crypto_hash, Collectible, ContractMetadata, Fraction, GateId, MarketApproveMsg, NftApproveMsg,
-    NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Token, TokenApproval, TokenId,
+    NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Payout, Token, TokenApproval, TokenId,
     TokenMetadata,
 };
 use near_env::{near_log, PanicMessage};
@@ -29,7 +29,7 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
     env,
-    json_types::{ValidAccountId, U64},
+    json_types::{ValidAccountId, U128, U64},
     log, near_bindgen,
     serde::Serialize,
     setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault,
@@ -420,6 +420,47 @@ impl NonFungibleTokenCore for NftContract {
         self.insert_token(&token);
     }
 
+    /// Query whom would be paid out for a given `token_id`, derived from some `balance`.
+    ///
+    /// Part of the WIP spec:
+    /// <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
+    fn nft_payout(&self, token_id: TokenId, balance: U128) -> Payout {
+        let token = self.get_token(token_id);
+        match self.collectibles.get(&token.gate_id) {
+            None => Panics::GateIdNotFound { gate_id: token.gate_id }.panic(),
+            Some(collectible) => {
+                let mut payout = HashMap::new();
+
+                let royalty_amount = collectible.royalty.mult(balance.0);
+                payout.insert(collectible.creator_id, royalty_amount.into());
+
+                let owner_amount = balance.0 - royalty_amount;
+                payout.insert(token.owner_id, owner_amount.into());
+
+                payout
+            }
+        }
+    }
+
+    /// Transfer attempt to transfer the token, which returns the payout data.
+    ///
+    /// Part of the WIP spec:
+    /// <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
+    fn nft_transfer_payout(
+        &mut self,
+        receiver_id: ValidAccountId,
+        token_id: TokenId,
+        approval_id: Option<U64>,
+        memo: Option<String>,
+        balance: Option<U128>,
+    ) -> Option<Payout> {
+        self.nft_transfer(receiver_id, token_id, approval_id, memo);
+        match balance {
+            None => None,
+            Some(balance) => Some(self.nft_payout(token_id, balance)),
+        }
+    }
+
     /// Returns the total token supply.
     fn nft_total_supply(&self) -> U64 {
         U64::from(self.tokens.len())
@@ -481,7 +522,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
                     min_price,
                     gate_id: token.gate_id,
                     creator_id: collectible.creator_id,
-                    royalty: collectible.royalty,
+                    // royalty: collectible.royalty,
                 };
                 mg_core::market::nft_on_approve(
                     token_id,

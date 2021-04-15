@@ -53,7 +53,7 @@ impl MockedContext<MarketContractChecker> {
                     t.nft_id.clone(),
                     t.gate_id.clone(),
                     t.creator_id.clone(),
-                    t.royalty,
+                    // t.royalty,
                 )
             };
             b.push(t);
@@ -99,25 +99,15 @@ impl MockedContext<MarketContractChecker> {
                     nft_id: self.context.predecessor_account_id.clone(),
                     gate_id: msg.gate_id.clone(),
                     creator_id: msg.creator_id.clone(),
-                    royalty: msg.royalty,
+                    // royalty: msg.royalty,
                 },
             );
         });
     }
 }
 
-fn approve_msg(
-    price: u128,
-    gate_id: GateId,
-    creator_id: ValidAccountId,
-    royalty: &str,
-) -> MarketApproveMsg {
-    MarketApproveMsg {
-        min_price: price.into(),
-        gate_id,
-        creator_id: creator_id.to_string(),
-        royalty: royalty.parse().unwrap(),
-    }
+fn approve_msg(price: u128, gate_id: GateId, creator_id: ValidAccountId) -> MarketApproveMsg {
+    MarketApproveMsg { min_price: price.into(), gate_id, creator_id: creator_id.to_string() }
 }
 
 fn init_contract(mintgate_fee: &str) -> MockedContext<MarketContractChecker> {
@@ -178,24 +168,6 @@ mod nft_on_approve {
     }
 
     #[test]
-    #[should_panic(expected = "Denominator must be a positive number, but was 0")]
-    fn nft_on_approve_with_zero_den_royalty_should_panic() {
-        init().run_as(nft(), |contract| {
-            let msg = approve_msg(10, gate_id(1), bob(), "1/0");
-            contract.nft_on_approve(0.into(), any(), 0.into(), msg);
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "The fraction must be less or equal to 1")]
-    fn nft_on_approve_with_invalid_royalty_should_panic() {
-        init().run_as(nft(), |contract| {
-            let msg = approve_msg(10, gate_id(1), bob(), "2/1");
-            contract.nft_on_approve(0.into(), any(), 0.into(), msg);
-        });
-    }
-
-    #[test]
     fn nft_on_approve_should_add_token_for_sale() {
         init().run_as(nft(), |contract| {
             let ids = [alice(), bob(), charlie()];
@@ -204,7 +176,7 @@ mod nft_on_approve {
                     token_id.into(),
                     ids[token_id as usize % 3].clone(),
                     0.into(),
-                    approve_msg((token_id * 10).into(), gate_id(token_id % 4), bob(), "1/100"),
+                    approve_msg((token_id * 10).into(), gate_id(token_id % 4), bob()),
                 );
             }
         });
@@ -229,7 +201,7 @@ mod buy_token {
         let token_id = 5.into();
         init()
             .run_as(nft(), |contract| {
-                let msg = approve_msg(10, gate_id(1), charlie(), "1/100");
+                let msg = approve_msg(10, gate_id(1), charlie());
                 contract.nft_on_approve(token_id, bob(), 0.into(), msg);
             })
             .run_as(bob(), |contract| {
@@ -243,7 +215,7 @@ mod buy_token {
         let token_id = 5.into();
         init()
             .run_as(nft(), |contract| {
-                let msg = approve_msg(1000, gate_id(1), charlie(), "1/100");
+                let msg = approve_msg(1000, gate_id(1), charlie());
                 contract.nft_on_approve(token_id, bob(), 0.into(), msg);
             })
             .run_as(alice(), |contract| {
@@ -257,7 +229,7 @@ mod buy_token {
         let token_id = 5.into();
         init()
             .run_as(nft(), |contract| {
-                let msg = approve_msg(1000, gate_id(1), charlie(), "1/100");
+                let msg = approve_msg(1000, gate_id(1), charlie());
                 contract.nft_on_approve(token_id, bob(), 0.into(), msg);
             })
             .run_as(alice(), |contract| {

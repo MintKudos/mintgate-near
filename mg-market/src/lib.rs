@@ -4,20 +4,25 @@
 use std::convert::TryInto;
 
 use mg_core::{
-    crypto_hash, Fraction, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId,
+    crypto_hash, Fraction, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout,
+    TokenId,
 };
-use near_env::{near_log, PanicMessage};
+use near_env::{near_ext, near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
-    env,
+    env, ext_contract,
     json_types::{ValidAccountId, U128, U64},
     near_bindgen,
     serde::Serialize,
-    serde_json, setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
+    serde_json, setup_alloc, AccountId, Balance, BorshStorageKey, CryptoHash, Gas, PanicOnDefault,
+    Promise, PromiseResult,
 };
 
 setup_alloc!();
+
+const GAS_FOR_ROYALTIES: Gas = 120_000_000_000_000;
+const NO_DEPOSIT: Balance = 0;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -47,7 +52,7 @@ pub struct TokenForSale {
     pub nft_id: AccountId,
     pub gate_id: GateId,
     pub creator_id: AccountId,
-    pub royalty: Fraction,
+    // pub royalty: Fraction,
 }
 
 #[derive(BorshSerialize, BorshStorageKey)]
@@ -128,15 +133,8 @@ impl MarketContract {
     // Selling price: 5NMarketplace adds royalty: 10%: 5.5NMarketplace adds fee: 10%: 6.05NSelling price: 6.05N
     #[payable]
     pub fn buy_token(&mut self, token_id: TokenId) {
-        if let Some(TokenForSale {
-            owner_id,
-            min_price,
-            nft_id,
-            gate_id,
-            creator_id,
-            royalty,
-            ..
-        }) = self.tokens_for_sale.get(&token_id)
+        if let Some(TokenForSale { owner_id, min_price, nft_id, gate_id, creator_id, .. }) =
+            self.tokens_for_sale.get(&token_id)
         {
             let buyer_id = env::predecessor_account_id();
 
@@ -149,25 +147,23 @@ impl MarketContract {
                 Panics::NotEnoughDepositToBuyToken.panic();
             }
 
-            let fee_amount = self.mintgate_fee.mult(min_price.0);
-            let royalty_amount = royalty.mult(min_price.0);
-            let owner_amount = min_price.0 - fee_amount - royalty_amount;
+            self.remove_token_id(token_id, &gate_id, &owner_id, &creator_id);
 
-            Promise::new(self.mintgate_account_id.clone()).transfer(fee_amount);
-            Promise::new(creator_id.clone()).transfer(royalty_amount);
-            Promise::new(owner_id.clone()).transfer(owner_amount);
-
-            mg_core::nft::nft_transfer(
+            mg_core::nft::nft_transfer_payout(
                 buyer_id.try_into().unwrap(),
                 token_id,
                 None,
                 None,
+                Some(min_price),
                 &nft_id,
                 0,
                 env::prepaid_gas() / 3,
-            );
-
-            self.remove_token_id(token_id, &gate_id, &owner_id, &creator_id);
+            )
+            .then(self_callback::make_payouts(
+                &env::current_account_id(),
+                NO_DEPOSIT,
+                GAS_FOR_ROYALTIES,
+            ));
         } else {
             Panics::TokenIdNotFound { token_id }.panic();
         }
@@ -187,6 +183,38 @@ impl MarketContract {
     }
 }
 
+#[near_ext]
+#[ext_contract(self_callback)]
+trait SelfCallback {
+    fn make_payouts(&mut self);
+}
+
+#[near_log(skip_args, only_pub)]
+#[near_bindgen]
+impl SelfCallback for MarketContract {
+    #[private]
+    fn make_payouts(&mut self) {
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Failed => unreachable!(),
+            PromiseResult::Successful(value) => {
+                if let Ok(payout) = serde_json::from_slice::<Payout>(&value) {
+                    let mut total_fee_amount = 0;
+                    for (receiver_id, amount) in payout {
+                        let fee_amount = self.mintgate_fee.mult(amount.0);
+                        Promise::new(receiver_id).transfer(amount.0 - fee_amount);
+                        total_fee_amount += fee_amount;
+                    }
+
+                    Promise::new(self.mintgate_account_id.clone()).transfer(total_fee_amount);
+                } else {
+                    unreachable!();
+                }
+            }
+        }
+    }
+}
+
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalsReceiver for MarketContract {
@@ -201,7 +229,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     ) {
         match serde_json::from_str::<MarketApproveMsg>(&msg) {
             Ok(approve_msg) => {
-                approve_msg.royalty.check();
+                // approve_msg.royalty.check();
 
                 let nft_id = env::predecessor_account_id();
 
@@ -215,7 +243,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
                         nft_id,
                         gate_id: approve_msg.gate_id.clone(),
                         creator_id: approve_msg.creator_id.clone(),
-                        royalty: approve_msg.royalty,
+                        // royalty: approve_msg.royalty,
                     },
                 );
 

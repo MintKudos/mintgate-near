@@ -109,6 +109,9 @@ pub type TokenId = U64;
 /// Only for internal `struct`s.
 pub type Timestamp = u64;
 
+///
+pub type Payout = HashMap<AccountId, U128>;
+
 /// Returns the sha256 of `value`.
 pub fn crypto_hash(value: &String) -> CryptoHash {
     let mut hash = CryptoHash::default();
@@ -210,6 +213,17 @@ pub trait NonFungibleTokenCore {
         memo: Option<String>,
     );
 
+    fn nft_payout(&self, token_id: U64, balance: U128) -> Payout;
+
+    fn nft_transfer_payout(
+        &mut self,
+        receiver_id: ValidAccountId,
+        token_id: TokenId,
+        approval_id: Option<U64>,
+        memo: Option<String>,
+        balance: Option<U128>,
+    ) -> Option<Payout>;
+
     fn nft_total_supply(&self) -> U64;
 
     fn nft_token(&self, token_id: TokenId) -> Option<Token>;
@@ -242,7 +256,6 @@ pub struct MarketApproveMsg {
     /// Represents the `gate_id` of the token being approved.
     pub gate_id: GateId,
     pub creator_id: AccountId,
-    pub royalty: Fraction,
 }
 
 #[near_ext]
