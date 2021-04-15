@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.2 https://github.com/acuarica/near-syn on 2021-04-13 16:10:10.453701 UTC
+// TypeScript bindings generated with near-ts v0.2.3 https://github.com/acuarica/near-syn on 2021-04-15 12:19:37.959744 UTC
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -32,6 +32,8 @@ export type GateId = string;
 export type TokenId = U64;
 
 export type Timestamp = number;
+
+export type Payout = Record<AccountId, U128>;
 
 /**
  *  Associated metadata for the NFT contract as defined by
@@ -250,10 +252,6 @@ export interface MarketApproveMsg {
      */
     creator_id: AccountId;
 
-    /**
-     */
-    royalty: Fraction;
-
 }
 
 export interface Self {
@@ -331,6 +329,22 @@ export interface NonFungibleTokenCore {
     nft_transfer(args: { receiver_id: ValidAccountId, token_id: TokenId, enforce_approval_id: U64|null, memo: string|null }, gas?: any): Promise<void>;
 
     /**
+     *  Query whom would be paid out for a given `token_id`, derived from some `balance`.
+     * 
+     *  Part of the WIP spec:
+     *  <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
+     */
+    nft_payout(args: { token_id: TokenId, balance: U128 }): Promise<Payout>;
+
+    /**
+     *  Transfer attempt to transfer the token, which returns the payout data.
+     * 
+     *  Part of the WIP spec:
+     *  <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
+     */
+    nft_transfer_payout(args: { receiver_id: ValidAccountId, token_id: TokenId, approval_id: U64|null, memo: string|null, balance: U128|null }, gas?: any): Promise<Payout|null>;
+
+    /**
      *  Returns the total token supply.
      */
     nft_total_supply(): Promise<U64>;
@@ -375,6 +389,7 @@ export const NftContractMethods = {
         "get_tokens_by_owner",
         "get_tokens_by_owner_and_gate_id",
         "nft_metadata",
+        "nft_payout",
         "nft_total_supply",
         "nft_token",
     ],
@@ -382,6 +397,7 @@ export const NftContractMethods = {
         "create_collectible",
         "claim_token",
         "nft_transfer",
+        "nft_transfer_payout",
         "nft_approve",
         "nft_revoke",
         "nft_revoke_all",
