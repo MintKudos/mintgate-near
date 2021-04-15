@@ -429,14 +429,15 @@ impl NonFungibleTokenCore for NftContract {
         match self.collectibles.get(&token.gate_id) {
             None => Panics::GateIdNotFound { gate_id: token.gate_id }.panic(),
             Some(collectible) => {
-                let mut payout = HashMap::new();
-
                 let royalty_amount = collectible.royalty.mult(balance.0);
-                payout.insert(collectible.creator_id, royalty_amount.into());
-
                 let owner_amount = balance.0 - royalty_amount;
-                payout.insert(token.owner_id, owner_amount.into());
+                let entries =
+                    vec![(collectible.creator_id, royalty_amount), (token.owner_id, owner_amount)];
 
+                let mut payout = HashMap::new();
+                for (account_id, amount) in entries {
+                    payout.entry(account_id).or_insert(U128(0)).0 += amount;
+                }
                 payout
             }
         }
@@ -454,11 +455,9 @@ impl NonFungibleTokenCore for NftContract {
         memo: Option<String>,
         balance: Option<U128>,
     ) -> Option<Payout> {
+        let payout = balance.map(|balance| self.nft_payout(token_id, balance));
         self.nft_transfer(receiver_id, token_id, approval_id, memo);
-        match balance {
-            None => None,
-            Some(balance) => Some(self.nft_payout(token_id, balance)),
-        }
+        payout
     }
 
     /// Returns the total token supply.
