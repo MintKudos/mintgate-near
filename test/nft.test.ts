@@ -877,20 +877,29 @@ describe('Nft contract', () => {
   });
 
   describe('nft_total_supply', () => {
-    // todo
-    it.skip('should return the number of tokens minted for the contract', async () => {
-      const promises = [];
-      promises.push(alice.contract.nft_total_supply());
+    it('should return the number of tokens minted for the contract', async () => {
+      const numberOfTokensToAdd = 6;
 
-      global.nftUsers.forEach(({ contract, accountId }) => {
-        promises.push(contract.get_tokens_by_owner({ owner_id: accountId }));
+      const gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
       });
 
-      const [totalSupply, ...tokens] = await Promise.all(promises);
+      const totalSupplyBefore = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens before', totalSupplyBefore);
 
-      logger.data('Total supply of tokens minted', totalSupply);
+      for (let i = 0; i < numberOfTokensToAdd; i += 1) {
+        if (i % 0) {
+          await alice.contract.claim_token({ gate_id: gateId });
+        } else {
+          await bob.contract.claim_token({ gate_id: gateId });
+        }
+      }
 
-      expect(+totalSupply).toBe(tokens.flat().length);
+      const totalSupplyAfter = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens minted after', totalSupplyAfter);
+
+      expect(+totalSupplyAfter).toBe(+totalSupplyBefore + numberOfTokensToAdd);
     });
   });
 
