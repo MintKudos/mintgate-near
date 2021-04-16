@@ -247,6 +247,7 @@ pub trait NonFungibleTokenApprovalMgmt {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct NftApproveMsg {
+    /// Indicates the minimum price (in NEARs) requested by owner to pay for the token.
     pub min_price: U128,
 }
 
@@ -257,6 +258,7 @@ pub struct MarketApproveMsg {
     pub min_price: U128,
     /// Represents the `gate_id` of the token being approved.
     pub gate_id: GateId,
+    /// Represents the `creator_id` of the collectible of the token being approved.
     pub creator_id: AccountId,
 }
 

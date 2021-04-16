@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.3 https://github.com/acuarica/near-syn on 2021-04-15 12:19:38.190712 UTC
+// TypeScript bindings generated with near-ts v0.2.5 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -230,6 +230,7 @@ export interface TokenApproval {
  */
 export interface NftApproveMsg {
     /**
+     *  Indicates the minimum price (in NEARs) requested by owner to pay for the token.
      */
     min_price: U128;
 
@@ -249,6 +250,7 @@ export interface MarketApproveMsg {
     gate_id: GateId;
 
     /**
+     *  Represents the `creator_id` of the collectible of the token being approved.
      */
     creator_id: AccountId;
 
@@ -290,11 +292,8 @@ export interface TokenForSale {
 export interface Self {
     /**
      *  Initializes the Market contract.
-     * 
-     *  - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
-     *  - `mintgate_account_id`: Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
      */
-    init: { mintgate_fee: Fraction, mintgate_account_id: ValidAccountId };
+    init: {  };
 
     /**
      *  Returns all available tokens for sale.
@@ -332,6 +331,7 @@ export interface NonFungibleTokenApprovalsReceiver {
     nft_on_approve(args: { token_id: TokenId, owner_id: ValidAccountId, approval_id: U64, msg: string }, gas?: any): Promise<void>;
 
     /**
+     *  Callback method to remove this `Token` from the marketplace.
      */
     nft_on_revoke(args: { token_id: TokenId }, gas?: any): Promise<void>;
 

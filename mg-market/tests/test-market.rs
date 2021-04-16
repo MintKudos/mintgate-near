@@ -110,31 +110,17 @@ fn approve_msg(price: u128, gate_id: GateId, creator_id: ValidAccountId) -> Mark
     MarketApproveMsg { min_price: price.into(), gate_id, creator_id: creator_id.to_string() }
 }
 
-fn init_contract(mintgate_fee: &str) -> MockedContext<MarketContractChecker> {
-    MockedContext::new(|| MarketContractChecker {
-        contract: MarketContract::init(mintgate_fee.parse().unwrap(), any()),
-    })
+fn init_contract() -> MockedContext<MarketContractChecker> {
+    MockedContext::new(|| MarketContractChecker { contract: MarketContract::init() })
 }
 
 fn init() -> MockedContext<MarketContractChecker> {
-    init_contract("25/1000")
+    init_contract()
 }
 
 mod initial_state {
 
     use super::*;
-
-    #[test]
-    #[should_panic(expected = "Denominator must be a positive number, but was 0")]
-    fn init_state_with_zero_den_mintgate_fee_should_panic() {
-        init_contract("5/0");
-    }
-
-    #[test]
-    #[should_panic(expected = "The fraction must be less or equal to 1")]
-    fn init_state_with_invalid_mintgate_fee_should_panic() {
-        init_contract("5/4");
-    }
 
     #[test]
     fn init_state() {

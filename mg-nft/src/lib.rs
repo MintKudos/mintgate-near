@@ -57,6 +57,11 @@ pub struct NftContract {
     min_royalty: Fraction,
     /// Indicates the minimum allowed `royalty` to be set on a `Collectible` when an Artist creates it.
     max_royalty: Fraction,
+    /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
+    /// This field can be set up when the contract is deployed.
+    mintgate_fee: Fraction,
+    /// Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
+    mintgate_fee_account_id: AccountId,
 }
 
 /// To create a persistent collection on the blockchain, *e.g.*,
@@ -82,6 +87,8 @@ enum Panics {
     RoyaltyMinThanAllowed { royalty: Fraction, gate_id: String },
     #[panic_msg = "Royalty `{}` of `{}` is greater than max"]
     RoyaltyMaxThanAllowed { royalty: Fraction, gate_id: String },
+    #[panic_msg = "Royalty `{}` is too large for the given NFT fee `{}`"]
+    RoyaltyTooLarge { royalty: Fraction, mintgate_fee: Fraction },
     #[panic_msg = "Gate ID `{}` already exists"]
     GateIdAlreadyExists { gate_id: GateId },
     #[panic_msg = "Gate ID `{}` must have a positive supply"]
@@ -120,15 +127,19 @@ impl NftContract {
     /// - `admin_id` is the valid account that is allowed to perform certain operations.
     /// - `metadata` represents the general information of the contract.
     /// - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
+    /// - `mintgate_fee` is the percetange to be paid to `mintgate_fee_account_id` for each sale.
     #[init]
     pub fn init(
         admin_id: ValidAccountId,
         metadata: ContractMetadata,
         min_royalty: Fraction,
         max_royalty: Fraction,
+        mintgate_fee: Fraction,
+        mintgate_fee_account_id: ValidAccountId,
     ) -> Self {
         min_royalty.check();
         max_royalty.check();
+        mintgate_fee.check();
 
         if max_royalty.cmp(&min_royalty) == Ordering::Less {
             Panics::MaxRoyaltyLessThanMinRoyalty { min_royalty, max_royalty }.panic();
@@ -143,6 +154,8 @@ impl NftContract {
             metadata,
             min_royalty,
             max_royalty,
+            mintgate_fee,
+            mintgate_fee_account_id: mintgate_fee_account_id.to_string(),
         }
     }
 
@@ -150,6 +163,10 @@ impl NftContract {
     /// The `supply` indicates maximum supply for this collectible.
     /// The `royalty` indicates the royalty (as percentage) paid to the creator (`predecessor_account_id`).
     /// This royalty is paid when any `Token` is being resold in any marketplace.
+    ///
+    /// The sum of `royalty` and `mintgate_fee` should be less than `1`.
+    /// Panics otherwise. 
+    /// This is to be able to make payouts all participants.
     ///
     /// See <https://github.com/epam/mintgate/issues/3>.
     pub fn create_collectible(
@@ -167,6 +184,10 @@ impl NftContract {
         }
         if royalty.cmp(&self.max_royalty) == Ordering::Greater {
             Panics::RoyaltyMaxThanAllowed { royalty, gate_id }.panic();
+        }
+        let bn = 1_000_000_000_000_000_000_000;
+        if self.mintgate_fee.mult(bn) + royalty.mult(bn) >= bn {
+            Panics::RoyaltyTooLarge { royalty, mintgate_fee: self.mintgate_fee }.panic();
         }
         if self.collectibles.get(&gate_id).is_some() {
             Panics::GateIdAlreadyExists { gate_id }.panic();
@@ -430,9 +451,13 @@ impl NonFungibleTokenCore for NftContract {
             None => Panics::GateIdNotFound { gate_id: token.gate_id }.panic(),
             Some(collectible) => {
                 let royalty_amount = collectible.royalty.mult(balance.0);
-                let owner_amount = balance.0 - royalty_amount;
-                let entries =
-                    vec![(collectible.creator_id, royalty_amount), (token.owner_id, owner_amount)];
+                let fee_amount = self.mintgate_fee.mult(balance.0);
+                let owner_amount = balance.0 - royalty_amount - fee_amount;
+                let entries = vec![
+                    (collectible.creator_id, royalty_amount),
+                    (self.mintgate_fee_account_id.clone(), fee_amount),
+                    (token.owner_id, owner_amount),
+                ];
 
                 let mut payout = HashMap::new();
                 for (account_id, amount) in entries {
