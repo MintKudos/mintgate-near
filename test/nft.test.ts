@@ -1,8 +1,10 @@
+import type { Account } from 'near-api-js';
+
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger } from './utils';
 import { contractMetadata, royalty as royaltySetting } from './initialData';
+import { NftApproveMsg } from '../src/mg-nft';
 
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
-import { NftApproveMsg } from '../src/mg-nft';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -10,22 +12,16 @@ declare global {
     interface Global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
+      nftFeeUser: Account;
     }
   }
 }
 
 describe('Nft contract', () => {
-  let alice: AccountContract<NftContract>;
-  let bob: AccountContract<NftContract>;
-  let merchant: AccountContract<MarketContract>;
-  let merchant2: AccountContract<MarketContract>;
+  const [alice, bob] = global.nftUsers;
+  const [merchant, merchant2] = global.marketUsers;
+
   const nonExistentUserId = 'ron-1111111111111-111111';
-
-  beforeAll(async () => {
-    [alice, bob] = global.nftUsers;
-
-    [merchant, merchant2] = global.marketUsers;
-  });
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
