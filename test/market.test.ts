@@ -65,38 +65,50 @@ describe('Market contract', () => {
     });
   });
 
-  describe('nft_on_approve', () => {
-    let gateId: string;
-    let tokenId: string;
+  describe.each(['gate_id', 'owner_id', 'creator_id'])('get_tokens_by_%s', (by) => {
+    const numberOfTokensToCreate = 3;
 
-    const message: MarketApproveMsg = {
-      min_price: '5',
-      gate_id: '',
-      creator_id: '',
-    };
+    let bys: { [key: string]: string; gate_id: string; owner_id: string; creator_id: string };
+    let gateId: string;
+    const newTokensIds: string[] = [];
 
     beforeAll(async () => {
       gateId = await generateId();
 
-      message.creator_id = bob.contract.contractId;
-      message.gate_id = gateId;
+      await addTestCollectible(alice.contract, { gate_id: gateId });
 
-      await addTestCollectible(bob.contract, { gate_id: gateId });
+      for (let i = 0; i < numberOfTokensToCreate; i += 1) {
+        newTokensIds.push(await bob.contract.claim_token({ gate_id: gateId }));
+      }
 
-      tokenId = await alice.contract.claim_token({ gate_id: gateId });
+      await Promise.all(
+        newTokensIds.map((tokenId) =>
+          bob.contract.nft_approve({
+            token_id: tokenId,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify({ min_price: '5' }),
+          })
+        )
+      );
 
-      await merchant.contract.nft_on_approve({
-        token_id: tokenId,
-        owner_id: alice.accountId,
-        approval_id: '5',
-        msg: JSON.stringify(message),
-      });
+      bys = {
+        gate_id: gateId,
+        owner_id: bob.accountId,
+        creator_id: alice.accountId,
+      };
     });
 
-    test('that market lists the token as for sale', async () => {
-      const tokensForSale = await merchant.contract.get_tokens_for_sale();
+    it(`should return a list of tokens for sale by ${by}`, async () => {
+      const tokensForSale = <(TokenForSale & { [key: string]: string })[]>await merchant.contract.get_tokens_for_sale();
+      const tokensForSaleBy = await merchant.contract[`get_tokens_by_${by}`]({ [by]: bys[by] });
 
-      expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+      expect(tokensForSale.filter((token) => token[by] === bys[by])).toEqual(tokensForSaleBy);
+    });
+
+    it('should return an empty array if no tokens found', async () => {
+      const nonExistentId = 'non_existent_id';
+
+      expect(await merchant.contract[`get_tokens_by_${by}`]({ [by]: nonExistentId })).toEqual([]);
     });
   });
 
@@ -445,50 +457,38 @@ describe('Market contract', () => {
     });
   });
 
-  describe.each(['gate_id', 'owner_id', 'creator_id'])('get_tokens_by_%s', (by) => {
-    const numberOfTokensToCreate = 3;
-
-    let bys: { [key: string]: string; gate_id: string; owner_id: string; creator_id: string };
+  describe('nft_on_approve', () => {
     let gateId: string;
-    const newTokensIds: string[] = [];
+    let tokenId: string;
+
+    const message: MarketApproveMsg = {
+      min_price: '5',
+      gate_id: '',
+      creator_id: '',
+    };
 
     beforeAll(async () => {
       gateId = await generateId();
 
-      await addTestCollectible(alice.contract, { gate_id: gateId });
+      message.creator_id = bob.contract.contractId;
+      message.gate_id = gateId;
 
-      for (let i = 0; i < numberOfTokensToCreate; i += 1) {
-        newTokensIds.push(await bob.contract.claim_token({ gate_id: gateId }));
-      }
+      await addTestCollectible(bob.contract, { gate_id: gateId });
 
-      await Promise.all(
-        newTokensIds.map((tokenId) =>
-          bob.contract.nft_approve({
-            token_id: tokenId,
-            account_id: merchant.contract.contractId,
-            msg: JSON.stringify({ min_price: '5' }),
-          })
-        )
-      );
+      tokenId = await alice.contract.claim_token({ gate_id: gateId });
 
-      bys = {
-        gate_id: gateId,
-        owner_id: bob.accountId,
-        creator_id: alice.accountId,
-      };
+      await merchant.contract.nft_on_approve({
+        token_id: tokenId,
+        owner_id: alice.accountId,
+        approval_id: '5',
+        msg: JSON.stringify(message),
+      });
     });
 
-    it(`should return a list of tokens for sale by ${by}`, async () => {
-      const tokensForSale = <(TokenForSale & { [key: string]: string })[]>await merchant.contract.get_tokens_for_sale();
-      const tokensForSaleBy = await merchant.contract[`get_tokens_by_${by}`]({ [by]: bys[by] });
+    test('that market lists the token as for sale', async () => {
+      const tokensForSale = await merchant.contract.get_tokens_for_sale();
 
-      expect(tokensForSale.filter((token) => token[by] === bys[by])).toEqual(tokensForSaleBy);
-    });
-
-    it('should return an empty array if no tokens found', async () => {
-      const nonExistentId = 'non_existent_id';
-
-      expect(await merchant.contract[`get_tokens_by_${by}`]({ [by]: nonExistentId })).toEqual([]);
+      expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
   });
 
