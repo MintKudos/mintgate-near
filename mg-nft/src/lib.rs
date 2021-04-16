@@ -482,7 +482,9 @@ impl NonFungibleTokenCore for NftContract {
         }
     }
 
-    /// Attempts to transfer the token, which returns the payout data.
+    /// Attempts to transfer the token.
+    /// Afterwards returns the payout data.
+    /// Effectively it is calling `nft_transfer` followed by `nft_payout`.
     ///
     /// This is part of an ongoing (yet not settled) NEP spec:
     /// <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>

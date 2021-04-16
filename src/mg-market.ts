@@ -48,7 +48,8 @@ export type TokenId = U64;
 export type Timestamp = number;
 
 /**
- * 
+ *  Mapping from `AccountId`s to balance (in NEARs).
+ *  The balance indicates the amount a Marketplace contract should pay when a Token is being sold.
  */
 export type Payout = Record<AccountId, U128>;
 
@@ -226,13 +227,16 @@ export interface Token {
 }
 
 /**
+ *  Represents an individual approval by some marketplace account id.
  */
 export interface TokenApproval {
     /**
+     *  Id used to avoid selling the same token more than once.
      */
     approval_id: U64;
 
     /**
+     *  Minimum price a token should be sell for.
      */
     min_price: U128;
 
@@ -254,6 +258,11 @@ export interface NftApproveMsg {
 }
 
 /**
+ *  Represents the payload that arrives to the Marketplace contract,
+ *  from our NFT implementation.
+ *  It contains the `min_price` of the token.
+ *  Additionally it is augmented with `gate_id` and `creator_id`
+ *  so the Marketplace can lookup by this fields.
  */
 export interface MarketApproveMsg {
     /**
