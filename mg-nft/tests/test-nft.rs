@@ -531,6 +531,22 @@ mod nft_payout {
     }
 
     #[test]
+    fn nft_get_example_payout() {
+        init()
+            .run_as(alice(), |contract| {
+                contract.create_royalty_collectible(gate_id(1), 10, "30/100");
+            })
+            .run_as(bob(), |contract| {
+                let token_id = contract.claim_token(gate_id(1));
+                let payout = contract.nft_payout(token_id, 5_000_000.into());
+                assert_eq!(payout.len(), 3);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 125_000);
+                assert_eq!(payout.get(alice().as_ref()).unwrap().0, 1_500_000);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 3_375_000);
+            });
+    }
+
+    #[test]
     fn nft_get_payout_periodic_royalty_fraction() {
         init()
             .run_as(alice(), |contract| {

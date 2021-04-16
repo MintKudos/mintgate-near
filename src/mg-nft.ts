@@ -359,17 +359,29 @@ export interface NonFungibleTokenCore {
     nft_transfer(args: { receiver_id: ValidAccountId, token_id: TokenId, enforce_approval_id: U64|null, memo: string|null }, gas?: any): Promise<void>;
 
     /**
-     *  Query whom would be paid out for a given `token_id`, derived from some `balance`.
+     *  Query whom to be paid out for a given `token_id`, derived from some `balance`.
+     *  For example, given the following settings for the NFT contract and collectible `gate_id`:
      * 
-     *  Part of the WIP spec:
+     *  - `mintgate_fee`: `25/1000` (2.5%)
+     *  - `royalty`: `30/100` (30%)
+     *  
+     *  Then `nft_payout(token_id, 5_000_000)` will return
+     *  
+     *  - `mintgate_fee_account_id` -> 125_000
+     *  - `collectible.creator_id` -> 3_375_000
+     *  - `token.owner_id` -> 1_500_000
+     * 
+     *  for any `token_id` claimed from `gate_id`.
+     * 
+     *  This is part of an ongoing (yet not settled) NEP spec:
      *  <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
      */
     nft_payout(args: { token_id: TokenId, balance: U128 }): Promise<Payout>;
 
     /**
-     *  Transfer attempt to transfer the token, which returns the payout data.
+     *  Attempts to transfer the token, which returns the payout data.
      * 
-     *  Part of the WIP spec:
+     *  This is part of an ongoing (yet not settled) NEP spec:
      *  <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
      */
     nft_transfer_payout(args: { receiver_id: ValidAccountId, token_id: TokenId, approval_id: U64|null, memo: string|null, balance: U128|null }, gas?: any): Promise<Payout|null>;
