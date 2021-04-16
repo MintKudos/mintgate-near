@@ -31,7 +31,7 @@ jobs:
           ~/.cargo/registry/cache
           ~/.cargo/git/db
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
     - run: rustup target add wasm32-unknown-unknown
     - run: cargo build --target wasm32-unknown-unknown --release
     - run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
@@ -55,7 +55,7 @@ jobs:
           ~/.cargo/registry/cache
           ~/.cargo/git/db
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
     - run: cargo test
 
   check-bindings:
@@ -70,7 +70,7 @@ jobs:
           ~/.cargo/registry/cache
           ~/.cargo/git/db
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-check-${{ hashFiles('Cargo.lock') }}
     - run: cargo install near-syn --version 0.2.5
     - run: yarn ts:contracts
     - run: git --no-pager diff --exit-code src/mg-nft.ts src/mg-market.ts
