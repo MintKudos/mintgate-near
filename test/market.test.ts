@@ -1,7 +1,9 @@
 import BN from 'bn.js';
 import { utils } from 'near-api-js';
 
-import { addTestCollectible, generateId, getShare, formatNsToMs } from './utils';
+import type { Account } from 'near-api-js';
+
+import { addTestCollectible, generateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
 
 import type { AccountContract, NftContract, MarketContract, Token, Fraction } from '../src';
@@ -13,6 +15,7 @@ declare global {
     interface Global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
+      nftFeeUser: Account;
     }
   }
 }
@@ -24,16 +27,13 @@ const {
 const GAS = new BN(300000000000000);
 
 describe('Market contract', () => {
-  let alice: AccountContract<NftContract>;
-  let bob: AccountContract<NftContract>;
-  let mintgate: AccountContract<NftContract>;
-  let merchant: AccountContract<MarketContract>;
-  let merchant2: AccountContract<MarketContract>;
+  const [alice, bob] = global.nftUsers;
+  const [merchant, merchant2] = global.marketUsers;
 
-  beforeAll(async () => {
-    [alice, bob, mintgate] = global.nftUsers;
+  const mintgate = global.nftFeeUser;
 
-    [merchant, merchant2] = global.marketUsers;
+  beforeEach(() => {
+    logger.title(`${expect.getState().currentTestName}`);
   });
 
   describe('get_tokens_for_sale', () => {
@@ -65,42 +65,50 @@ describe('Market contract', () => {
     });
   });
 
-  describe('nft_on_approve', () => {
-    let gateId: string;
-    let tokenId: string;
+  describe.each(['gate_id', 'owner_id', 'creator_id'])('get_tokens_by_%s', (by) => {
+    const numberOfTokensToCreate = 3;
 
-    const message: MarketApproveMsg = {
-      min_price: '5',
-      gate_id: '',
-      creator_id: '',
-      royalty: {
-        num: 2,
-        den: 100,
-      },
-    };
+    let bys: { [key: string]: string; gate_id: string; owner_id: string; creator_id: string };
+    let gateId: string;
+    const newTokensIds: string[] = [];
 
     beforeAll(async () => {
       gateId = await generateId();
 
-      message.creator_id = bob.contract.contractId;
-      message.gate_id = gateId;
+      await addTestCollectible(alice.contract, { gate_id: gateId });
 
-      await addTestCollectible(bob.contract, { gate_id: gateId });
+      for (let i = 0; i < numberOfTokensToCreate; i += 1) {
+        newTokensIds.push(await bob.contract.claim_token({ gate_id: gateId }));
+      }
 
-      tokenId = await alice.contract.claim_token({ gate_id: gateId });
+      await Promise.all(
+        newTokensIds.map((tokenId) =>
+          bob.contract.nft_approve({
+            token_id: tokenId,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify({ min_price: '5' }),
+          })
+        )
+      );
 
-      await merchant.contract.nft_on_approve({
-        token_id: tokenId,
-        owner_id: alice.accountId,
-        approval_id: '5',
-        msg: JSON.stringify(message),
-      });
+      bys = {
+        gate_id: gateId,
+        owner_id: bob.accountId,
+        creator_id: alice.accountId,
+      };
     });
 
-    test('that market lists the token as for sale', async () => {
-      const tokensForSale = await merchant.contract.get_tokens_for_sale();
+    it(`should return a list of tokens for sale by ${by}`, async () => {
+      const tokensForSale = <(TokenForSale & { [key: string]: string })[]>await merchant.contract.get_tokens_for_sale();
+      const tokensForSaleBy = await merchant.contract[`get_tokens_by_${by}`]({ [by]: bys[by] });
 
-      expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+      expect(tokensForSale.filter((token) => token[by] === bys[by])).toEqual(tokensForSaleBy);
+    });
+
+    it('should return an empty array if no tokens found', async () => {
+      const nonExistentId = 'non_existent_id';
+
+      expect(await merchant.contract[`get_tokens_by_${by}`]({ [by]: nonExistentId })).toEqual([]);
     });
   });
 
@@ -147,17 +155,17 @@ describe('Market contract', () => {
         msg: JSON.stringify(message),
       });
 
-      buyerBalanceBefore = (await merchant2.contract.account.getAccountBalance()).total;
+      buyerBalanceBefore = (await merchant2.account.getAccountBalance()).total;
       [
         { total: buyerBalanceBefore },
         { total: mintgateBalanceBefore },
         { total: creatorBalanceBefore },
         { total: sellerBalanceBefore },
       ] = await Promise.all([
-        merchant2.contract.account.getAccountBalance(),
-        mintgate.contract.account.getAccountBalance(),
-        bob.contract.account.getAccountBalance(),
-        alice.contract.account.getAccountBalance(),
+        merchant2.account.getAccountBalance(),
+        mintgate.getAccountBalance(),
+        bob.account.getAccountBalance(),
+        alice.account.getAccountBalance(),
       ]);
 
       await merchant2.contract.buy_token({ token_id: tokenId }, GAS, new BN(priceInternalNear!));
@@ -168,10 +176,10 @@ describe('Market contract', () => {
         { total: creatorBalanceAfter },
         { total: sellerBalanceAfter },
       ] = await Promise.all([
-        merchant2.contract.account.getAccountBalance(),
-        mintgate.contract.account.getAccountBalance(),
-        bob.contract.account.getAccountBalance(),
-        alice.contract.account.getAccountBalance(),
+        merchant2.account.getAccountBalance(),
+        mintgate.getAccountBalance(),
+        bob.account.getAccountBalance(),
+        alice.account.getAccountBalance(),
       ]);
 
       [token] = (await alice.contract.get_tokens_by_owner({ owner_id: merchant2.accountId })).filter(
@@ -183,12 +191,22 @@ describe('Market contract', () => {
       const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore);
       const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter);
 
+      logger.data('mintgateBalanceBeforeHr', mintgateBalanceBeforeHr);
+      logger.data('mintgateBalanceAfterHr', mintgateBalanceAfterHr);
+      logger.data('mintgateShare', mintgateShare);
+      logger.data('mintgateShareActual', +mintgateBalanceAfterHr - +mintgateBalanceBeforeHr);
+
       expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 5);
     });
 
     it("should transfer royalty to the creator's wallet", async () => {
       const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore);
       const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter);
+
+      logger.data('creatorBalanceBeforeHr', creatorBalanceBeforeHr);
+      logger.data('creatorBalanceAfterHr', creatorBalanceAfterHr);
+      logger.data('creatorShare', creatorShare);
+      logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
 
       expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
     });
@@ -197,6 +215,11 @@ describe('Market contract', () => {
       const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore);
       const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter);
 
+      logger.data('sellerBalanceBeforeHr', sellerBalanceBeforeHr);
+      logger.data('sellerBalanceAfterHr', sellerBalanceAfterHr);
+      logger.data('sellerShare', sellerShare);
+      logger.data('sellerShareActual', +sellerBalanceAfterHr - +sellerBalanceBeforeHr);
+
       expect(+sellerBalanceBeforeHr + sellerShare).toBeCloseTo(+sellerBalanceAfterHr, 2);
     });
 
@@ -204,7 +227,12 @@ describe('Market contract', () => {
       const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore);
       const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter);
 
-      expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 2);
+      logger.data('buyerBalanceBeforeHr', buyerBalanceBeforeHr);
+      logger.data('buyerBalanceAfterHr', buyerBalanceAfterHr);
+      logger.data('priceHrNear', priceHrNear);
+      logger.data('buyerShareActual', +buyerBalanceAfterHr - +buyerBalanceBeforeHr);
+
+      expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
     });
 
     describe('token transfer', () => {
@@ -277,6 +305,92 @@ describe('Market contract', () => {
       });
     });
 
+    describe('creator and seller are the same person', () => {
+      let gateId2: string;
+      let tokenId2: string;
+
+      let mintgateBalanceBefore2: string;
+      let mintgateBalanceAfter2: string;
+      let creatorBalanceBefore2: string;
+      let creatorBalanceAfter2: string;
+      let buyerBalanceBefore2: string;
+      let buyerBalanceAfter2: string;
+
+      beforeAll(async () => {
+        gateId2 = await generateId();
+        await addTestCollectible(bob.contract, {
+          gate_id: gateId2,
+          royalty,
+        });
+
+        tokenId2 = await bob.contract.claim_token({ gate_id: gateId2 });
+        await bob.contract.nft_approve({
+          token_id: tokenId2,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify(message),
+        });
+
+        buyerBalanceBefore2 = (await merchant2.account.getAccountBalance()).total;
+        [
+          { total: buyerBalanceBefore2 },
+          { total: mintgateBalanceBefore2 },
+          { total: creatorBalanceBefore2 },
+        ] = await Promise.all([
+          merchant2.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          bob.account.getAccountBalance(),
+        ]);
+
+        await merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+
+        [
+          { total: buyerBalanceAfter2 },
+          { total: mintgateBalanceAfter2 },
+          { total: creatorBalanceAfter2 },
+        ] = await Promise.all([
+          merchant2.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          bob.account.getAccountBalance(),
+        ]);
+      });
+
+      it("should transfer mintgate's fee to its' wallet", async () => {
+        const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore2);
+        const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter2);
+
+        logger.data('mintgateBalanceBeforeHr', mintgateBalanceBeforeHr);
+        logger.data('mintgateBalanceAfterHr', mintgateBalanceAfterHr);
+        logger.data('mintgateShare', mintgateShare);
+        logger.data('mintgateShareActual', +mintgateBalanceAfterHr - +mintgateBalanceBeforeHr);
+
+        expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 5);
+      });
+
+      it("should transfer royalty to the seller's (=== creator's) wallet", async () => {
+        const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
+        const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
+
+        logger.data('creatorBalanceBeforeHr', creatorBalanceBeforeHr);
+        logger.data('creatorBalanceAfterHr', creatorBalanceAfterHr);
+        logger.data('creatorShare', creatorShare);
+        logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
+
+        expect(+creatorBalanceBeforeHr + creatorShare + sellerShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
+      });
+
+      it("should deduct token's price from buyer's wallet", async () => {
+        const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore2);
+        const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter2);
+
+        logger.data('buyerBalanceBeforeHr', buyerBalanceBeforeHr);
+        logger.data('buyerBalanceAfterHr', buyerBalanceAfterHr);
+        logger.data('priceHrNear', priceHrNear);
+        logger.data('buyerShareActual', +buyerBalanceAfterHr - +buyerBalanceBeforeHr);
+
+        expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
+      });
+    });
+
     describe('errors', () => {
       it('should throw when the buyer and the seller are the same person', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
@@ -284,10 +398,6 @@ describe('Market contract', () => {
           min_price: '5',
           gate_id: '',
           creator_id: '',
-          royalty: {
-            num: 2,
-            den: 100,
-          },
         };
 
         await alice.contract.nft_transfer({
@@ -347,51 +457,38 @@ describe('Market contract', () => {
     });
   });
 
-  describe.each(['gate_id', 'owner_id', 'creator_id'])('get_tokens_by_%s', (by) => {
-    const numberOfTokensToCreate = 3;
-
-    let bys: { gate_id: string; owner_id: string; creator_id: string };
+  describe('nft_on_approve', () => {
     let gateId: string;
-    const newTokensIds: string[] = [];
+    let tokenId: string;
+
+    const message: MarketApproveMsg = {
+      min_price: '5',
+      gate_id: '',
+      creator_id: '',
+    };
 
     beforeAll(async () => {
       gateId = await generateId();
 
-      await addTestCollectible(alice.contract, { gate_id: gateId });
+      message.creator_id = bob.contract.contractId;
+      message.gate_id = gateId;
 
-      for (let i = 0; i < numberOfTokensToCreate; i += 1) {
-        newTokensIds.push(await bob.contract.claim_token({ gate_id: gateId }));
-      }
+      await addTestCollectible(bob.contract, { gate_id: gateId });
 
-      await Promise.all(
-        newTokensIds.map((tokenId) =>
-          bob.contract.nft_approve({
-            token_id: tokenId,
-            account_id: merchant.contract.contractId,
-            msg: JSON.stringify({ min_price: '5' }),
-          })
-        )
-      );
+      tokenId = await alice.contract.claim_token({ gate_id: gateId });
 
-      bys = {
-        gate_id: gateId,
-        owner_id: bob.accountId,
-        creator_id: alice.accountId,
-      };
+      await merchant.contract.nft_on_approve({
+        token_id: tokenId,
+        owner_id: alice.accountId,
+        approval_id: '5',
+        msg: JSON.stringify(message),
+      });
     });
 
-    it(`should return a list of tokens for sale by ${by}`, async () => {
-      expect(
-        // @ts-ignore
-        (await merchant.contract[`get_tokens_by_${by}`]({ [by]: bys[by] })).map(({ token_id }) => token_id)
-      ).toEqual(expect.arrayContaining(newTokensIds));
-    });
+    test('that market lists the token as for sale', async () => {
+      const tokensForSale = await merchant.contract.get_tokens_for_sale();
 
-    it('should return an empty array if no tokens found', async () => {
-      const nonExistentId = 'non_existent_id';
-
-      // @ts-ignore
-      expect(await merchant.contract[`get_tokens_by_${by}`]({ [by]: nonExistentId })).toEqual([]);
+      expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
   });
 

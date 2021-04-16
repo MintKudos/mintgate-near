@@ -57,6 +57,11 @@ pub struct NftContract {
     min_royalty: Fraction,
     /// Indicates the minimum allowed `royalty` to be set on a `Collectible` when an Artist creates it.
     max_royalty: Fraction,
+    /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
+    /// This field can be set up when the contract is deployed.
+    mintgate_fee: Fraction,
+    /// Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
+    mintgate_fee_account_id: AccountId,
 }
 
 /// To create a persistent collection on the blockchain, *e.g.*,
@@ -82,6 +87,8 @@ enum Panics {
     RoyaltyMinThanAllowed { royalty: Fraction, gate_id: String },
     #[panic_msg = "Royalty `{}` of `{}` is greater than max"]
     RoyaltyMaxThanAllowed { royalty: Fraction, gate_id: String },
+    #[panic_msg = "Royalty `{}` is too large for the given NFT fee `{}`"]
+    RoyaltyTooLarge { royalty: Fraction, mintgate_fee: Fraction },
     #[panic_msg = "Gate ID `{}` already exists"]
     GateIdAlreadyExists { gate_id: GateId },
     #[panic_msg = "Gate ID `{}` must have a positive supply"]
@@ -110,6 +117,8 @@ enum Panics {
     RevokeApprovalFailed { account_id: AccountId },
 }
 
+/// Methods for the NFT contract.
+/// Methods belonging to a NEP Standard are implemented in their own interfaces.
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NftContract {
@@ -120,15 +129,19 @@ impl NftContract {
     /// - `admin_id` is the valid account that is allowed to perform certain operations.
     /// - `metadata` represents the general information of the contract.
     /// - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
+    /// - `mintgate_fee` is the percetange to be paid to `mintgate_fee_account_id` for each sale.
     #[init]
     pub fn init(
         admin_id: ValidAccountId,
         metadata: ContractMetadata,
         min_royalty: Fraction,
         max_royalty: Fraction,
+        mintgate_fee: Fraction,
+        mintgate_fee_account_id: ValidAccountId,
     ) -> Self {
         min_royalty.check();
         max_royalty.check();
+        mintgate_fee.check();
 
         if max_royalty.cmp(&min_royalty) == Ordering::Less {
             Panics::MaxRoyaltyLessThanMinRoyalty { min_royalty, max_royalty }.panic();
@@ -143,6 +156,8 @@ impl NftContract {
             metadata,
             min_royalty,
             max_royalty,
+            mintgate_fee,
+            mintgate_fee_account_id: mintgate_fee_account_id.to_string(),
         }
     }
 
@@ -150,6 +165,10 @@ impl NftContract {
     /// The `supply` indicates maximum supply for this collectible.
     /// The `royalty` indicates the royalty (as percentage) paid to the creator (`predecessor_account_id`).
     /// This royalty is paid when any `Token` is being resold in any marketplace.
+    ///
+    /// The sum of `royalty` and `mintgate_fee` should be less than `1`.
+    /// Panics otherwise. 
+    /// This is to be able to make payouts all participants.
     ///
     /// See <https://github.com/epam/mintgate/issues/3>.
     pub fn create_collectible(
@@ -167,6 +186,10 @@ impl NftContract {
         }
         if royalty.cmp(&self.max_royalty) == Ordering::Greater {
             Panics::RoyaltyMaxThanAllowed { royalty, gate_id }.panic();
+        }
+        let bn = 1_000_000_000_000_000_000_000;
+        if self.mintgate_fee.mult(bn) + royalty.mult(bn) >= bn {
+            Panics::RoyaltyTooLarge { royalty, mintgate_fee: self.mintgate_fee }.panic();
         }
         if self.collectibles.get(&gate_id).is_some() {
             Panics::GateIdAlreadyExists { gate_id }.panic();
@@ -420,31 +443,50 @@ impl NonFungibleTokenCore for NftContract {
         self.insert_token(&token);
     }
 
-    /// Query whom would be paid out for a given `token_id`, derived from some `balance`.
+    /// Query whom to be paid out for a given `token_id`, derived from some `balance`.
+    /// For example, given the following settings for the NFT contract and collectible `gate_id`:
     ///
-    /// Part of the WIP spec:
+    /// - `mintgate_fee`: `25/1000` (2.5%)
+    /// - `royalty`: `30/100` (30%)
+    /// 
+    /// Then `nft_payout(token_id, 5_000_000)` will return
+    /// 
+    /// - `mintgate_fee_account_id` -> 125_000
+    /// - `collectible.creator_id` -> 3_375_000
+    /// - `token.owner_id` -> 1_500_000
+    ///
+    /// for any `token_id` claimed from `gate_id`.
+    ///
+    /// This is part of an ongoing (yet not settled) NEP spec:
     /// <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
     fn nft_payout(&self, token_id: TokenId, balance: U128) -> Payout {
         let token = self.get_token(token_id);
         match self.collectibles.get(&token.gate_id) {
             None => Panics::GateIdNotFound { gate_id: token.gate_id }.panic(),
             Some(collectible) => {
-                let mut payout = HashMap::new();
-
                 let royalty_amount = collectible.royalty.mult(balance.0);
-                payout.insert(collectible.creator_id, royalty_amount.into());
+                let fee_amount = self.mintgate_fee.mult(balance.0);
+                let owner_amount = balance.0 - royalty_amount - fee_amount;
+                let entries = vec![
+                    (collectible.creator_id, royalty_amount),
+                    (self.mintgate_fee_account_id.clone(), fee_amount),
+                    (token.owner_id, owner_amount),
+                ];
 
-                let owner_amount = balance.0 - royalty_amount;
-                payout.insert(token.owner_id, owner_amount.into());
-
+                let mut payout = HashMap::new();
+                for (account_id, amount) in entries {
+                    payout.entry(account_id).or_insert(U128(0)).0 += amount;
+                }
                 payout
             }
         }
     }
 
-    /// Transfer attempt to transfer the token, which returns the payout data.
+    /// Attempts to transfer the token.
+    /// Afterwards returns the payout data.
+    /// Effectively it is calling `nft_transfer` followed by `nft_payout`.
     ///
-    /// Part of the WIP spec:
+    /// This is part of an ongoing (yet not settled) NEP spec:
     /// <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
     fn nft_transfer_payout(
         &mut self,
@@ -454,11 +496,9 @@ impl NonFungibleTokenCore for NftContract {
         memo: Option<String>,
         balance: Option<U128>,
     ) -> Option<Payout> {
+        let payout = balance.map(|balance| self.nft_payout(token_id, balance));
         self.nft_transfer(receiver_id, token_id, approval_id, memo);
-        match balance {
-            None => None,
-            Some(balance) => Some(self.nft_payout(token_id, balance)),
-        }
+        payout
     }
 
     /// Returns the total token supply.

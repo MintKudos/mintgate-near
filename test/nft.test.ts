@@ -1,8 +1,13 @@
-import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger } from './utils';
-import { contractMetadata, royalty as royaltySetting } from './initialData';
+import { formatNearAmount, parseNearAmount } from 'near-api-js/lib/utils/format';
+import BN from 'bn.js';
 
+import type { Account } from 'near-api-js';
+
+import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger, getShare } from './utils';
+import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
+
+import type { NftApproveMsg, Payout } from '../src/mg-nft';
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
-import { NftApproveMsg } from '../src/mg-nft';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -10,22 +15,18 @@ declare global {
     interface Global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
+      nftFeeUser: Account;
     }
   }
 }
 
 describe('Nft contract', () => {
-  let alice: AccountContract<NftContract>;
-  let bob: AccountContract<NftContract>;
-  let merchant: AccountContract<MarketContract>;
-  let merchant2: AccountContract<MarketContract>;
+  const [alice, bob] = global.nftUsers;
+  const [merchant, merchant2] = global.marketUsers;
+
+  const mintgate = global.nftFeeUser;
+
   const nonExistentUserId = 'ron-1111111111111-111111';
-
-  beforeAll(async () => {
-    [alice, bob] = global.nftUsers;
-
-    [merchant, merchant2] = global.marketUsers;
-  });
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
@@ -690,21 +691,215 @@ describe('Nft contract', () => {
     });
   });
 
-  describe('nft_total_supply', () => {
-    // todo
-    it.skip('should return the number of tokens minted for the contract', async () => {
-      const promises = [];
-      promises.push(alice.contract.nft_total_supply());
+  describe('nft_payout', () => {
+    const priceHrNear = '5';
+    const priceInternalNear = parseNearAmount(priceHrNear);
 
-      global.nftUsers.forEach(({ contract, accountId }) => {
-        promises.push(contract.get_tokens_by_owner({ owner_id: accountId }));
+    const royalty: Fraction = {
+      num: 3,
+      den: 10,
+    };
+
+    const mintgateShare = getShare(+priceHrNear, MINTGATE_FEE);
+    const creatorShare = getShare(+priceHrNear, royalty);
+    const sellerShare = +priceHrNear - mintgateShare - creatorShare;
+
+    let gateId: string;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(bob.contract, {
+        gate_id: gateId,
+        royalty,
+      });
+    });
+
+    describe('creator and seller are different persons', () => {
+      let payout: Payout;
+
+      beforeAll(async () => {
+        const tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+        payout = await alice.contract.nft_payout({
+          token_id: tokenId,
+          balance: priceInternalNear!,
+        });
       });
 
-      const [totalSupply, ...tokens] = await Promise.all(promises);
+      it("should correctly calculate mintgate's share", () => {
+        expect(+formatNearAmount(payout[mintgate.accountId])).toBe(mintgateShare);
+      });
 
-      logger.data('Total supply of tokens minted', totalSupply);
+      it("should correctly calculate creator's share", () => {
+        expect(+formatNearAmount(payout[bob.accountId])).toBe(creatorShare);
+      });
 
-      expect(+totalSupply).toBe(tokens.flat().length);
+      it("should correctly calculate seller's share", () => {
+        expect(+formatNearAmount(payout[alice.accountId])).toBe(sellerShare);
+      });
+    });
+
+    describe('creator and seller are the same person', () => {
+      let payout: Payout;
+
+      beforeAll(async () => {
+        const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+        payout = await bob.contract.nft_payout({
+          token_id: tokenId,
+          balance: priceInternalNear!,
+        });
+      });
+
+      it("should correctly calculate mintgate's share", () => {
+        expect(+formatNearAmount(payout[mintgate.accountId])).toBe(mintgateShare);
+      });
+
+      it("should correctly calculate seller's (=== creator's) share", () => {
+        expect(+formatNearAmount(payout[bob.accountId])).toBe(sellerShare + creatorShare);
+      });
+    });
+
+    describe('errors', () => {
+      it('should throw if no id found', async () => {
+        const nonExistentTokenId = '22222222222222';
+
+        await expect(
+          alice.contract.nft_payout({
+            token_id: nonExistentTokenId,
+            balance: parseNearAmount('5')!,
+          })
+        ).rejects.toThrow('TokenIdNotFound');
+      });
+    });
+  });
+
+  describe('nft_transfer_payout', () => {
+    const priceHrNear = '5';
+    const priceInternalNear = parseNearAmount(priceHrNear);
+
+    const royalty: Fraction = {
+      num: 3,
+      den: 10,
+    };
+
+    const mintgateShare = parseNearAmount(`${getShare(+priceHrNear, MINTGATE_FEE)}`)!;
+    const creatorShare = parseNearAmount(`${getShare(+priceHrNear, royalty)}`)!;
+    const senderShare = new BN(priceInternalNear!).sub(new BN(creatorShare)).sub(new BN(mintgateShare)).toString();
+
+    let gateId: string;
+    let tokenId: string;
+
+    const args = {
+      receiver_id: merchant.accountId,
+      approval_id: null,
+      memo: null,
+      balance: priceInternalNear,
+    };
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+        royalty,
+      });
+    });
+
+    it('should return the correct payout for when receiver and creator are different persons', async () => {
+      tokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      const payoutReceived = await bob.contract.nft_transfer_payout({
+        ...args,
+        token_id: tokenId,
+      });
+
+      expect(payoutReceived).toEqual({
+        [mintgate.accountId]: mintgateShare,
+        [bob.accountId]: senderShare,
+        [alice.accountId]: creatorShare,
+      });
+    });
+
+    it('should return the correct payout for when receiver and creator are the same person', async () => {
+      tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+      const payoutReceived = await alice.contract.nft_transfer_payout({
+        ...args,
+        token_id: tokenId,
+      });
+
+      expect(payoutReceived).toEqual({
+        [mintgate.accountId]: mintgateShare,
+        [alice.accountId]: new BN(creatorShare).add(new BN(senderShare)).toString(),
+      });
+    });
+
+    describe('token transfer', () => {
+      let token: Token;
+
+      beforeAll(async () => {
+        tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+        await alice.contract.nft_transfer_payout({
+          ...args,
+          token_id: tokenId,
+        });
+
+        [token] = (await alice.contract.get_tokens_by_owner({ owner_id: merchant.accountId })).filter(
+          ({ token_id }) => token_id === tokenId
+        );
+      });
+
+      it("should associate token with it's new owner", () => {
+        expect(token).not.toBeUndefined();
+      });
+
+      it("should disassociate token from it's previous owner", async () => {
+        const [soldToken] = (await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId })).filter(
+          ({ token_id }) => token_id === tokenId
+        );
+
+        expect(soldToken).toBeUndefined();
+      });
+
+      it("should set token's new owner", async () => {
+        expect(token.owner_id).toBe(merchant.accountId);
+      });
+
+      it("should update token's modified_at property", async () => {
+        expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
+      });
+
+      it("should set token's sender", () => {
+        expect(token.sender_id).toBe(alice.accountId);
+      });
+    });
+  });
+
+  describe('nft_total_supply', () => {
+    it('should return the number of tokens minted for the contract', async () => {
+      const numberOfTokensToAdd = 6;
+
+      const gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+      });
+
+      const totalSupplyBefore = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens before', totalSupplyBefore);
+
+      for (let i = 0; i < numberOfTokensToAdd; i += 1) {
+        if (i % 0) {
+          await alice.contract.claim_token({ gate_id: gateId });
+        } else {
+          await bob.contract.claim_token({ gate_id: gateId });
+        }
+      }
+
+      const totalSupplyAfter = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens minted after', totalSupplyAfter);
+
+      expect(+totalSupplyAfter).toBe(+totalSupplyBefore + numberOfTokensToAdd);
     });
   });
 
@@ -925,13 +1120,32 @@ describe('Nft contract', () => {
   describe('nft_revoke_all', () => {
     let gateId: string;
     let tokenId: string;
-    let token: Token;
 
     beforeAll(async () => {
       gateId = await generateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
+    });
+
+    it('should remove an approval for one unspecified market', async () => {
+      await bob.contract.nft_approve({
+        token_id: tokenId,
+        account_id: merchant.contract.contractId,
+        msg: JSON.stringify({ min_price: '5' }),
+      });
+
+      let token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      expect(token.approvals[merchant.contract.contractId]).not.toBeUndefined();
+
+      logger.data('Approvals before', token.approvals);
+
+      await bob.contract.nft_revoke_all({ token_id: tokenId });
+
+      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      expect(token.approvals).toEqual({});
+
+      logger.data('Approvals after', token.approvals);
     });
 
     // skipped for now because currently at most one approval is allowed per Token
@@ -954,7 +1168,7 @@ describe('Nft contract', () => {
 
       await Promise.all(approvePromises);
 
-      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      let token = (await bob.contract.nft_token({ token_id: tokenId }))!;
       expect(Object.keys(token.approvals).length).toBeTruthy();
 
       logger.data('Approvals before', token.approvals);
@@ -968,7 +1182,7 @@ describe('Nft contract', () => {
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
-      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      const token = (await bob.contract.nft_token({ token_id: tokenId }))!;
 
       logger.data('Attempting to revoke token, revoker', alice.accountId);
       logger.data('Attempting to revoke token, owner', token.owner_id);

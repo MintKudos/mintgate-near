@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.3 https://github.com/acuarica/near-syn on 2021-04-15 12:19:37.959744 UTC
+// TypeScript bindings generated with near-ts v0.2.6 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -27,12 +27,30 @@ export interface Fraction {
 
 }
 
+/**
+ *  The `GateId` type represents the identifier of each `Collectible`.
+ */
 export type GateId = string;
 
+/**
+ *  The `TokenId` type represents the identifier of each `Token`.
+ *  This type can be used in both public interfaces and internal `struct`s.
+ *  See https://github.com/near-examples/NFT/issues/117 for background.
+ */
 export type TokenId = U64;
 
+/**
+ *  Unix epoch, expressed in miliseconds.
+ *  Note that 64 bits `number`s cannot be represented in JavaScript.
+ *  Therefore, this type cannot be used in public interfaces.
+ *  Only for internal `struct`s.
+ */
 export type Timestamp = number;
 
+/**
+ *  Mapping from `AccountId`s to balance (in NEARs).
+ *  The balance indicates the amount a Marketplace contract should pay when a Token is being sold.
+ */
 export type Payout = Record<AccountId, U128>;
 
 /**
@@ -209,13 +227,16 @@ export interface Token {
 }
 
 /**
+ *  Represents an individual approval by some marketplace account id.
  */
 export interface TokenApproval {
     /**
+     *  Id used to avoid selling the same token more than once.
      */
     approval_id: U64;
 
     /**
+     *  Minimum price a token should be sell for.
      */
     min_price: U128;
 
@@ -230,12 +251,18 @@ export interface TokenApproval {
  */
 export interface NftApproveMsg {
     /**
+     *  Indicates the minimum price (in NEARs) requested by owner to pay for the token.
      */
     min_price: U128;
 
 }
 
 /**
+ *  Represents the payload that arrives to the Marketplace contract,
+ *  from our NFT implementation.
+ *  It contains the `min_price` of the token.
+ *  Additionally it is augmented with `gate_id` and `creator_id`
+ *  so the Marketplace can lookup by this fields.
  */
 export interface MarketApproveMsg {
     /**
@@ -249,11 +276,16 @@ export interface MarketApproveMsg {
     gate_id: GateId;
 
     /**
+     *  Represents the `creator_id` of the collectible of the token being approved.
      */
     creator_id: AccountId;
 
 }
 
+/**
+ *  Methods for the NFT contract.
+ *  Methods belonging to a NEP Standard are implemented in their own interfaces.
+ */
 export interface Self {
     /**
      *  Initializes the contract.
@@ -263,14 +295,19 @@ export interface Self {
      *  - `admin_id` is the valid account that is allowed to perform certain operations.
      *  - `metadata` represents the general information of the contract.
      *  - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
+     *  - `mintgate_fee` is the percetange to be paid to `mintgate_fee_account_id` for each sale.
      */
-    init: { admin_id: ValidAccountId, metadata: ContractMetadata, min_royalty: Fraction, max_royalty: Fraction };
+    init: { admin_id: ValidAccountId, metadata: ContractMetadata, min_royalty: Fraction, max_royalty: Fraction, mintgate_fee: Fraction, mintgate_fee_account_id: ValidAccountId };
 
     /**
      *  Creates a new `Collectible`, identified by `gate_id`.
      *  The `supply` indicates maximum supply for this collectible.
      *  The `royalty` indicates the royalty (as percentage) paid to the creator (`predecessor_account_id`).
      *  This royalty is paid when any `Token` is being resold in any marketplace.
+     * 
+     *  The sum of `royalty` and `mintgate_fee` should be less than `1`.
+     *  Panics otherwise. 
+     *  This is to be able to make payouts all participants.
      * 
      *  See <https://github.com/epam/mintgate/issues/3>.
      */
@@ -315,6 +352,8 @@ export interface Self {
 
 }
 
+/**
+ */
 export interface NonFungibleTokenCore {
     /**
      *  Returns the NFT metadata for this contract.
@@ -329,17 +368,31 @@ export interface NonFungibleTokenCore {
     nft_transfer(args: { receiver_id: ValidAccountId, token_id: TokenId, enforce_approval_id: U64|null, memo: string|null }, gas?: any): Promise<void>;
 
     /**
-     *  Query whom would be paid out for a given `token_id`, derived from some `balance`.
+     *  Query whom to be paid out for a given `token_id`, derived from some `balance`.
+     *  For example, given the following settings for the NFT contract and collectible `gate_id`:
      * 
-     *  Part of the WIP spec:
+     *  - `mintgate_fee`: `25/1000` (2.5%)
+     *  - `royalty`: `30/100` (30%)
+     *  
+     *  Then `nft_payout(token_id, 5_000_000)` will return
+     *  
+     *  - `mintgate_fee_account_id` -> 125_000
+     *  - `collectible.creator_id` -> 3_375_000
+     *  - `token.owner_id` -> 1_500_000
+     * 
+     *  for any `token_id` claimed from `gate_id`.
+     * 
+     *  This is part of an ongoing (yet not settled) NEP spec:
      *  <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
      */
     nft_payout(args: { token_id: TokenId, balance: U128 }): Promise<Payout>;
 
     /**
-     *  Transfer attempt to transfer the token, which returns the payout data.
+     *  Attempts to transfer the token.
+     *  Afterwards returns the payout data.
+     *  Effectively it is calling `nft_transfer` followed by `nft_payout`.
      * 
-     *  Part of the WIP spec:
+     *  This is part of an ongoing (yet not settled) NEP spec:
      *  <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
      */
     nft_transfer_payout(args: { receiver_id: ValidAccountId, token_id: TokenId, approval_id: U64|null, memo: string|null, balance: U128|null }, gas?: any): Promise<Payout|null>;
@@ -359,6 +412,8 @@ export interface NonFungibleTokenCore {
 
 }
 
+/**
+ */
 export interface NonFungibleTokenApprovalMgmt {
     /**
      *  Allows `account_id` to transfer `token_id` on behalf of its owner.

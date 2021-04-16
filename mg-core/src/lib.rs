@@ -109,7 +109,8 @@ pub type TokenId = U64;
 /// Only for internal `struct`s.
 pub type Timestamp = u64;
 
-///
+/// Mapping from `AccountId`s to balance (in NEARs).
+/// The balance indicates the amount a Marketplace contract should pay when a Token is being sold.
 pub type Payout = HashMap<AccountId, U128>;
 
 /// Returns the sha256 of `value`.
@@ -168,6 +169,7 @@ pub struct Collectible {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Token {
     /// The unique identifier for a `Token`.
@@ -193,10 +195,14 @@ pub struct Token {
     pub approval_counter: U64,
 }
 
+/// Represents an individual approval by some marketplace account id.
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenApproval {
+    /// Id used to avoid selling the same token more than once.
     pub approval_id: U64,
+    /// Minimum price a token should be sell for.
     pub min_price: U128,
 }
 
@@ -245,9 +251,15 @@ pub trait NonFungibleTokenApprovalMgmt {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct NftApproveMsg {
+    /// Indicates the minimum price (in NEARs) requested by owner to pay for the token.
     pub min_price: U128,
 }
 
+/// Represents the payload that arrives to the Marketplace contract,
+/// from our NFT implementation.
+/// It contains the `min_price` of the token.
+/// Additionally it is augmented with `gate_id` and `creator_id`
+/// so the Marketplace can lookup by this fields.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MarketApproveMsg {
@@ -255,6 +267,7 @@ pub struct MarketApproveMsg {
     pub min_price: U128,
     /// Represents the `gate_id` of the token being approved.
     pub gate_id: GateId,
+    /// Represents the `creator_id` of the collectible of the token being approved.
     pub creator_id: AccountId,
 }
 

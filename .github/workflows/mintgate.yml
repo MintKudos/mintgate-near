@@ -26,19 +26,12 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo/registry
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/index
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
     - run: rustup target add wasm32-unknown-unknown
     - run: cargo build --target wasm32-unknown-unknown --release
-    - run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
-    - uses: actions/upload-artifact@v2
-      with:
-        name: mg_release
-        path: |
-          target/wasm32-unknown-unknown/release/mg_nft.wasm
-          target/wasm32-unknown-unknown/release/mg_market.wasm
-          target/wasm32-unknown-unknown/release/metadata.json
 
   test-contracts:
     runs-on: ubuntu-latest
@@ -47,28 +40,45 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo/registry
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/index
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
     - run: cargo test
 
+  check-bindings:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v1
+      with:
+        path: ~/.cargo
+        key: ${{ runner.os }}-cargo-check-${{ hashFiles('Cargo.lock') }}
+    - run: cargo install near-syn --version 0.2.6
+    - run: yarn ts:contracts
+    - run: git --no-pager diff --exit-code src/mg-nft.ts src/mg-market.ts
+
   app-test-contracts:
-    needs: build-contracts
+    needs: [build-contracts, check-bindings]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions/cache@v2
       with:
+        path: |
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/index
+          target
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
+    - uses: actions/cache@v2
+      with:
         path: '**/node_modules'
         key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
-    - uses: actions/download-artifact@v2
-      with:
-        name: mg_release
-        path: target/wasm32-unknown-unknown/release
     - run: rustup target add wasm32-unknown-unknown
     - run: yarn install --frozen-lockfile
     - run: yarn app-test:contracts
 
+  #- run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
   # deploy:
   #   needs: api-test-contract
   #   if: ${{ github.ref == 'refs/heads/master' }}
