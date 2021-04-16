@@ -2,7 +2,9 @@
 
 use mg_core::{
     mock_context,
-    mocked_context::{admin, alice, any, bob, charlie, gate_id, market},
+    mocked_context::{
+        alice, any, bob, charlie, gate_id, market, mintgate_admin, mintgate_fee_account_id,
+    },
     ContractMetadata, GateId, NftApproveMsg, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore,
     TokenId,
 };
@@ -110,10 +112,12 @@ fn approve_msg(price: u128) -> Option<String> {
 fn init_contract(min_royalty: &str, max_royalty: &str) -> MockedContext<NftContractChecker> {
     MockedContext::new(|| NftContractChecker {
         contract: NftContract::init(
-            admin(),
+            mintgate_admin(),
             metadata(),
             min_royalty.parse().unwrap(),
             max_royalty.parse().unwrap(),
+            "25/1000".parse().unwrap(),
+            mintgate_fee_account_id(),
         ),
         claimed_tokens: Vec::new(),
     })
@@ -239,6 +243,14 @@ mod create_collectible {
     fn create_a_collectible_with_no_supply_should_panic() {
         init().run_as(alice(), |contract| {
             contract.create_test_collectible(gate_id(1), 0);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Royalty `1/1` is too large for the given NFT fee `25/1000`")]
+    fn create_a_collectible_with_full_royalty_should_panic() {
+        init_contract("0/10", "30/30").run_as(alice(), |contract| {
+            contract.create_royalty_collectible(gate_id(1), 10, "1/1");
         });
     }
 
@@ -495,24 +507,10 @@ mod nft_payout {
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
                 let payout = contract.nft_payout(token_id, 2000.into());
-                assert_eq!(payout.len(), 2);
+                assert_eq!(payout.len(), 3);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
                 assert_eq!(payout.get(alice().as_ref()).unwrap().0, 0);
-                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 2000);
-            });
-    }
-
-    #[test]
-    fn nft_get_payout_full_royalty() {
-        init_contract("0/10", "30/30")
-            .run_as(alice(), |contract| {
-                contract.create_royalty_collectible(gate_id(1), 10, "1/1");
-            })
-            .run_as(bob(), |contract| {
-                let token_id = contract.claim_token(gate_id(1));
-                let payout = contract.nft_payout(token_id, 2000.into());
-                assert_eq!(payout.len(), 2);
-                assert_eq!(payout.get(alice().as_ref()).unwrap().0, 2000);
-                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 0);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1950);
             });
     }
 
@@ -525,9 +523,10 @@ mod nft_payout {
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
                 let payout = contract.nft_payout(token_id, 2000.into());
-                assert_eq!(payout.len(), 2);
+                assert_eq!(payout.len(), 3);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
                 assert_eq!(payout.get(alice().as_ref()).unwrap().0, 300);
-                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1700);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1650);
             });
     }
 
@@ -540,9 +539,10 @@ mod nft_payout {
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
                 let payout = contract.nft_payout(token_id, 2000.into());
-                assert_eq!(payout.len(), 2);
+                assert_eq!(payout.len(), 3);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
                 assert_eq!(payout.get(alice().as_ref()).unwrap().0, 333);
-                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1667);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1617);
             });
     }
 
@@ -555,42 +555,34 @@ mod nft_payout {
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
                 let payout = contract.nft_payout(token_id, 2000.into());
-                assert_eq!(payout.len(), 2);
+                assert_eq!(payout.len(), 3);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
                 assert_eq!(payout.get(alice().as_ref()).unwrap().0, 285);
-                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1715);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1665);
             });
     }
 
     #[test]
-    fn nft_get_payout_when_creator_and_owner_is_the_same() {
+    fn nft_get_payout_when_creator_and_owner_are_the_same() {
         init().run_as(bob(), |contract| {
             contract.create_royalty_collectible(gate_id(1), 10, "1/7");
             let token_id = contract.claim_token(gate_id(1));
             let payout = contract.nft_payout(token_id, 2000.into());
-            assert_eq!(payout.len(), 1);
-            assert_eq!(payout.get(bob().as_ref()).unwrap().0, 2000);
+            assert_eq!(payout.len(), 2);
+            assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
+            assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1950);
         });
     }
 
     #[test]
-    fn nft_get_payout_when_creator_and_owner_is_the_same_with_no_royalty() {
+    fn nft_get_payout_when_creator_and_owner_are_the_same_with_no_royalty() {
         init_contract("0/1", "1/1").run_as(bob(), |contract| {
             contract.create_royalty_collectible(gate_id(1), 10, "0/7");
             let token_id = contract.claim_token(gate_id(1));
             let payout = contract.nft_payout(token_id, 2000.into());
-            assert_eq!(payout.len(), 1);
-            assert_eq!(payout.get(bob().as_ref()).unwrap().0, 2000);
-        });
-    }
-
-    #[test]
-    fn nft_get_payout_when_creator_and_owner_is_the_same_with_full_royalty() {
-        init_contract("0/1", "1/1").run_as(bob(), |contract| {
-            contract.create_royalty_collectible(gate_id(1), 10, "7/7");
-            let token_id = contract.claim_token(gate_id(1));
-            let payout = contract.nft_payout(token_id, 2000.into());
-            assert_eq!(payout.len(), 1);
-            assert_eq!(payout.get(bob().as_ref()).unwrap().0, 2000);
+            assert_eq!(payout.len(), 2);
+            assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
+            assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1950);
         });
     }
 }
@@ -610,9 +602,10 @@ mod nft_transfer_payout {
                 let payout = contract
                     .nft_transfer_payout(charlie(), token_id, None, None, Some(2000.into()))
                     .unwrap();
-                assert_eq!(payout.len(), 2);
+                assert_eq!(payout.len(), 3);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
                 assert_eq!(payout.get(alice().as_ref()).unwrap().0, 300);
-                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1700);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1650);
             });
     }
 }

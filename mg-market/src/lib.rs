@@ -4,8 +4,7 @@
 use std::convert::TryInto;
 
 use mg_core::{
-    crypto_hash, Fraction, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout,
-    TokenId,
+    crypto_hash, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout, TokenId,
 };
 use near_env::{near_ext, near_log, PanicMessage};
 use near_sdk::{
@@ -27,11 +26,6 @@ const NO_DEPOSIT: Balance = 0;
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct MarketContract {
-    /// Percentage fee to pay back to Mintgate when a `Token` is being sold.
-    /// This field can be set up when the contract is deployed.
-    mintgate_fee: Fraction,
-    /// Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
-    mintgate_account_id: AccountId,
     /// Lists all tokens for sale.
     tokens_for_sale: UnorderedMap<TokenId, TokenForSale>,
     /// Holds token IDs for sale by `gate_id`.
@@ -52,7 +46,6 @@ pub struct TokenForSale {
     pub nft_id: AccountId,
     pub gate_id: GateId,
     pub creator_id: AccountId,
-    // pub royalty: Fraction,
 }
 
 #[derive(BorshSerialize, BorshStorageKey)]
@@ -89,12 +82,8 @@ impl MarketContract {
     /// - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
     /// - `mintgate_account_id`: Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
     #[init]
-    pub fn init(mintgate_fee: Fraction, mintgate_account_id: ValidAccountId) -> Self {
-        mintgate_fee.check();
-
+    pub fn init() -> Self {
         Self {
-            mintgate_fee,
-            mintgate_account_id: mintgate_account_id.to_string(),
             tokens_for_sale: UnorderedMap::new(Keys::TokensForSale),
             tokens_by_gate_id: LookupMap::new(Keys::TokensByGateId),
             tokens_by_owner_id: LookupMap::new(Keys::TokensByOwnerId),
@@ -199,14 +188,9 @@ impl SelfCallback for MarketContract {
             PromiseResult::Failed => unreachable!(),
             PromiseResult::Successful(value) => {
                 if let Ok(payout) = serde_json::from_slice::<Payout>(&value) {
-                    let mut total_fee_amount = 0;
                     for (receiver_id, amount) in payout {
-                        let fee_amount = self.mintgate_fee.mult(amount.0);
-                        Promise::new(receiver_id).transfer(amount.0 - fee_amount);
-                        total_fee_amount += fee_amount;
+                        Promise::new(receiver_id).transfer(amount.0);
                     }
-
-                    Promise::new(self.mintgate_account_id.clone()).transfer(total_fee_amount);
                 } else {
                     unreachable!();
                 }

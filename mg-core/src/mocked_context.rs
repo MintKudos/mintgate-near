@@ -77,8 +77,12 @@ pub fn any() -> ValidAccountId {
     "any".try_into().unwrap()
 }
 
-pub fn admin() -> ValidAccountId {
+pub fn mintgate_admin() -> ValidAccountId {
     "admin".try_into().unwrap()
+}
+
+pub fn mintgate_fee_account_id() -> ValidAccountId {
+    "mintgate_fee_account_id".try_into().unwrap()
 }
 
 pub fn alice() -> ValidAccountId {
