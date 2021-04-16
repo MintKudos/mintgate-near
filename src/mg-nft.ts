@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.5 https://github.com/acuarica/near-syn
+// TypeScript bindings generated with near-ts v0.2.6 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -27,12 +27,29 @@ export interface Fraction {
 
 }
 
+/**
+ *  The `GateId` type represents the identifier of each `Collectible`.
+ */
 export type GateId = string;
 
+/**
+ *  The `TokenId` type represents the identifier of each `Token`.
+ *  This type can be used in both public interfaces and internal `struct`s.
+ *  See https://github.com/near-examples/NFT/issues/117 for background.
+ */
 export type TokenId = U64;
 
+/**
+ *  Unix epoch, expressed in miliseconds.
+ *  Note that 64 bits `number`s cannot be represented in JavaScript.
+ *  Therefore, this type cannot be used in public interfaces.
+ *  Only for internal `struct`s.
+ */
 export type Timestamp = number;
 
+/**
+ * 
+ */
 export type Payout = Record<AccountId, U128>;
 
 /**
@@ -256,6 +273,10 @@ export interface MarketApproveMsg {
 
 }
 
+/**
+ *  Methods for the NFT contract.
+ *  Methods belonging to a NEP Standard are implemented in their own interfaces.
+ */
 export interface Self {
     /**
      *  Initializes the contract.
@@ -322,6 +343,8 @@ export interface Self {
 
 }
 
+/**
+ */
 export interface NonFungibleTokenCore {
     /**
      *  Returns the NFT metadata for this contract.
@@ -366,6 +389,8 @@ export interface NonFungibleTokenCore {
 
 }
 
+/**
+ */
 export interface NonFungibleTokenApprovalMgmt {
     /**
      *  Allows `account_id` to transfer `token_id` on behalf of its owner.

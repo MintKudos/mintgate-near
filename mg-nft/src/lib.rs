@@ -117,6 +117,8 @@ enum Panics {
     RevokeApprovalFailed { account_id: AccountId },
 }
 
+/// Methods for the NFT contract.
+/// Methods belonging to a NEP Standard are implemented in their own interfaces.
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NftContract {
