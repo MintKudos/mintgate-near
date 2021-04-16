@@ -265,14 +265,19 @@ export interface Self {
      *  - `admin_id` is the valid account that is allowed to perform certain operations.
      *  - `metadata` represents the general information of the contract.
      *  - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
+     *  - `mintgate_fee` is the percetange to be paid to `mintgate_fee_account_id` for each sale.
      */
-    init: { admin_id: ValidAccountId, metadata: ContractMetadata, min_royalty: Fraction, max_royalty: Fraction };
+    init: { admin_id: ValidAccountId, metadata: ContractMetadata, min_royalty: Fraction, max_royalty: Fraction, mintgate_fee: Fraction, mintgate_fee_account_id: ValidAccountId };
 
     /**
      *  Creates a new `Collectible`, identified by `gate_id`.
      *  The `supply` indicates maximum supply for this collectible.
      *  The `royalty` indicates the royalty (as percentage) paid to the creator (`predecessor_account_id`).
      *  This royalty is paid when any `Token` is being resold in any marketplace.
+     * 
+     *  The sum of `royalty` and `mintgate_fee` should be less than `1`.
+     *  Panics otherwise. 
+     *  This is to be able to make payouts all participants.
      * 
      *  See <https://github.com/epam/mintgate/issues/3>.
      */
