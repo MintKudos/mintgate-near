@@ -26,7 +26,10 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo
+          ~/.cargo/bin
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
     - run: rustup target add wasm32-unknown-unknown
@@ -47,7 +50,10 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo
+          ~/.cargo/bin
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
     - run: cargo test
@@ -59,7 +65,10 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo
+          ~/.cargo/bin
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
     - run: cargo install near-syn --version 0.2.5
