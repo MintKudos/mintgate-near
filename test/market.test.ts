@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import { utils } from 'near-api-js';
 
-import { addTestCollectible, generateId, getShare, formatNsToMs } from './utils';
+import { addTestCollectible, generateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
 
 import type { AccountContract, NftContract, MarketContract, Token, Fraction } from '../src';
@@ -29,6 +29,10 @@ describe('Market contract', () => {
   let mintgate: AccountContract<NftContract>;
   let merchant: AccountContract<MarketContract>;
   let merchant2: AccountContract<MarketContract>;
+
+  beforeEach(() => {
+    logger.title(`${expect.getState().currentTestName}`);
+  });
 
   beforeAll(async () => {
     [alice, bob, mintgate] = global.nftUsers;
@@ -179,12 +183,22 @@ describe('Market contract', () => {
       const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore);
       const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter);
 
+      logger.data('mintgateBalanceBeforeHr', mintgateBalanceBeforeHr);
+      logger.data('mintgateBalanceAfterHr', mintgateBalanceAfterHr);
+      logger.data('mintgateShare', mintgateShare);
+      logger.data('mintgateShareActual', +mintgateBalanceAfterHr - +mintgateBalanceBeforeHr);
+
       expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 5);
     });
 
     it("should transfer royalty to the creator's wallet", async () => {
       const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore);
       const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter);
+
+      logger.data('creatorBalanceBeforeHr', creatorBalanceBeforeHr);
+      logger.data('creatorBalanceAfterHr', creatorBalanceAfterHr);
+      logger.data('creatorShare', creatorShare);
+      logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
 
       expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
     });
@@ -193,12 +207,22 @@ describe('Market contract', () => {
       const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore);
       const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter);
 
+      logger.data('sellerBalanceBeforeHr', sellerBalanceBeforeHr);
+      logger.data('sellerBalanceAfterHr', sellerBalanceAfterHr);
+      logger.data('sellerShare', sellerShare);
+      logger.data('sellerShareActual', +sellerBalanceAfterHr - +sellerBalanceBeforeHr);
+
       expect(+sellerBalanceBeforeHr + sellerShare).toBeCloseTo(+sellerBalanceAfterHr, 2);
     });
 
     it("should deduct token's price from buyer's wallet", async () => {
       const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore);
       const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter);
+
+      logger.data('buyerBalanceBeforeHr', buyerBalanceBeforeHr);
+      logger.data('buyerBalanceAfterHr', buyerBalanceAfterHr);
+      logger.data('priceHrNear', priceHrNear);
+      logger.data('buyerShareActual', +buyerBalanceAfterHr - +buyerBalanceBeforeHr);
 
       expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 2);
     });

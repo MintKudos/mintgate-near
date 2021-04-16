@@ -1,8 +1,10 @@
+import type { Account } from 'near-api-js';
+
 import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger } from './utils';
 import { contractMetadata, royalty as royaltySetting } from './initialData';
+import { NftApproveMsg } from '../src/mg-nft';
 
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
-import { NftApproveMsg } from '../src/mg-nft';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -10,6 +12,7 @@ declare global {
     interface Global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
+      nftFeeUser: Account;
     }
   }
 }
