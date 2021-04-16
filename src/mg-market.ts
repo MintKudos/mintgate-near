@@ -292,9 +292,6 @@ export interface TokenForSale {
 export interface Self {
     /**
      *  Initializes the Market contract.
-     * 
-     *  - `mintgate_fee`: Indicates what percetage MintGate charges for a sale.
-     *  - `mintgate_account_id`: Designated MintGate NEAR account id to receive `mintgate_fee` after a sale.
      */
     init: {  };
 
