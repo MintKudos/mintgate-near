@@ -26,6 +26,8 @@ const {
 
 const GAS = new BN(300000000000000);
 
+jest.retryTimes(2);
+
 describe('Market contract', () => {
   const [alice, bob] = global.nftUsers;
   const [merchant, merchant2] = global.marketUsers;

@@ -20,6 +20,8 @@ declare global {
   }
 }
 
+jest.retryTimes(2);
+
 describe('Nft contract', () => {
   const [alice, bob] = global.nftUsers;
   const [merchant, merchant2] = global.marketUsers;
