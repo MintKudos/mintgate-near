@@ -334,6 +334,7 @@ export interface NonFungibleTokenApprovalsReceiver {
     nft_on_approve(args: { token_id: TokenId, owner_id: ValidAccountId, approval_id: U64, msg: string }, gas?: any): Promise<void>;
 
     /**
+     *  Callback method to remove this `Token` from the marketplace.
      */
     nft_on_revoke(args: { token_id: TokenId }, gas?: any): Promise<void>;
 
