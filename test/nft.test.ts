@@ -1,4 +1,5 @@
 import { formatNearAmount, parseNearAmount } from 'near-api-js/lib/utils/format';
+import BN from 'bn.js';
 
 import type { Account } from 'near-api-js';
 
@@ -769,6 +770,108 @@ describe('Nft contract', () => {
             balance: parseNearAmount('5')!,
           })
         ).rejects.toThrow('TokenIdNotFound');
+      });
+    });
+  });
+
+  describe('nft_transfer_payout', () => {
+    const priceHrNear = '5';
+    const priceInternalNear = parseNearAmount(priceHrNear);
+
+    const royalty: Fraction = {
+      num: 3,
+      den: 10,
+    };
+
+    const mintgateShare = parseNearAmount(`${getShare(+priceHrNear, MINTGATE_FEE)}`)!;
+    const creatorShare = parseNearAmount(`${getShare(+priceHrNear, royalty)}`)!;
+    const senderShare = new BN(priceInternalNear!).sub(new BN(creatorShare)).sub(new BN(mintgateShare)).toString();
+
+    let gateId: string;
+    let tokenId: string;
+
+    const args = {
+      receiver_id: merchant.accountId,
+      approval_id: null,
+      memo: null,
+      balance: priceInternalNear,
+    };
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+        royalty,
+      });
+    });
+
+    it('should return the correct payout for when receiver and creator are different persons', async () => {
+      tokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      const payoutReceived = await bob.contract.nft_transfer_payout({
+        ...args,
+        token_id: tokenId,
+      });
+
+      expect(payoutReceived).toEqual({
+        [mintgate.accountId]: mintgateShare,
+        [bob.accountId]: senderShare,
+        [alice.accountId]: creatorShare,
+      });
+    });
+
+    it('should return the correct payout for when receiver and creator are the same person', async () => {
+      tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+      const payoutReceived = await alice.contract.nft_transfer_payout({
+        ...args,
+        token_id: tokenId,
+      });
+
+      expect(payoutReceived).toEqual({
+        [mintgate.accountId]: mintgateShare,
+        [alice.accountId]: new BN(creatorShare).add(new BN(senderShare)).toString(),
+      });
+    });
+
+    describe('token transfer', () => {
+      let token: Token;
+
+      beforeAll(async () => {
+        tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+        await alice.contract.nft_transfer_payout({
+          ...args,
+          token_id: tokenId,
+        });
+
+        [token] = (await alice.contract.get_tokens_by_owner({ owner_id: merchant.accountId })).filter(
+          ({ token_id }) => token_id === tokenId
+        );
+      });
+
+      it("should associate token with it's new owner", () => {
+        expect(token).not.toBeUndefined();
+      });
+
+      it("should disassociate token from it's previous owner", async () => {
+        const [soldToken] = (await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId })).filter(
+          ({ token_id }) => token_id === tokenId
+        );
+
+        expect(soldToken).toBeUndefined();
+      });
+
+      it("should set token's new owner", async () => {
+        expect(token.owner_id).toBe(merchant.accountId);
+      });
+
+      it("should update token's modified_at property", async () => {
+        expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
+      });
+
+      it("should set token's sender", () => {
+        expect(token.sender_id).toBe(alice.accountId);
       });
     });
   });
