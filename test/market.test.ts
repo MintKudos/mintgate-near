@@ -1,6 +1,8 @@
 import BN from 'bn.js';
 import { utils } from 'near-api-js';
 
+import type { Account } from 'near-api-js';
+
 import { addTestCollectible, generateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
 
@@ -13,6 +15,7 @@ declare global {
     interface Global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
+      nftFeeUser: Account;
     }
   }
 }
@@ -26,16 +29,19 @@ const GAS = new BN(300000000000000);
 describe('Market contract', () => {
   let alice: AccountContract<NftContract>;
   let bob: AccountContract<NftContract>;
-  let mintgate: AccountContract<NftContract>;
   let merchant: AccountContract<MarketContract>;
   let merchant2: AccountContract<MarketContract>;
+
+  let mintgate: Account;
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
   });
 
   beforeAll(async () => {
-    [alice, bob, mintgate] = global.nftUsers;
+    [alice, bob] = global.nftUsers;
+
+    mintgate = global.nftFeeUser;
 
     [merchant, merchant2] = global.marketUsers;
   });
@@ -155,7 +161,7 @@ describe('Market contract', () => {
         { total: sellerBalanceBefore },
       ] = await Promise.all([
         merchant2.contract.account.getAccountBalance(),
-        mintgate.contract.account.getAccountBalance(),
+        mintgate.getAccountBalance(),
         bob.contract.account.getAccountBalance(),
         alice.contract.account.getAccountBalance(),
       ]);
@@ -169,7 +175,7 @@ describe('Market contract', () => {
         { total: sellerBalanceAfter },
       ] = await Promise.all([
         merchant2.contract.account.getAccountBalance(),
-        mintgate.contract.account.getAccountBalance(),
+        mintgate.getAccountBalance(),
         bob.contract.account.getAccountBalance(),
         alice.contract.account.getAccountBalance(),
       ]);
