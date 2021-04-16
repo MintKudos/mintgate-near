@@ -62,8 +62,6 @@ jobs:
       with:
         path: |
           ~/.cargo
-          !~/.cargo/registry/src
-          target
         key: ${{ runner.os }}-cargo-check-${{ hashFiles('Cargo.lock') }}
     - run: cargo install near-syn --version 0.2.6
     - run: yarn ts:contracts
