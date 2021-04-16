@@ -293,6 +293,92 @@ describe('Market contract', () => {
       });
     });
 
+    describe('creator and seller are the same person', () => {
+      let gateId2: string;
+      let tokenId2: string;
+
+      let mintgateBalanceBefore2: string;
+      let mintgateBalanceAfter2: string;
+      let creatorBalanceBefore2: string;
+      let creatorBalanceAfter2: string;
+      let buyerBalanceBefore2: string;
+      let buyerBalanceAfter2: string;
+
+      beforeAll(async () => {
+        gateId2 = await generateId();
+        await addTestCollectible(bob.contract, {
+          gate_id: gateId2,
+          royalty,
+        });
+
+        tokenId2 = await bob.contract.claim_token({ gate_id: gateId2 });
+        await bob.contract.nft_approve({
+          token_id: tokenId2,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify(message),
+        });
+
+        buyerBalanceBefore2 = (await merchant2.account.getAccountBalance()).total;
+        [
+          { total: buyerBalanceBefore2 },
+          { total: mintgateBalanceBefore2 },
+          { total: creatorBalanceBefore2 },
+        ] = await Promise.all([
+          merchant2.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          bob.account.getAccountBalance(),
+        ]);
+
+        await merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+
+        [
+          { total: buyerBalanceAfter2 },
+          { total: mintgateBalanceAfter2 },
+          { total: creatorBalanceAfter2 },
+        ] = await Promise.all([
+          merchant2.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          bob.account.getAccountBalance(),
+        ]);
+      });
+
+      it("should transfer mintgate's fee to its' wallet", async () => {
+        const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore2);
+        const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter2);
+
+        logger.data('mintgateBalanceBeforeHr', mintgateBalanceBeforeHr);
+        logger.data('mintgateBalanceAfterHr', mintgateBalanceAfterHr);
+        logger.data('mintgateShare', mintgateShare);
+        logger.data('mintgateShareActual', +mintgateBalanceAfterHr - +mintgateBalanceBeforeHr);
+
+        expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 5);
+      });
+
+      it("should transfer royalty to the seller's (=== creator's) wallet", async () => {
+        const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
+        const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
+
+        logger.data('creatorBalanceBeforeHr', creatorBalanceBeforeHr);
+        logger.data('creatorBalanceAfterHr', creatorBalanceAfterHr);
+        logger.data('creatorShare', creatorShare);
+        logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
+
+        expect(+creatorBalanceBeforeHr + creatorShare + sellerShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
+      });
+
+      it("should deduct token's price from buyer's wallet", async () => {
+        const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore2);
+        const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter2);
+
+        logger.data('buyerBalanceBeforeHr', buyerBalanceBeforeHr);
+        logger.data('buyerBalanceAfterHr', buyerBalanceAfterHr);
+        logger.data('priceHrNear', priceHrNear);
+        logger.data('buyerShareActual', +buyerBalanceAfterHr - +buyerBalanceBeforeHr);
+
+        expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
+      });
+    });
+
     describe('errors', () => {
       it('should throw when the buyer and the seller are the same person', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
