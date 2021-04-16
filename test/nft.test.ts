@@ -1,9 +1,11 @@
+import { formatNearAmount, parseNearAmount } from 'near-api-js/lib/utils/format';
+
 import type { Account } from 'near-api-js';
 
-import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger } from './utils';
-import { contractMetadata, royalty as royaltySetting } from './initialData';
-import { NftApproveMsg } from '../src/mg-nft';
+import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger, getShare } from './utils';
+import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
 
+import type { NftApproveMsg, Payout } from '../src/mg-nft';
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
 
 declare global {
@@ -20,6 +22,8 @@ declare global {
 describe('Nft contract', () => {
   const [alice, bob] = global.nftUsers;
   const [merchant, merchant2] = global.marketUsers;
+
+  const mintgate = global.nftFeeUser;
 
   const nonExistentUserId = 'ron-1111111111111-111111';
 
@@ -682,6 +686,89 @@ describe('Nft contract', () => {
             panic_msg: `{"err":"SenderNotAuthToTransfer","sender_id":"${bob.accountId}","msg":"Sender \`${bob.accountId}\` is not authorized to make transfer"}`,
           })
         );
+      });
+    });
+  });
+
+  describe('nft_payout', () => {
+    const priceHrNear = '5';
+    const priceInternalNear = parseNearAmount(priceHrNear);
+
+    const royalty: Fraction = {
+      num: 3,
+      den: 10,
+    };
+
+    const mintgateShare = getShare(+priceHrNear, MINTGATE_FEE);
+    const creatorShare = getShare(+priceHrNear, royalty);
+    const sellerShare = +priceHrNear - mintgateShare - creatorShare;
+
+    let gateId: string;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(bob.contract, {
+        gate_id: gateId,
+        royalty,
+      });
+    });
+
+    describe('creator and seller are different persons', () => {
+      let payout: Payout;
+
+      beforeAll(async () => {
+        const tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+        payout = await alice.contract.nft_payout({
+          token_id: tokenId,
+          balance: priceInternalNear!,
+        });
+      });
+
+      it("should correctly calculate mintgate's share", () => {
+        expect(+formatNearAmount(payout[mintgate.accountId])).toBe(mintgateShare);
+      });
+
+      it("should correctly calculate creator's share", () => {
+        expect(+formatNearAmount(payout[bob.accountId])).toBe(creatorShare);
+      });
+
+      it("should correctly calculate seller's share", () => {
+        expect(+formatNearAmount(payout[alice.accountId])).toBe(sellerShare);
+      });
+    });
+
+    describe('creator and seller are the same person', () => {
+      let payout: Payout;
+
+      beforeAll(async () => {
+        const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+        payout = await bob.contract.nft_payout({
+          token_id: tokenId,
+          balance: priceInternalNear!,
+        });
+      });
+
+      it("should correctly calculate mintgate's share", () => {
+        expect(+formatNearAmount(payout[mintgate.accountId])).toBe(mintgateShare);
+      });
+
+      it("should correctly calculate seller's (=== creator's) share", () => {
+        expect(+formatNearAmount(payout[bob.accountId])).toBe(sellerShare + creatorShare);
+      });
+    });
+
+    describe('errors', () => {
+      it('should throw if no id found', async () => {
+        const nonExistentTokenId = '22222222222222';
+
+        await expect(
+          alice.contract.nft_payout({
+            token_id: nonExistentTokenId,
+            balance: parseNearAmount('5')!,
+          })
+        ).rejects.toThrow('TokenIdNotFound');
       });
     });
   });
