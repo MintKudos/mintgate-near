@@ -54,7 +54,7 @@ export default async (): Promise<void> => {
   logger.infoln(`Using key store from ${logger.param(keyDir)}`);
 
   const contractPrefixes = [prefixes.nft.contract, prefixes.market.contract];
-  const allPrefixes = [...contractPrefixes, ...prefixes.nft.users, ...prefixes.market.users];
+  const allPrefixes = [...contractPrefixes, ...prefixes.nft.users, ...prefixes.market.users, prefixes.nft.feeUser];
 
   const keyStore = new keyStores.UnencryptedFileSystemKeyStore(keyDir);
   const config = await getConfig('development', '');
