@@ -26,8 +26,8 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo
-          !~/.cargo/registry/src
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/index
           target
         key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
     - run: rustup target add wasm32-unknown-unknown
@@ -48,8 +48,8 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo
-          !~/.cargo/registry/src
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/index
           target
         key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
     - run: cargo test
