@@ -67,8 +67,7 @@ jobs:
     - run: git --no-pager diff --exit-code src/mg-nft.ts src/mg-market.ts
 
   app-test-contracts:
-    needs: build-contracts
-    needs: check-bindings
+    needs: [build-contracts, check-bindings]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
