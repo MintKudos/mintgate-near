@@ -224,7 +224,7 @@ describe('Market contract', () => {
       logger.data('priceHrNear', priceHrNear);
       logger.data('buyerShareActual', +buyerBalanceAfterHr - +buyerBalanceBeforeHr);
 
-      expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 2);
+      expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
     });
 
     describe('token transfer', () => {
