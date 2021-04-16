@@ -58,10 +58,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
+    - uses: actions/cache@v1
       with:
-        path: |
-          ~/.cargo
+        path: ~/.cargo
         key: ${{ runner.os }}-cargo-check-${{ hashFiles('Cargo.lock') }}
     - run: cargo install near-syn --version 0.2.6
     - run: yarn ts:contracts
