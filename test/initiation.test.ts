@@ -36,9 +36,15 @@ const getAccountFor = async (
   return near.account(contractId);
 };
 
-const callNftInit = async (contractAccount: Account, min_royalty: Fraction, max_royalty: Fraction) => {
+const callNftInit = async (
+  contractAccount: Account,
+  min_royalty: Fraction,
+  max_royalty: Fraction,
+  mintgate_fee: Fraction
+) => {
   const initiationArgs = {
     admin_id: 'some_nonexistent_account_id',
+    mintgate_fee_account_id: 'some_nonexistent_account_id_2',
     metadata: contractMetadata,
   };
 
@@ -49,6 +55,7 @@ const callNftInit = async (contractAccount: Account, min_royalty: Fraction, max_
       ...initiationArgs,
       min_royalty,
       max_royalty,
+      mintgate_fee,
     },
     GAS,
     new BN(0)
@@ -56,17 +63,27 @@ const callNftInit = async (contractAccount: Account, min_royalty: Fraction, max_
 };
 
 describe('Initiation of contracts', () => {
-  let mintgate: AccountContract<NftContract>;
-
   const keyDir = `${homedir()}/.near-credentials`;
   const keyStore = new keyStores.UnencryptedFileSystemKeyStore(keyDir);
 
   let config: ConfigLocal | ConfigNet;
   let near: Near;
 
-  beforeAll(async () => {
-    [, , mintgate] = global.nftUsers;
+  const defaultMinRoyalty: Fraction = {
+    num: 1,
+    den: 10,
+  };
+  const defaultMaxRoyalty: Fraction = {
+    num: 5,
+    den: 10,
+  };
 
+  const defaultMintgateFee: Fraction = {
+    num: 25,
+    den: 1000,
+  };
+
+  beforeAll(async () => {
     config = await getConfig('development', '');
     near = new Near({
       deps: { keyStore },
@@ -99,7 +116,7 @@ describe('Initiation of contracts', () => {
         den,
       };
 
-      await expect(callNftInit(contractAccount, min_royalty, max_royalty)).rejects.toThrow(
+      await expect(callNftInit(contractAccount, min_royalty, max_royalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
           panic_msg: `{"err":"MaxRoyaltyLessThanMinRoyalty","min_royalty":${JSON.stringify(
@@ -116,12 +133,8 @@ describe('Initiation of contracts', () => {
         num: 10,
         den: 0,
       };
-      const max_royalty = {
-        num: 15,
-        den: 100,
-      };
 
-      await expect(callNftInit(contractAccount, min_royalty, max_royalty)).rejects.toThrow(
+      await expect(callNftInit(contractAccount, min_royalty, defaultMaxRoyalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
           panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
@@ -130,16 +143,12 @@ describe('Initiation of contracts', () => {
     });
 
     it('should throw if denominator of max royalty is `0`', async () => {
-      const min_royalty = {
-        num: 10,
-        den: 100,
-      };
       const max_royalty = {
         num: 15,
         den: 0,
       };
 
-      await expect(callNftInit(contractAccount, min_royalty, max_royalty)).rejects.toThrow(
+      await expect(callNftInit(contractAccount, defaultMinRoyalty, max_royalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
           panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
@@ -152,12 +161,8 @@ describe('Initiation of contracts', () => {
         num: 101,
         den: 100,
       };
-      const max_royalty = {
-        num: 10,
-        den: 100,
-      };
 
-      await expect(callNftInit(contractAccount, min_royalty, max_royalty)).rejects.toThrow(
+      await expect(callNftInit(contractAccount, min_royalty, defaultMaxRoyalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
           panic_msg: `{"err":"FractionGreaterThanOne","msg":"The fraction must be less or equal to 1"}`,
@@ -166,16 +171,40 @@ describe('Initiation of contracts', () => {
     });
 
     it('should throw if fraction of max royalty is greater than `1`', async () => {
-      const min_royalty = {
-        num: 10,
-        den: 100,
-      };
       const max_royalty = {
         num: 101,
         den: 100,
       };
 
-      await expect(callNftInit(contractAccount, min_royalty, max_royalty)).rejects.toThrow(
+      await expect(callNftInit(contractAccount, defaultMinRoyalty, max_royalty, defaultMintgateFee)).rejects.toThrow(
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"FractionGreaterThanOne","msg":"The fraction must be less or equal to 1"}`,
+        })
+      );
+    });
+
+    it('should throw if denominator of market fee fraction is `0`', async () => {
+      const mintgate_fee = {
+        num: 10,
+        den: 0,
+      };
+
+      await expect(callNftInit(contractAccount, defaultMinRoyalty, defaultMaxRoyalty, mintgate_fee)).rejects.toThrow(
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+        })
+      );
+    });
+
+    it('should throw if fraction of mintgate fee is greater than `1`', async () => {
+      const mintgate_fee = {
+        num: 10,
+        den: 9,
+      };
+
+      await expect(callNftInit(contractAccount, defaultMinRoyalty, defaultMaxRoyalty, mintgate_fee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
           panic_msg: `{"err":"FractionGreaterThanOne","msg":"The fraction must be less or equal to 1"}`,
@@ -194,54 +223,6 @@ describe('Initiation of contracts', () => {
       await contractAccount.deployContract(wasmData);
     });
 
-    it('should throw if denominator of market fee fraction is `0`', async () => {
-      const mintgate_fee = {
-        num: 10,
-        den: 0,
-      };
-
-      await expect(
-        contractAccount.functionCall(
-          contractAccount.accountId,
-          'init',
-          {
-            mintgate_fee,
-            mintgate_account_id: mintgate.accountId,
-          },
-          GAS,
-          new BN(0)
-        )
-      ).rejects.toThrow(
-        expect.objectContaining({
-          type: 'GuestPanic',
-          panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
-        })
-      );
-    });
-
-    it('should throw if fraction of mintgate fee is greater than `1`', async () => {
-      const mintgate_fee = {
-        num: 10,
-        den: 9,
-      };
-
-      await expect(
-        contractAccount.functionCall(
-          contractAccount.accountId,
-          'init',
-          {
-            mintgate_fee,
-            mintgate_account_id: mintgate.accountId,
-          },
-          GAS,
-          new BN(0)
-        )
-      ).rejects.toThrow(
-        expect.objectContaining({
-          type: 'GuestPanic',
-          panic_msg: `{"err":"FractionGreaterThanOne","msg":"The fraction must be less or equal to 1"}`,
-        })
-      );
-    });
+    it.todo('add tests if needed');
   });
 });
