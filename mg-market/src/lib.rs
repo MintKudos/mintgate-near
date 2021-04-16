@@ -273,6 +273,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         }
     }
 
+    /// Callback method to remove this `Token` from the marketplace.
     fn nft_on_revoke(&mut self, token_id: TokenId) {
         let nft_id = env::predecessor_account_id();
 

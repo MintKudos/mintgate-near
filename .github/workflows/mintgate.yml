@@ -62,12 +62,13 @@ jobs:
           ~/.cargo/registry
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-    - run: cargo install near-syn
+    - run: cargo install near-syn --version 0.2.5
     - run: yarn ts:contracts
     - run: git --no-pager diff --exit-code src/mg-nft.ts src/mg-market.ts
 
   app-test-contracts:
     needs: build-contracts
+    needs: check-bindings
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
