@@ -73,6 +73,13 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions/cache@v2
       with:
+        path: |
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/index
+          target
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
+    - uses: actions/cache@v2
+      with:
         path: '**/node_modules'
         key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
     - uses: actions/download-artifact@v2
