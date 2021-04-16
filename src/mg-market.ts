@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.5 https://github.com/acuarica/near-syn
+// TypeScript bindings generated with near-ts v0.2.6 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -27,12 +27,30 @@ export interface Fraction {
 
 }
 
+/**
+ *  The `GateId` type represents the identifier of each `Collectible`.
+ */
 export type GateId = string;
 
+/**
+ *  The `TokenId` type represents the identifier of each `Token`.
+ *  This type can be used in both public interfaces and internal `struct`s.
+ *  See https://github.com/near-examples/NFT/issues/117 for background.
+ */
 export type TokenId = U64;
 
+/**
+ *  Unix epoch, expressed in miliseconds.
+ *  Note that 64 bits `number`s cannot be represented in JavaScript.
+ *  Therefore, this type cannot be used in public interfaces.
+ *  Only for internal `struct`s.
+ */
 export type Timestamp = number;
 
+/**
+ *  Mapping from `AccountId`s to balance (in NEARs).
+ *  The balance indicates the amount a Marketplace contract should pay when a Token is being sold.
+ */
 export type Payout = Record<AccountId, U128>;
 
 /**
@@ -209,13 +227,16 @@ export interface Token {
 }
 
 /**
+ *  Represents an individual approval by some marketplace account id.
  */
 export interface TokenApproval {
     /**
+     *  Id used to avoid selling the same token more than once.
      */
     approval_id: U64;
 
     /**
+     *  Minimum price a token should be sell for.
      */
     min_price: U128;
 
@@ -237,6 +258,11 @@ export interface NftApproveMsg {
 }
 
 /**
+ *  Represents the payload that arrives to the Marketplace contract,
+ *  from our NFT implementation.
+ *  It contains the `min_price` of the token.
+ *  Additionally it is augmented with `gate_id` and `creator_id`
+ *  so the Marketplace can lookup by this fields.
  */
 export interface MarketApproveMsg {
     /**
@@ -289,6 +315,8 @@ export interface TokenForSale {
 
 }
 
+/**
+ */
 export interface Self {
     /**
      *  Initializes the Market contract.
@@ -323,6 +351,8 @@ export interface Self {
 
 }
 
+/**
+ */
 export interface NonFungibleTokenApprovalsReceiver {
     /**
      *  Callback method to allow this contract to put a `Token` into the marketplace.

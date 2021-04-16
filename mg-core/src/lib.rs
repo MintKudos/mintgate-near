@@ -109,7 +109,8 @@ pub type TokenId = U64;
 /// Only for internal `struct`s.
 pub type Timestamp = u64;
 
-///
+/// Mapping from `AccountId`s to balance (in NEARs).
+/// The balance indicates the amount a Marketplace contract should pay when a Token is being sold.
 pub type Payout = HashMap<AccountId, U128>;
 
 /// Returns the sha256 of `value`.
@@ -194,11 +195,14 @@ pub struct Token {
     pub approval_counter: U64,
 }
 
+/// Represents an individual approval by some marketplace account id.
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenApproval {
+    /// Id used to avoid selling the same token more than once.
     pub approval_id: U64,
+    /// Minimum price a token should be sell for.
     pub min_price: U128,
 }
 
@@ -251,6 +255,11 @@ pub struct NftApproveMsg {
     pub min_price: U128,
 }
 
+/// Represents the payload that arrives to the Marketplace contract,
+/// from our NFT implementation.
+/// It contains the `min_price` of the token.
+/// Additionally it is augmented with `gate_id` and `creator_id`
+/// so the Marketplace can lookup by this fields.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MarketApproveMsg {
