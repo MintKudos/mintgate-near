@@ -1120,13 +1120,32 @@ describe('Nft contract', () => {
   describe('nft_revoke_all', () => {
     let gateId: string;
     let tokenId: string;
-    let token: Token;
 
     beforeAll(async () => {
       gateId = await generateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
+    });
+
+    it('should remove an approval for one unspecified market', async () => {
+      await bob.contract.nft_approve({
+        token_id: tokenId,
+        account_id: merchant.contract.contractId,
+        msg: JSON.stringify({ min_price: '5' }),
+      });
+
+      let token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      expect(token.approvals[merchant.contract.contractId]).not.toBeUndefined();
+
+      logger.data('Approvals before', token.approvals);
+
+      await bob.contract.nft_revoke_all({ token_id: tokenId });
+
+      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      expect(token.approvals).toEqual({});
+
+      logger.data('Approvals after', token.approvals);
     });
 
     // skipped for now because currently at most one approval is allowed per Token
@@ -1149,7 +1168,7 @@ describe('Nft contract', () => {
 
       await Promise.all(approvePromises);
 
-      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      let token = (await bob.contract.nft_token({ token_id: tokenId }))!;
       expect(Object.keys(token.approvals).length).toBeTruthy();
 
       logger.data('Approvals before', token.approvals);
@@ -1163,7 +1182,7 @@ describe('Nft contract', () => {
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
-      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      const token = (await bob.contract.nft_token({ token_id: tokenId }))!;
 
       logger.data('Attempting to revoke token, revoker', alice.accountId);
       logger.data('Attempting to revoke token, owner', token.owner_id);
