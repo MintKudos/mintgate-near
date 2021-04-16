@@ -32,14 +32,6 @@ jobs:
         key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
     - run: rustup target add wasm32-unknown-unknown
     - run: cargo build --target wasm32-unknown-unknown --release
-    - run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
-    - uses: actions/upload-artifact@v2
-      with:
-        name: mg_release
-        path: |
-          target/wasm32-unknown-unknown/release/mg_nft.wasm
-          target/wasm32-unknown-unknown/release/mg_market.wasm
-          target/wasm32-unknown-unknown/release/metadata.json
 
   test-contracts:
     runs-on: ubuntu-latest
@@ -82,14 +74,11 @@ jobs:
       with:
         path: '**/node_modules'
         key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
-    - uses: actions/download-artifact@v2
-      with:
-        name: mg_release
-        path: target/wasm32-unknown-unknown/release
     - run: rustup target add wasm32-unknown-unknown
     - run: yarn install --frozen-lockfile
     - run: yarn app-test:contracts
 
+  #- run: cargo metadata --no-deps --format-version 1 > target/wasm32-unknown-unknown/release/metadata.json
   # deploy:
   #   needs: api-test-contract
   #   if: ${{ github.ref == 'refs/heads/master' }}
