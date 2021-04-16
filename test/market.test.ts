@@ -27,23 +27,13 @@ const {
 const GAS = new BN(300000000000000);
 
 describe('Market contract', () => {
-  let alice: AccountContract<NftContract>;
-  let bob: AccountContract<NftContract>;
-  let merchant: AccountContract<MarketContract>;
-  let merchant2: AccountContract<MarketContract>;
+  const [alice, bob] = global.nftUsers;
+  const [merchant, merchant2] = global.marketUsers;
 
-  let mintgate: Account;
+  const mintgate = global.nftFeeUser;
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
-  });
-
-  beforeAll(async () => {
-    [alice, bob] = global.nftUsers;
-
-    mintgate = global.nftFeeUser;
-
-    [merchant, merchant2] = global.marketUsers;
   });
 
   describe('get_tokens_for_sale', () => {
@@ -153,17 +143,17 @@ describe('Market contract', () => {
         msg: JSON.stringify(message),
       });
 
-      buyerBalanceBefore = (await merchant2.contract.account.getAccountBalance()).total;
+      buyerBalanceBefore = (await merchant2.account.getAccountBalance()).total;
       [
         { total: buyerBalanceBefore },
         { total: mintgateBalanceBefore },
         { total: creatorBalanceBefore },
         { total: sellerBalanceBefore },
       ] = await Promise.all([
-        merchant2.contract.account.getAccountBalance(),
+        merchant2.account.getAccountBalance(),
         mintgate.getAccountBalance(),
-        bob.contract.account.getAccountBalance(),
-        alice.contract.account.getAccountBalance(),
+        bob.account.getAccountBalance(),
+        alice.account.getAccountBalance(),
       ]);
 
       await merchant2.contract.buy_token({ token_id: tokenId }, GAS, new BN(priceInternalNear!));
@@ -174,10 +164,10 @@ describe('Market contract', () => {
         { total: creatorBalanceAfter },
         { total: sellerBalanceAfter },
       ] = await Promise.all([
-        merchant2.contract.account.getAccountBalance(),
+        merchant2.account.getAccountBalance(),
         mintgate.getAccountBalance(),
-        bob.contract.account.getAccountBalance(),
-        alice.contract.account.getAccountBalance(),
+        bob.account.getAccountBalance(),
+        alice.account.getAccountBalance(),
       ]);
 
       [token] = (await alice.contract.get_tokens_by_owner({ owner_id: merchant2.accountId })).filter(

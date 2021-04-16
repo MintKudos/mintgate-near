@@ -18,17 +18,10 @@ declare global {
 }
 
 describe('Nft contract', () => {
-  let alice: AccountContract<NftContract>;
-  let bob: AccountContract<NftContract>;
-  let merchant: AccountContract<MarketContract>;
-  let merchant2: AccountContract<MarketContract>;
+  const [alice, bob] = global.nftUsers;
+  const [merchant, merchant2] = global.marketUsers;
+
   const nonExistentUserId = 'ron-1111111111111-111111';
-
-  beforeAll(async () => {
-    [alice, bob] = global.nftUsers;
-
-    [merchant, merchant2] = global.marketUsers;
-  });
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
