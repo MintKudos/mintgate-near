@@ -65,10 +65,7 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: |
-          ~/.cargo/bin
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-          ~/.cargo/git/db
+          ~/.cargo
           target
         key: ${{ runner.os }}-cargo-check-${{ hashFiles('Cargo.lock') }}
     - run: cargo install near-syn --version 0.2.6
