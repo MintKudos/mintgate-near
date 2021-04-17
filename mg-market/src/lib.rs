@@ -13,7 +13,7 @@ use near_sdk::{
     env, ext_contract,
     json_types::{ValidAccountId, U128, U64},
     near_bindgen,
-    serde::Serialize,
+    serde::{Deserialize, Serialize},
     serde_json, setup_alloc, AccountId, Balance, BorshStorageKey, CryptoHash, Gas, PanicOnDefault,
     Promise, PromiseResult,
 };
@@ -37,6 +37,7 @@ pub struct MarketContract {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[cfg_attr(not(target_arch = "wasm"), derive(Debug, Deserialize))]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenForSale {
     pub token_id: TokenId,

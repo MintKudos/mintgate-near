@@ -169,7 +169,7 @@ pub struct Collectible {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
-#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
+#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug, Deserialize))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Token {
     /// The unique identifier for a `Token`.
@@ -197,7 +197,7 @@ pub struct Token {
 
 /// Represents an individual approval by some marketplace account id.
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
-#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
+#[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug, Deserialize))]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenApproval {
     /// Id used to avoid selling the same token more than once.

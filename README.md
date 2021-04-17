@@ -12,6 +12,19 @@ Add `wasm32` target to Rust
 rustup target add wasm32-unknown-unknown
 ```
 
+**Check for Rust version 1.51.0**.
+To compile the simulation tests `mg-sim`, make sure to have at least Rust 1.51.0.
+The `mg-sim` tests depend indirectly on the `arrayvec` library.
+This library in [`v0.7.0`](https://github.com/bluss/arrayvec/pull/172)
+uses a Rust feature available from 1.51.0,
+[const generics](https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html#const-generics-mvp).
+You can check Rust version with `rustc --version`.
+If an update is needed, run
+
+```sh
+rustup update stable
+```
+
 ### Install `near-ts` and `near-md` (optional)
 
 `near-ts` is a utility to generate TypeScript bindings from a Rust contract.

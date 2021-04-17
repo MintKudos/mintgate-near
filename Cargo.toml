@@ -4,6 +4,7 @@ members = [
     "mg-core",
     "mg-nft",
     "mg-market",
+    "mg-sim",
 ]
 
 [profile.release]
