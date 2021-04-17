@@ -44,6 +44,8 @@ jobs:
           ~/.cargo/registry/index
           target
         key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
+    - run: rustup target add wasm32-unknown-unknown
+    - run: cargo build --target wasm32-unknown-unknown --release
     - run: cargo test
 
   check-bindings:
