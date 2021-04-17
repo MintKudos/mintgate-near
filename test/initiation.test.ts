@@ -62,6 +62,8 @@ const callNftInit = async (
   );
 };
 
+jest.retryTimes(2);
+
 describe('Initiation of contracts', () => {
   const keyDir = `${homedir()}/.near-credentials`;
   const keyStore = new keyStores.UnencryptedFileSystemKeyStore(keyDir);
