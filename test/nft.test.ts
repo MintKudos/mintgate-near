@@ -1082,7 +1082,13 @@ describe('Nft contract', () => {
             account_id: merchant.contract.contractId,
             msg,
           })
-        ).rejects.toThrow(`Could not find min_price in msg`);
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg:
+              '{"err":"MsgFormatMinPriceMissing","reason":"missing field `min_price` at line 1 column 2","msg":"Could not find min_price in msg: missing field `min_price` at line 1 column 2"}',
+          })
+        );
       });
 
       it('should throw an error if msg not provided', async () => {
