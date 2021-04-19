@@ -717,7 +717,7 @@ describe('Nft contract', () => {
         );
       });
 
-      it('should throw when the sender and the receiver are one person', async () => {
+      it('should throw when the owner and the receiver are one person', async () => {
         logger.data('Alice created and claimed new token', token);
 
         logger.data('Attempting to transfer new token from', alice.accountId);
@@ -828,7 +828,7 @@ describe('Nft contract', () => {
     });
 
     describe('errors', () => {
-      it('should throw if no id found', async () => {
+      it('should throw if called with nonexistent token_id', async () => {
         const nonExistentTokenId = '22222222222222';
 
         await expect(
