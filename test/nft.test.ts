@@ -403,37 +403,39 @@ describe('Nft contract', () => {
       expect(current_supply).toBe(String(+initialSupply - 1));
     });
 
-    it('should throw an error if no gate id found', async () => {
-      const nonExistentId = '1111A2222B33';
+    describe('errors', () => {
+      it('should throw an error if no gate id found', async () => {
+        const nonExistentId = '1111A2222B33';
 
-      logger.data('Attempting to claim a token for gate id', nonExistentId);
+        logger.data('Attempting to claim a token for gate id', nonExistentId);
 
-      await expect(alice.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow(
-        expect.objectContaining({
-          type: 'GuestPanic',
-          panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentId}","msg":"Gate ID \`${nonExistentId}\` was not found"}`,
-        })
-      );
-    });
-
-    it('should throw an error if all tokens have been claimed', async () => {
-      const gateIdNoSupply = await generateId();
-
-      await addTestCollectible(alice.contract, {
-        gate_id: gateIdNoSupply,
-        supply: '1',
+        await expect(alice.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentId}","msg":"Gate ID \`${nonExistentId}\` was not found"}`,
+          })
+        );
       });
 
-      logger.data('Attempting to claim 2 tokens for gate id created with supply of', 1);
+      it('should throw an error if all tokens have been claimed', async () => {
+        const gateIdNoSupply = await generateId();
 
-      await alice.contract.claim_token({ gate_id: gateIdNoSupply });
+        await addTestCollectible(alice.contract, {
+          gate_id: gateIdNoSupply,
+          supply: '1',
+        });
 
-      await expect(alice.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
-        expect.objectContaining({
-          type: 'GuestPanic',
-          panic_msg: `{"err":"GateIdExhausted","gate_id":"${gateIdNoSupply}","msg":"Tokens for gate id \`${gateIdNoSupply}\` have already been claimed"}`,
-        })
-      );
+        logger.data('Attempting to claim 2 tokens for gate id created with supply of', 1);
+
+        await alice.contract.claim_token({ gate_id: gateIdNoSupply });
+
+        await expect(alice.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"GateIdExhausted","gate_id":"${gateIdNoSupply}","msg":"Tokens for gate id \`${gateIdNoSupply}\` have already been claimed"}`,
+          })
+        );
+      });
     });
   });
 
