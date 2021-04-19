@@ -674,6 +674,26 @@ describe('Nft contract', () => {
         token = await alice.contract.nft_token({ token_id: alicesTokenId });
       });
 
+      it('should throw if provided with non existent token id', async () => {
+        const nonExistentId = '11111111111111111111';
+
+        logger.data('Attempting to transfer token with id', nonExistentId);
+
+        await expect(
+          alice.contract.nft_transfer({
+            receiver_id: alice.accountId,
+            token_id: nonExistentId,
+            enforce_approval_id: null,
+            memo: null,
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+          })
+        );
+      });
+
       it('should throw when the sender and the receiver are one person', async () => {
         logger.data('Alice created and claimed new token', token);
 
