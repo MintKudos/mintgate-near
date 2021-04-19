@@ -1276,6 +1276,24 @@ describe('Nft contract', () => {
         })
       );
     });
+
+    it('should throw if provided with non existent token id', async () => {
+      const nonExistentId = '11111111111111111111';
+
+      logger.data('Attempting to revoke approvals for token with id', nonExistentId);
+
+      await expect(
+        alice.contract.nft_revoke({
+          token_id: nonExistentId,
+          account_id: merchant.contract.contractId,
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+        })
+      );
+    });
   });
 
   describe('nft_revoke_all', () => {
@@ -1371,6 +1389,23 @@ describe('Nft contract', () => {
         expect.objectContaining({
           type: 'GuestPanic',
           panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+        })
+      );
+    });
+
+    it('should throw if provided with non existent token id', async () => {
+      const nonExistentId = '11111111111111111111';
+
+      logger.data('Attempting to revoke approvals for token with id', nonExistentId);
+
+      await expect(
+        alice.contract.nft_revoke_all({
+          token_id: nonExistentId,
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          type: 'GuestPanic',
+          panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
         })
       );
     });
