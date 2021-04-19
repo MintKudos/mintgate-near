@@ -1127,6 +1127,32 @@ describe('Nft contract', () => {
           })
         );
       });
+
+      it('should throw an error if token is already approved', async () => {
+        const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
+
+        await alice.contract.nft_approve({
+          token_id: tokenId2,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify(message),
+        });
+
+        const token2 = await alice.contract.nft_token({ token_id: tokenId2 });
+        logger.data('Attempting to approve token with approvals:', token2!.approvals);
+
+        await expect(
+          alice.contract.nft_approve({
+            token_id: tokenId2,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(message),
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: '{"err":"OneApprovalAllowed","msg":"At most one approval is allowed per Token"}',
+          })
+        );
+      });
     });
   });
 
