@@ -20,6 +20,8 @@ declare global {
   }
 }
 
+const GAS = new BN(300000000000000);
+
 jest.retryTimes(2);
 
 describe('Nft contract', () => {
@@ -962,6 +964,24 @@ describe('Nft contract', () => {
           await bob.contract.claim_token({ gate_id: gateId });
         }
       }
+
+      await alice.contract.nft_transfer({
+        receiver_id: merchant.accountId,
+        token_id: (await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId }))[0].token_id,
+        enforce_approval_id: null,
+        memo: null,
+      });
+
+      const bobsTokenId = (await alice.contract.get_tokens_by_owner({ owner_id: bob.accountId }))[0].token_id;
+
+      await bob.contract.nft_approve({
+        token_id: bobsTokenId,
+        account_id: merchant.contract.contractId,
+        msg: JSON.stringify({
+          min_price: '5',
+        }),
+      });
+      await merchant2.contract.buy_token({ token_id: bobsTokenId }, GAS, new BN('5'));
 
       const totalSupplyAfter = await alice.contract.nft_total_supply();
       logger.data('Total supply of tokens minted after', totalSupplyAfter);
