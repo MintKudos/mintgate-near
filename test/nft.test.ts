@@ -220,10 +220,6 @@ describe('Nft contract', () => {
         await expect(
           addTestCollectible(alice.contract, {
             gate_id: gateId,
-            title: 'title',
-            description: 'desc',
-            supply: '100',
-            gate_url: 'test-url',
             royalty: {
               num: 0,
               den: 0,
@@ -233,6 +229,25 @@ describe('Nft contract', () => {
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+          })
+        );
+      });
+
+      it('should throw if provided with too large royalty', async () => {
+        const num = MINTGATE_FEE.den - MINTGATE_FEE.num + 1;
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateId,
+            royalty: {
+              num,
+              den: MINTGATE_FEE.den,
+            },
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"RoyaltyMaxThanAllowed","royalty":{"num":${num},"den":${MINTGATE_FEE.den}},"gate_id":"${gateId}","msg":"Royalty \`${num}/${MINTGATE_FEE.den}\` of \`${gateId}\` is greater than max"}`,
           })
         );
       });
