@@ -1,4 +1,5 @@
 import fs from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
 import { homedir } from 'os';
 
@@ -50,6 +51,42 @@ const addFunds = async (
   await accountSponsor.deleteAccount(contractId);
 };
 
+const updateCollectionVariable = (postmanCollection: string, key: string, value: string): string => {
+  const collectionParsed = JSON.parse(postmanCollection.toString());
+  const variableObject = collectionParsed.variable.find((variable: Record<string, string>) => variable.key === key);
+
+  if (variableObject) {
+    variableObject.value = value;
+  } else {
+    collectionParsed.variable.push({
+      key,
+      value,
+    });
+  }
+
+  return JSON.stringify(collectionParsed, null, '\t');
+};
+
+const getPrivateKey = async (accountId: string): Promise<string> => {
+  const accountData = (await fsp.readFile(path.resolve(keyDir, 'default', `${accountId}.json`))).toString();
+
+  return JSON.parse(accountData).private_key;
+};
+
+const updateContractInPostmanCollection = async (prefix: string, contractId: string): Promise<void> => {
+  logger.prog('updating postman collection');
+
+  const collectionFile = path.resolve(__dirname, './mintgatePostmanCollection.json');
+  const postmanCollection = (await fsp.readFile(collectionFile)).toString();
+
+  let postmanCollectionUpdated = updateCollectionVariable(postmanCollection, prefix, contractId);
+
+  const privateKey = await getPrivateKey(contractId);
+  postmanCollectionUpdated = updateCollectionVariable(postmanCollectionUpdated, `${prefix}PrivateKey`, privateKey);
+
+  await fsp.writeFile(collectionFile, postmanCollectionUpdated);
+};
+
 export default async (): Promise<void> => {
   logger.infoln(`Using key store from ${logger.param(keyDir)}`);
 
@@ -77,6 +114,8 @@ export default async (): Promise<void> => {
     logger.start(`Creating account for ${logger.param(prefix)}`);
 
     const contractId = await createAccount(prefix, config, near, keyStore);
+
+    await updateContractInPostmanCollection(prefix, contractId);
 
     if (contractPrefixes.includes(prefix)) {
       await addFunds(contractId, near, config, keyStore);
