@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "b7d95424-18ce-4f7f-8071-fdeb1424c550",
+		"_postman_id": "d6f23feb-7161-4ce2-8523-ee1873d6cdc3",
 		"name": "Mintgate",
-		"description": "Create\n```\nnode app.js\n```\nwrap",
+		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. import postman collection from `./test/mintgatePostmanCollection.json` file;\n3. install all dependencies:\n```\nyarn\n```\n4. to start api server run in the terminal from mintgate project's root dir:\n```\nnode-api-server\n```\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `collectibleId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR account are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
