@@ -659,6 +659,29 @@ describe('Nft contract', () => {
         expect(token!.sender_id).toBe(bob.accountId);
       });
 
+      it('should not throw if sender is not an owner but approved', async () => {
+        const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+        logger.data("Token's owner is", bob.accountId);
+
+        await bob.contract.nft_approve({
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify({
+            min_price: '5',
+          }),
+        });
+        logger.data("Token's sender is approved", merchant.contract.contractId);
+
+        await expect(
+          merchant.contractAccount.functionCall(bob.contract.contractId, 'nft_transfer', {
+            receiver_id: alice.accountId,
+            token_id: tokenId,
+            enforce_approval_id: null,
+            memo: null,
+          })
+        ).resolves.not.toThrow();
+      });
+
       it.todo('enforce_approval_id');
 
       it.todo('memo');
