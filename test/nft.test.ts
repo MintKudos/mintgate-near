@@ -1192,9 +1192,7 @@ describe('Nft contract', () => {
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
-    });
 
-    it('should remove approval for specified market', async () => {
       const msg: NftApproveMsg = {
         min_price: '5',
       };
@@ -1214,11 +1212,29 @@ describe('Nft contract', () => {
         token_id: tokenId,
         account_id: merchant.contract.contractId,
       });
+    });
 
+    it('should remove approval for specified market on token', async () => {
       token = await bob.contract.nft_token({ token_id: tokenId });
       expect(token!.approvals[merchant.contract.contractId]).toBeUndefined();
 
       logger.data('Approvals after', token!.approvals);
+    });
+
+    // todo: Test fails, warning from `near-api-js`: Error: Exceeded the prepaid gas
+    test.skip('market delists token as for sale', async () => {
+      expect(await merchant.contract.get_tokens_for_sale()).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_owner_id({ owner_id: bob.accountId })).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
     });
 
     it("should throw an error if revoker doesn't own the token", async () => {
@@ -1293,8 +1309,23 @@ describe('Nft contract', () => {
       logger.data('Approvals after', token.approvals);
     });
 
+    test('one market delists token as for sale', async () => {
+      expect(await merchant.contract.get_tokens_for_sale()).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_owner_id({ owner_id: bob.accountId })).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).not.toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+    });
+
     // skipped for now because currently at most one approval is allowed per Token
-    // multiples approvals per Token may be allowed later
+    // multiple approvals per Token may be allowed later
     it.skip('should remove approval for all markets', async () => {
       const approvePromises: Promise<void>[] = [];
 
@@ -1325,6 +1356,10 @@ describe('Nft contract', () => {
 
       logger.data('Approvals after', token.approvals);
     });
+
+    // skipped for now because currently at most one approval is allowed per Token
+    // multiple approvals per Token may be allowed later
+    test.todo('all previously markets delist token as for sale');
 
     it("should throw an error if revoker doesn't own the token", async () => {
       const token = (await bob.contract.nft_token({ token_id: tokenId }))!;
