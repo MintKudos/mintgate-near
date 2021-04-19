@@ -715,7 +715,7 @@ describe('Nft contract', () => {
         );
       });
 
-      it("should throw when the sender doesn't own the token", async () => {
+      it("should throw when the sender doesn't own the token and is not approved to transfer token", async () => {
         logger.data('Attempting to transfer new token from', bob.accountId);
 
         await expect(
