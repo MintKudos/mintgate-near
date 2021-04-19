@@ -67,11 +67,12 @@ jobs:
         path: |
           ~/.cargo/registry/cache
           ~/.cargo/registry/index
+          ~/.cargo/registry/src
           target
         key: ${{ runner.os }}-cargo-sim-test-${{ hashFiles('Cargo.lock') }}
     - run: rustup target add wasm32-unknown-unknown
     - run: cargo build --target wasm32-unknown-unknown --release
-    - run: cargo test --package mg-sim
+    - run: cargo test --package mg-sim -- --nocapture
 
   app-test-contracts:
     needs: [build-contracts, check-bindings]
