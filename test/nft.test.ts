@@ -1068,6 +1068,15 @@ describe('Nft contract', () => {
       logger.data('Tokens for sale on market contract', tokensForSale);
 
       expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+      expect(await merchant.contract.get_tokens_by_owner_id({ owner_id: bob.accountId })).toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
+      expect(await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
     });
 
     describe('errors', () => {
