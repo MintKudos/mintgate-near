@@ -386,6 +386,11 @@ describe('Nft contract', () => {
 
         expect(formatNsToMs(token!.created_at)).toBe(formatNsToMs(token!.modified_at));
       });
+
+      it('should set correct approvals for the new token', async () => {
+        expect(token!.approvals).toEqual({});
+        expect(token!.approval_counter).toBe('0');
+      });
     });
 
     it('should decrement current supply of the collectible', async () => {
