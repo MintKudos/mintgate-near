@@ -1162,6 +1162,23 @@ describe('Nft contract', () => {
           })
         );
       });
+
+      it('should throw an error if provided with nonexistent `token_id`', async () => {
+        const nonExistentTokenId = '222222222222222';
+
+        await expect(
+          alice.contract.nft_approve({
+            token_id: nonExistentTokenId,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(message),
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentTokenId}","msg":"Token ID \`U64(${nonExistentTokenId})\` was not found"}`,
+          })
+        );
+      });
     });
   });
 
