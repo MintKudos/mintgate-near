@@ -80,7 +80,7 @@ enum Keys {
 
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
-enum Panics {
+pub enum Panics {
     #[panic_msg = "Min royalty `{}` must be less or equal to max royalty `{}`"]
     MaxRoyaltyLessThanMinRoyalty { min_royalty: Fraction, max_royalty: Fraction },
     #[panic_msg = "Royalty `{}` of `{}` is less than min"]
