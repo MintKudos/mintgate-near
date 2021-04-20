@@ -5,11 +5,16 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 
 use mg_core::{mocked_context::gate_id, Collectible, NftApproveMsg, Token, TokenId};
 use mg_market::TokenForSale;
-use near_sdk::serde_json;
-use near_sdk_sim::view;
-use near_sdk_sim::{call, ExecutionResult};
+use near_sdk::{json_types::U64, serde_json};
+use near_sdk_sim::{
+    call,
+    errors::{ActionError, ActionErrorKind, TxExecutionError},
+    transaction::ExecutionStatus,
+    ExecutionResult,
+};
 use near_sdk_sim::{deploy, init_simulator, to_yocto, ContractAccount, UserAccount};
-use std::convert::TryInto;
+use near_sdk_sim::{transaction::ExecutionOutcome, view};
+use std::{convert::TryInto, fmt::Debug};
 
 pub use mg_market::MarketContractContract as MarketContract;
 pub use mg_nft::NftContractContract as NftContract;
@@ -86,30 +91,35 @@ pub fn create_collectible(
     gate_key: u64,
     supply: u64,
     royalty: &str,
-) {
+) -> Result<(), String> {
     println!(
-        "[{}] `{}` creating collectible with supply `{}` and royalty `{}`",
+        "[{}] `{}` creating collectible `{}` with supply `{}` and royalty `{}`",
         nft.account_id(),
         user.account_id,
+        gate_id(gate_key),
         supply,
         royalty
     );
 
-    tx(call!(
+    match tx2(call!(
         user,
         nft.create_collectible(
             gate_id(gate_key),
             "My collectible".to_string(),
             "NFT description".to_string(),
-            near_sdk::json_types::U64::from(supply),
+            U64::from(supply),
             "someurl".to_string(),
             royalty.parse().unwrap()
         )
-    ));
-
-    let c = get_collectible_by_gate_id(nft, gate_key);
-    assert_eq!(c.gate_id, gate_id(gate_key));
-    assert_eq!(c.royalty, royalty.parse().unwrap());
+    )) {
+        ok @ Ok(_) => {
+            let c = get_collectible_by_gate_id(nft, gate_key);
+            assert_eq!(c.gate_id, gate_id(gate_key));
+            assert_eq!(c.royalty, royalty.parse().unwrap());
+            ok
+        }
+        err => err,
+    }
 }
 
 pub fn get_collectible_by_gate_id(
@@ -192,10 +202,61 @@ pub fn buy_token(
         .contains(&user.account_id));
 }
 
+// pub fn nft_transfer(
+//     nft: &ContractAccount<NftContract>,
+//     user: &UserAccount,
+//     receiver_id: ValidAccountId,
+//     token_id: TokenId,
+//     enforce_approval_id: Option<U64>,
+//     memo: Option<String>,
+// ) -> Result<(), u32> {
+//     tx(call!(user, market.buy_token(token_id), deposit = to_yocto(deposit)));
+// }
+
 fn tx(x: ExecutionResult) -> ExecutionResult {
     for line in x.logs() {
         println!("[log :: {}]", line);
     }
     x.assert_success();
     x
+}
+
+pub trait CheckResult {
+    fn failure(self, msg: String);
+}
+
+impl<T: Debug> CheckResult for Result<T, String> {
+    fn failure(self, msg: String) {
+        print!("Expecting failure: {}", msg);
+        let a = self.unwrap_err();
+        assert!(a.contains(msg.as_str()));
+        println!(" [OK]");
+    }
+}
+
+fn tx2(x: ExecutionResult) -> Result<(), String> {
+    for line in x.logs() {
+        println!("[log :: {}]", line);
+    }
+
+    if x.is_ok() {
+        Ok(())
+    } else {
+        if let ExecutionOutcome {
+            status:
+                ExecutionStatus::Failure(TxExecutionError::ActionError(ActionError {
+                    kind: ActionErrorKind::FunctionCallError(err),
+                    ..
+                })),
+            ..
+        } = x.outcome()
+        {
+            // match err {
+            //     ::near_vm_errors::FunctionCallError::HostError => {}
+            // }
+            Err(format!("{:?}", err))
+        } else {
+            panic!("sakjsdjksdjkdfasdf");
+        }
+    }
 }
