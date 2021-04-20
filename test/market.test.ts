@@ -157,7 +157,6 @@ describe('Market contract', () => {
         msg: JSON.stringify(message),
       });
 
-      buyerBalanceBefore = (await merchant2.account.getAccountBalance()).total;
       [
         { total: buyerBalanceBefore },
         { total: mintgateBalanceBefore },
@@ -368,13 +367,14 @@ describe('Market contract', () => {
         expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 5);
       });
 
-      it("should transfer royalty to the seller's (=== creator's) wallet", async () => {
+      it("should transfer money to the seller's (=== creator's) wallet", async () => {
         const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
         const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
 
         logger.data('creatorBalanceBeforeHr', creatorBalanceBeforeHr);
         logger.data('creatorBalanceAfterHr', creatorBalanceAfterHr);
         logger.data('creatorShare', creatorShare);
+        logger.data('sellerShare', sellerShare);
         logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
 
         expect(+creatorBalanceBeforeHr + creatorShare + sellerShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
@@ -390,6 +390,289 @@ describe('Market contract', () => {
         logger.data('buyerShareActual', +buyerBalanceAfterHr - +buyerBalanceBeforeHr);
 
         expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
+      });
+    });
+
+    describe('other combinations of creator, seller, buyer, market', () => {
+      test('creator and buyer are the same contract', async () => {
+        const creator = alice;
+        const seller = bob;
+        const buyer = alice;
+
+        const gateId2 = await generateId();
+
+        await addTestCollectible(creator.contract, {
+          gate_id: gateId2,
+          royalty,
+        });
+
+        const tokenId2 = await seller.contract.claim_token({ gate_id: gateId2 });
+
+        await seller.contract.nft_approve({
+          token_id: tokenId2,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify(message),
+        });
+
+        const [
+          { total: sellerBalanceBefore2 },
+          { total: mintgateBalanceBefore2 },
+          { total: creatorBalanceBefore2 },
+        ] = await Promise.all([
+          seller.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          creator.account.getAccountBalance(),
+        ]);
+
+        await buyer.account.functionCall(
+          merchant2.contractAccount.accountId,
+          'buy_token',
+          { token_id: tokenId2 },
+          GAS,
+          new BN(priceInternalNear!)
+        );
+
+        const [
+          { total: sellerBalanceAfter2 },
+          { total: mintgateBalanceAfter2 },
+          { total: creatorBalanceAfter2 },
+        ] = await Promise.all([
+          seller.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          creator.account.getAccountBalance(),
+        ]);
+
+        const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore2);
+        const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter2);
+        expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 1);
+
+        const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
+        const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
+        expect(+creatorBalanceBeforeHr + creatorShare - +priceHrNear).toBeCloseTo(+creatorBalanceAfterHr, 1);
+
+        const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore2);
+        const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter2);
+        expect(+sellerBalanceBeforeHr + +priceHrNear - mintgateShare - creatorShare).toBeCloseTo(
+          +sellerBalanceAfterHr,
+          1
+        );
+      });
+
+      test('creator and market are the same contract', async () => {
+        const creator = merchant.contractAccount;
+        const seller = alice;
+        const buyer = merchant2;
+
+        const gateId2 = await generateId();
+
+        await creator.functionCall(bob.contractAccount.accountId, 'create_collectible', {
+          gate_id: gateId2,
+          gate_url: 'Test gate url',
+          title: 'Test title',
+          description: 'Test description',
+          supply: '100',
+          royalty,
+        });
+
+        const tokenId2 = await seller.contract.claim_token({ gate_id: gateId2 });
+
+        await seller.contract.nft_approve({
+          token_id: tokenId2,
+          account_id: creator.accountId,
+          msg: JSON.stringify(message),
+        });
+
+        const [
+          { total: buyerBalanceBefore2 },
+          { total: mintgateBalanceBefore2 },
+          { total: sellerBalanceBefore2 },
+          { total: creatorBalanceBefore2 },
+        ] = await Promise.all([
+          buyer.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          seller.account.getAccountBalance(),
+          creator.getAccountBalance(),
+        ]);
+
+        await buyer.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+
+        const [
+          { total: buyerBalanceAfter2 },
+          { total: mintgateBalanceAfter2 },
+          { total: sellerBalanceAfter2 },
+          { total: creatorBalanceAfter2 },
+        ] = await Promise.all([
+          buyer.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          seller.account.getAccountBalance(),
+          creator.getAccountBalance(),
+        ]);
+
+        const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore2);
+        const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter2);
+        expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 1);
+
+        const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
+        const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
+        expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 1);
+
+        const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore2);
+        const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter2);
+        expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
+
+        const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore2);
+        const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter2);
+        expect(+sellerBalanceBeforeHr + +priceHrNear - +creatorShare - +mintgateShare).toBeCloseTo(
+          +sellerBalanceAfterHr,
+          1
+        );
+      });
+
+      test('seller and market are the same contract', async () => {
+        const creator = bob;
+        const seller = merchant.contractAccount;
+        const buyer = merchant2;
+
+        const gateId2 = await generateId();
+
+        await addTestCollectible(creator.contract, {
+          gate_id: gateId2,
+          royalty,
+        });
+
+        const executionOutcome = await seller.functionCall(bob.contractAccount.accountId, 'claim_token', {
+          gate_id: gateId2,
+        });
+
+        if (
+          !(typeof executionOutcome.status === 'object' && typeof executionOutcome.status.SuccessValue === 'string')
+        ) {
+          throw new Error('SuccessValue expected');
+        }
+
+        const tokenId2 = JSON.parse(Buffer.from(executionOutcome.status.SuccessValue, 'base64').toString());
+
+        await merchant.contractAccount.functionCall(bob.contractAccount.accountId, 'nft_approve', {
+          token_id: tokenId2,
+          account_id: seller.accountId,
+          msg: JSON.stringify(message),
+        });
+
+        const [
+          { total: buyerBalanceBefore2 },
+          { total: mintgateBalanceBefore2 },
+          { total: sellerBalanceBefore2 },
+          { total: creatorBalanceBefore2 },
+        ] = await Promise.all([
+          buyer.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          seller.getAccountBalance(),
+          creator.account.getAccountBalance(),
+        ]);
+
+        await buyer.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+
+        const [
+          { total: buyerBalanceAfter2 },
+          { total: mintgateBalanceAfter2 },
+          { total: sellerBalanceAfter2 },
+          { total: creatorBalanceAfter2 },
+        ] = await Promise.all([
+          buyer.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          seller.getAccountBalance(),
+          creator.account.getAccountBalance(),
+        ]);
+
+        const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore2);
+        const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter2);
+        expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 1);
+
+        const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
+        const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
+        expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 1);
+
+        const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore2);
+        const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter2);
+        expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
+
+        const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore2);
+        const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter2);
+        expect(+sellerBalanceBeforeHr + +priceHrNear - +creatorShare - +mintgateShare).toBeCloseTo(
+          +sellerBalanceAfterHr,
+          1
+        );
+      });
+
+      test('buyer and market are the same contract', async () => {
+        const creator = bob;
+        const seller = alice;
+        const buyer = merchant.contractAccount;
+
+        const gateId2 = await generateId();
+
+        await addTestCollectible(creator.contract, {
+          gate_id: gateId2,
+          royalty,
+        });
+
+        const tokenId2 = await alice.contract.claim_token({ gate_id: gateId2 });
+        await alice.contract.nft_approve({
+          token_id: tokenId2,
+          account_id: buyer.accountId,
+          msg: JSON.stringify(message),
+        });
+
+        const [
+          { total: buyerBalanceBefore2 },
+          { total: mintgateBalanceBefore2 },
+          { total: sellerBalanceBefore2 },
+          { total: creatorBalanceBefore2 },
+        ] = await Promise.all([
+          buyer.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          seller.account.getAccountBalance(),
+          creator.account.getAccountBalance(),
+        ]);
+
+        await buyer.functionCall(
+          merchant2.contractAccount.accountId,
+          'buy_token',
+          { token_id: tokenId2 },
+          GAS,
+          new BN(priceInternalNear!)
+        );
+
+        const [
+          { total: buyerBalanceAfter2 },
+          { total: mintgateBalanceAfter2 },
+          { total: sellerBalanceAfter2 },
+          { total: creatorBalanceAfter2 },
+        ] = await Promise.all([
+          buyer.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          seller.account.getAccountBalance(),
+          creator.account.getAccountBalance(),
+        ]);
+
+        const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore2);
+        const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter2);
+        expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 1);
+
+        const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
+        const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
+        expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 1);
+
+        const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore2);
+        const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter2);
+        expect(+buyerBalanceBeforeHr - +priceHrNear).toBeCloseTo(+buyerBalanceAfterHr, 1);
+
+        const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore2);
+        const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter2);
+        expect(+sellerBalanceBeforeHr + +priceHrNear - +creatorShare - +mintgateShare).toBeCloseTo(
+          +sellerBalanceAfterHr,
+          1
+        );
       });
     });
 
