@@ -249,7 +249,7 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"RoyaltyMaxThanAllowed","royalty":{"num":${num},"den":${MINTGATE_FEE.den}},"gate_id":"${gateId}","msg":"Royalty \`${num}/${MINTGATE_FEE.den}\` of \`${gateId}\` is greater than max"}`,
+            panic_msg: `{"err":"RoyaltyTooLarge","royalty":{"num":${num},"den":${MINTGATE_FEE.den}},"mintgate_fee":{"num":${MINTGATE_FEE.num},"den":${MINTGATE_FEE.den}},"msg":"Royalty \`${num}/${MINTGATE_FEE.den}\` is too large for the given NFT fee \`${MINTGATE_FEE.num}/${MINTGATE_FEE.den}\`"}`,
           })
         );
       });
