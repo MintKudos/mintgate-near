@@ -11,3 +11,5 @@ near-sdk-sim = "=3.1.0"
 mg-core = { path = "../mg-core" }
 mg-nft = { path = "../mg-nft" }
 mg-market = { path = "../mg-market" }
+ansi_term = "0.12"
+lipsum = "0.7"
