@@ -1564,9 +1564,9 @@ dependencies = [
 
 [[package]]
 name = "near-env"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68b45ce203eef49f522e462d8923b2e8835dd2d7f7b1270ea6ae6d074efb3d6a"
+checksum = "f772eaf21eb49c7a419d8c4bb580e3a1f8791ecf38fcb61a3bd56ddf2b20b7c9"
 dependencies = [
  "proc-macro2",
  "quote",
