@@ -1208,10 +1208,15 @@ describe('Nft contract', () => {
 
       logger.data('Approvals before', token!.approvals);
 
-      await bob.contract.nft_revoke({
-        token_id: tokenId,
-        account_id: merchant.contract.contractId,
-      });
+      await bob.account.functionCall(
+        bob.contractAccount.accountId,
+        'nft_revoke',
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+        },
+        GAS
+      );
     });
 
     it('should remove approval for specified market on token', async () => {
@@ -1221,8 +1226,7 @@ describe('Nft contract', () => {
       logger.data('Approvals after', token!.approvals);
     });
 
-    // todo: Test fails, warning from `near-api-js`: Error: Exceeded the prepaid gas
-    test.skip('market delists token as for sale', async () => {
+    test('that market delists token as for sale', async () => {
       expect(await merchant.contract.get_tokens_for_sale()).not.toContainEqual(
         expect.objectContaining({ token_id: tokenId })
       );
@@ -1305,30 +1309,32 @@ describe('Nft contract', () => {
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
-    });
 
-    it('should remove an approval for one unspecified market', async () => {
       await bob.contract.nft_approve({
         token_id: tokenId,
         account_id: merchant.contract.contractId,
         msg: JSON.stringify({ min_price: '5' }),
       });
+      expect(await merchant.contract.get_tokens_for_sale()).toContainEqual(
+        expect.objectContaining({ token_id: tokenId })
+      );
 
-      let token = (await bob.contract.nft_token({ token_id: tokenId }))!;
-      expect(token.approvals[merchant.contract.contractId]).not.toBeUndefined();
+      const tokenBefore = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      expect(tokenBefore.approvals[merchant.contract.contractId]).not.toBeUndefined();
 
-      logger.data('Approvals before', token.approvals);
+      logger.data('Approvals before', tokenBefore.approvals);
 
-      await bob.contract.nft_revoke_all({ token_id: tokenId });
-
-      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
-      expect(token.approvals).toEqual({});
-
-      logger.data('Approvals after', token.approvals);
+      await bob.account.functionCall(bob.contractAccount.accountId, 'nft_revoke_all', { token_id: tokenId }, GAS);
     });
 
-    // todo: Test fails, warning from `near-api-js`: Error: Exceeded the prepaid gas
-    test.skip('one market delists token as for sale', async () => {
+    it('should remove an approval for one unspecified market', async () => {
+      const tokenAfter = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      expect(tokenAfter.approvals).toEqual({});
+
+      logger.data('Approvals after', tokenAfter.approvals);
+    });
+
+    test('that one market delists token as for sale', async () => {
       expect(await merchant.contract.get_tokens_for_sale()).not.toContainEqual(
         expect.objectContaining({ token_id: tokenId })
       );
@@ -1378,7 +1384,7 @@ describe('Nft contract', () => {
 
     // skipped for now because currently at most one approval is allowed per Token
     // multiple approvals per Token may be allowed later
-    test.todo('all previously markets delist token as for sale');
+    test.todo('that all previously markets delist token as for sale');
 
     it("should throw an error if revoker doesn't own the token", async () => {
       const token = (await bob.contract.nft_token({ token_id: tokenId }))!;
