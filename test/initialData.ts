@@ -28,7 +28,7 @@ export const royalty: { min_royalty: Fraction; max_royalty: Fraction } = {
     den: 100,
   },
   max_royalty: {
-    num: 30,
+    num: 99,
     den: 100,
   },
 };
