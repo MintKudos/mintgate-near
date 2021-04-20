@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.6 https://github.com/acuarica/near-syn
+// TypeScript bindings generated with near-ts v0.2.8 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -271,20 +271,29 @@ export interface MarketApproveMsg {
     min_price: U128;
 
     /**
-     *  Represents the `gate_id` of the token being approved.
+     *  Represents the `gate_id` of the token being approved if present.
      */
-    gate_id: GateId;
+    gate_id: GateId|null;
 
     /**
-     *  Represents the `creator_id` of the collectible of the token being approved.
+     *  Represents the `creator_id` of the collectible of the token being approved if present.
      */
-    creator_id: AccountId;
+    creator_id: AccountId|null;
 
 }
 
 /**
+ *  In marketplace contract, each token must be addressed by `<nft contract id, token id>`.
+ */
+export type TokenKey = [AccountId, TokenId];
+
+/**
  */
 export interface TokenForSale {
+    /**
+     */
+    nft_id: AccountId;
+
     /**
      */
     token_id: TokenId;
@@ -303,15 +312,11 @@ export interface TokenForSale {
 
     /**
      */
-    nft_id: AccountId;
+    gate_id: GateId|null;
 
     /**
      */
-    gate_id: GateId;
-
-    /**
-     */
-    creator_id: AccountId;
+    creator_id: AccountId|null;
 
 }
 
@@ -330,14 +335,14 @@ export interface Self {
     get_tokens_for_sale(): Promise<TokenForSale[]>;
 
     /**
-     *  Returns all tokens for sale whose collectible's gate ID is `gate_id`.
-     */
-    get_tokens_by_gate_id(args: { gate_id: GateId }): Promise<TokenForSale[]>;
-
-    /**
      *  Returns all tokens for sale owned by `owner_id`.
      */
     get_tokens_by_owner_id(args: { owner_id: ValidAccountId }): Promise<TokenForSale[]>;
+
+    /**
+     *  Returns all tokens for sale whose collectible's gate ID is `gate_id`.
+     */
+    get_tokens_by_gate_id(args: { gate_id: GateId }): Promise<TokenForSale[]>;
 
     /**
      *  Returns all tokens for sale whose collectible's creator ID is `creator_id`.
@@ -347,7 +352,7 @@ export interface Self {
     /**
      *  Buys the token.
      */
-    buy_token(args: { token_id: TokenId }, gas?: any, amount?: any): Promise<void>;
+    buy_token(args: { nft_id: ValidAccountId, token_id: TokenId }, gas?: any, amount?: any): Promise<void>;
 
 }
 
@@ -372,8 +377,8 @@ export type MarketContract = Self & NonFungibleTokenApprovalsReceiver;
 export const MarketContractMethods = {
     viewMethods: [
         "get_tokens_for_sale",
-        "get_tokens_by_gate_id",
         "get_tokens_by_owner_id",
+        "get_tokens_by_gate_id",
         "get_tokens_by_creator_id",
     ],
     changeMethods: [

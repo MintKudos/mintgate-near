@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.6 https://github.com/acuarica/near-syn
+// TypeScript bindings generated with near-ts v0.2.8 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -271,14 +271,14 @@ export interface MarketApproveMsg {
     min_price: U128;
 
     /**
-     *  Represents the `gate_id` of the token being approved.
+     *  Represents the `gate_id` of the token being approved if present.
      */
-    gate_id: GateId;
+    gate_id: GateId|null;
 
     /**
-     *  Represents the `creator_id` of the collectible of the token being approved.
+     *  Represents the `creator_id` of the collectible of the token being approved if present.
      */
-    creator_id: AccountId;
+    creator_id: AccountId|null;
 
 }
 
@@ -306,7 +306,7 @@ export interface Self {
      *  This royalty is paid when any `Token` is being resold in any marketplace.
      * 
      *  The sum of `royalty` and `mintgate_fee` should be less than `1`.
-     *  Panics otherwise. 
+     *  Panics otherwise.
      *  This is to be able to make payouts all participants.
      * 
      *  See <https://github.com/epam/mintgate/issues/3>.
@@ -373,9 +373,9 @@ export interface NonFungibleTokenCore {
      * 
      *  - `mintgate_fee`: `25/1000` (2.5%)
      *  - `royalty`: `30/100` (30%)
-     *  
+     * 
      *  Then `nft_payout(token_id, 5_000_000)` will return
-     *  
+     * 
      *  - `mintgate_fee_account_id` -> 125_000
      *  - `collectible.creator_id` -> 3_375_000
      *  - `token.owner_id` -> 1_500_000
