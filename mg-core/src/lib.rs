@@ -9,7 +9,7 @@ use near_sdk::{
     env, ext_contract,
     json_types::{ValidAccountId, U128, U64},
     serde::{Deserialize, Serialize},
-    AccountId, Balance, CryptoHash,
+    AccountId, Balance, CryptoHash, Promise,
 };
 use std::{collections::HashMap, fmt::Display, num::ParseIntError, str::FromStr, u128};
 use uint::construct_uint;
@@ -21,7 +21,7 @@ construct_uint! {
 
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
-enum Panics {
+pub enum Panics {
     #[panic_msg = "Denominator must be a positive number, but was 0"]
     ZeroDenominatorFraction,
     #[panic_msg = "The fraction must be less or equal to 1"]
@@ -236,9 +236,14 @@ pub trait NonFungibleTokenCore {
 }
 
 pub trait NonFungibleTokenApprovalMgmt {
-    fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>);
+    fn nft_approve(
+        &mut self,
+        token_id: TokenId,
+        account_id: ValidAccountId,
+        msg: Option<String>,
+    ) -> Promise;
 
-    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId);
+    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) -> Promise;
 
     fn nft_revoke_all(&mut self, token_id: TokenId);
 }
@@ -265,10 +270,10 @@ pub struct NftApproveMsg {
 pub struct MarketApproveMsg {
     /// Indicates the minimum price (in NEARs) that an account must pay to buy a token.
     pub min_price: U128,
-    /// Represents the `gate_id` of the token being approved.
-    pub gate_id: GateId,
-    /// Represents the `creator_id` of the collectible of the token being approved.
-    pub creator_id: AccountId,
+    /// Represents the `gate_id` of the token being approved if present.
+    pub gate_id: Option<GateId>,
+    /// Represents the `creator_id` of the collectible of the token being approved if present.
+    pub creator_id: Option<AccountId>,
 }
 
 #[near_ext]
