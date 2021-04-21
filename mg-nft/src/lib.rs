@@ -22,7 +22,7 @@
 use mg_core::{
     crypto_hash, Collectible, ContractMetadata, Fraction, GateId, MarketApproveMsg, NftApproveMsg,
     NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Payout, Token, TokenApproval, TokenId,
-    TokenMetadata,
+    TokenMetadata, ValidGateId,
 };
 use near_env::{near_log, PanicMessage};
 use near_sdk::{
@@ -173,14 +173,17 @@ impl NftContract {
     /// See <https://github.com/epam/mintgate/issues/3>.
     pub fn create_collectible(
         &mut self,
-        gate_id: String,
+        gate_id: ValidGateId,
         title: String,
         description: String,
         supply: U64,
         gate_url: String,
         royalty: Fraction,
     ) {
+        let gate_id = gate_id.to_string();
+
         royalty.check();
+
         if royalty.cmp(&self.min_royalty) == Ordering::Less {
             Panics::RoyaltyMinThanAllowed { royalty, gate_id }.panic();
         }
@@ -243,7 +246,9 @@ impl NftContract {
     /// Panics otherwise.
     ///
     /// See <https://github.com/epam/mintgate/issues/16>.
-    pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Option<Collectible> {
+    pub fn get_collectible_by_gate_id(&self, gate_id: ValidGateId) -> Option<Collectible> {
+        let gate_id = gate_id.to_string();
+
         match self.collectibles.get(&gate_id) {
             None => None,
             Some(collectible) => {
@@ -277,7 +282,9 @@ impl NftContract {
     /// If the given `gate_id` has exhausted its supply, this call will panic.
     ///
     /// See <https://github.com/epam/mintgate/issues/6>.
-    pub fn claim_token(&mut self, gate_id: String) -> TokenId {
+    pub fn claim_token(&mut self, gate_id: ValidGateId) -> TokenId {
+        let gate_id = gate_id.to_string();
+
         match self.collectibles.get(&gate_id) {
             None => Panics::GateIdNotFound { gate_id }.panic(),
             Some(mut collectible) => {
@@ -565,7 +572,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
             Some(collectible) => {
                 let market_msg = MarketApproveMsg {
                     min_price,
-                    gate_id: Some(token.gate_id),
+                    gate_id: Some(token.gate_id.try_into().unwrap()),
                     creator_id: Some(collectible.creator_id),
                 };
                 mg_core::market::nft_on_approve(

@@ -8,6 +8,7 @@ use std::{
 
 use mg_core::{
     crypto_hash, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout, TokenId,
+    ValidGateId,
 };
 use near_env::{near_ext, near_log, PanicMessage};
 use near_sdk::{
@@ -124,8 +125,8 @@ impl MarketContract {
     }
 
     /// Returns all tokens for sale whose collectible's gate ID is `gate_id`.
-    pub fn get_tokens_by_gate_id(&self, gate_id: GateId) -> Vec<TokenForSale> {
-        get_tokens_by(&self.tokens_for_sale, &self.tokens_by_gate_id, &gate_id)
+    pub fn get_tokens_by_gate_id(&self, gate_id: ValidGateId) -> Vec<TokenForSale> {
+        get_tokens_by(&self.tokens_for_sale, &self.tokens_by_gate_id, gate_id.as_ref())
     }
 
     /// Returns all tokens for sale whose collectible's creator ID is `creator_id`.
@@ -252,7 +253,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
                         owner_id: owner_id.clone().into(),
                         approval_id,
                         min_price: approve_msg.min_price,
-                        gate_id: approve_msg.gate_id.clone(),
+                        gate_id: approve_msg.gate_id.clone().map(|g| g.to_string()),
                         creator_id: approve_msg.creator_id.clone(),
                     },
                 );
@@ -272,7 +273,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
                 if let Some(gate_id) = approve_msg.gate_id {
                     insert_token_id_to(
                         &mut self.tokens_by_gate_id,
-                        &gate_id,
+                        gate_id.as_ref(),
                         &token_key,
                         Keys::TokensByGateIdValue,
                     );

@@ -8,9 +8,11 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     env, ext_contract,
     json_types::{ValidAccountId, U128, U64},
-    serde::{Deserialize, Serialize},
+    serde::{self, Deserialize, Serialize},
     AccountId, Balance, CryptoHash, Promise,
 };
+use std::convert::{TryFrom, TryInto};
+use std::fmt;
 use std::{collections::HashMap, fmt::Display, num::ParseIntError, str::FromStr, u128};
 use uint::construct_uint;
 
@@ -96,7 +98,125 @@ impl FromStr for Fraction {
 }
 
 /// The `GateId` type represents the identifier of each `Collectible`.
+/// This type is meant to be used internally by contracts.
+/// To pass around `GateId` in public interfaces, use `ValidGateId`.
 pub type GateId = String;
+
+/// Determines whether a given slice represents a valid `GateId`.
+///
+/// ```
+/// use mg_core::is_valid_gate_id;
+///
+/// assert!(is_valid_gate_id(b"TGWN_P5W6QNX"));
+/// assert!(is_valid_gate_id(b"YUF6J-4D6ZTB"));
+/// assert!(is_valid_gate_id(b"RHFJS1LPQAS2"));
+/// assert!(is_valid_gate_id(b"ALTRMDMNNMRT"));
+/// assert!(is_valid_gate_id(b"VDvB2TS2xszCyQiCzSQEpD"));
+///
+/// assert!(!is_valid_gate_id(b"VDvB2TS2.szCyQiCzSQEpD"));
+/// assert!(!is_valid_gate_id(b"VDvB2TS2szCyQ/iCzSQEpD"));
+/// ```
+pub fn is_valid_gate_id(gate_id: &[u8]) -> bool {
+    if gate_id.len() > 32 {
+        return false;
+    }
+
+    for c in gate_id {
+        match *c {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-' => {}
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// Struct used to validate gate IDs during serialization and deserializiation.
+///
+/// ```
+/// use mg_core::ValidGateId;
+/// use near_sdk::serde_json;
+/// use std::convert::TryInto;
+/// use std::convert::TryFrom;
+///
+/// let key: ValidGateId = serde_json::from_str("\"ALTRMDMNNMRT\"").unwrap();
+/// assert_eq!(key.to_string(), "ALTRMDMNNMRT".to_string());
+///
+/// let key: ValidGateId = serde_json::from_str("\"VDvB2TS2xszCyQiCzSQEpD\"").unwrap();
+/// assert_eq!(key.to_string(), "VDvB2TS2xszCyQiCzSQEpD".to_string());
+///
+/// let key: Result<ValidGateId, _> = serde_json::from_str("o7fSzsCYsSedUYRw5HmhTo7fSzsCYsSedUYRw5HmhT");
+/// assert!(key.is_err());
+///
+/// let key: ValidGateId = "RHFJS1LPQAS2".try_into().unwrap();
+/// let actual: String = serde_json::to_string(&key).unwrap();
+/// assert_eq!(actual, "\"RHFJS1LPQAS2\"");
+///
+/// let key = ValidGateId::try_from("RHFJS1LPQAS2").unwrap();
+/// assert_eq!(key.as_ref(), &"RHFJS1LPQAS2".to_string());
+/// ```
+#[derive(Debug, Clone, PartialEq, PartialOrd, BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ValidGateId(GateId);
+
+impl ValidGateId {
+    fn is_valid(&self) -> bool {
+        is_valid_gate_id(self.0.as_bytes())
+    }
+
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl fmt::Display for ValidGateId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<GateId> for ValidGateId {
+    fn as_ref(&self) -> &GateId {
+        &self.0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ValidGateId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        s.try_into()
+            .map_err(|err: Box<dyn std::error::Error>| serde::de::Error::custom(err.to_string()))
+    }
+}
+
+impl TryFrom<&str> for ValidGateId {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from(value.to_string())
+    }
+}
+
+impl TryFrom<String> for ValidGateId {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let res = Self(value);
+        if res.is_valid() {
+            Ok(res)
+        } else {
+            Err("The gate ID is invalid".into())
+        }
+    }
+}
+
+impl From<ValidGateId> for AccountId {
+    fn from(value: ValidGateId) -> Self {
+        value.0
+    }
+}
 
 /// The `TokenId` type represents the identifier of each `Token`.
 /// This type can be used in both public interfaces and internal `struct`s.
@@ -271,7 +391,7 @@ pub struct MarketApproveMsg {
     /// Indicates the minimum price (in NEARs) that an account must pay to buy a token.
     pub min_price: U128,
     /// Represents the `gate_id` of the token being approved if present.
-    pub gate_id: Option<GateId>,
+    pub gate_id: Option<ValidGateId>,
     /// Represents the `creator_id` of the collectible of the token being approved if present.
     pub creator_id: Option<AccountId>,
 }

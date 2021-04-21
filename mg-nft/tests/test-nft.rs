@@ -6,7 +6,7 @@ use mg_core::{
         alice, any, bob, charlie, gate_id, market, mintgate_admin, mintgate_fee_account_id,
     },
     ContractMetadata, GateId, NftApproveMsg, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore,
-    TokenId,
+    TokenId, ValidGateId,
 };
 use mg_nft::NftContract;
 use near_sdk::{
@@ -39,7 +39,7 @@ impl DerefMut for NftContractChecker {
 }
 
 impl MockedContext<NftContractChecker> {
-    fn create_collectible(&mut self, gate_id: String, supply: u64, royalty: &str) {
+    fn create_collectible(&mut self, gate_id: ValidGateId, supply: u64, royalty: &str) {
         let collectibles_by_owner = self.get_collectibles_by_creator(self.pred_id());
 
         println!("Creating Collectible `{}` with supply {}", gate_id, supply);
@@ -53,7 +53,7 @@ impl MockedContext<NftContractChecker> {
         );
 
         let collectible = self.contract.get_collectible_by_gate_id(gate_id.clone()).unwrap();
-        assert_eq!(collectible.gate_id, gate_id);
+        assert_eq!(&collectible.gate_id, gate_id.as_ref());
         assert_eq!(collectible.current_supply.0, supply);
 
         assert_eq!(
@@ -62,15 +62,15 @@ impl MockedContext<NftContractChecker> {
         );
     }
 
-    fn create_test_collectible(&mut self, gate_id: String, supply: u64) {
+    fn create_test_collectible(&mut self, gate_id: ValidGateId, supply: u64) {
         self.create_collectible(gate_id, supply, "5/100");
     }
 
-    fn create_royalty_collectible(&mut self, gate_id: String, supply: u64, royalty: &str) {
+    fn create_royalty_collectible(&mut self, gate_id: ValidGateId, supply: u64, royalty: &str) {
         self.create_collectible(gate_id, supply, royalty);
     }
 
-    fn claim_token(&mut self, gate_id: GateId) -> TokenId {
+    fn claim_token(&mut self, gate_id: ValidGateId) -> TokenId {
         let token_id = self.contract.claim_token(gate_id.clone());
 
         assert!(self
@@ -79,11 +79,11 @@ impl MockedContext<NftContractChecker> {
             .iter()
             .map(|token| (token.token_id, token.gate_id.clone()))
             .collect::<Vec<(TokenId, GateId)>>()
-            .contains(&(token_id, gate_id.clone())));
+            .contains(&(token_id, gate_id.to_string())));
 
         assert!(self
             .contract
-            .get_tokens_by_owner_and_gate_id(gate_id.clone(), self.pred_id())
+            .get_tokens_by_owner_and_gate_id(gate_id.to_string(), self.pred_id())
             .iter()
             .map(|token| token.token_id)
             .collect::<Vec<TokenId>>()
@@ -91,10 +91,10 @@ impl MockedContext<NftContractChecker> {
 
         assert!(self
             .contract
-            .get_tokens_by_owner_and_gate_id(gate_id.clone(), self.pred_id())
+            .get_tokens_by_owner_and_gate_id(gate_id.to_string(), self.pred_id())
             .iter()
             .map(|token| token.gate_id.clone())
-            .all(|gid| gid == gate_id));
+            .all(|gid| gid == gate_id.to_string()));
 
         self.claimed_tokens.insert(0, token_id);
         token_id

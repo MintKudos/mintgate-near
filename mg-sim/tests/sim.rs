@@ -3,7 +3,7 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     MARKET_WASM_BYTES => "../target/wasm32-unknown-unknown/release/mg_market.wasm",
 }
 
-use mg_core::{mocked_context::gate_id, Collectible, NftApproveMsg, Token, TokenId};
+use mg_core::{mocked_context::gate_id, Collectible, NftApproveMsg, Token, TokenId, ValidGateId};
 use mg_market::TokenForSale;
 use near_sdk::{
     json_types::{ValidAccountId, U64},
@@ -103,7 +103,7 @@ fn metadata() -> mg_core::ContractMetadata {
 pub fn create_collectible(
     nft: &ContractAccount<NftContract>,
     user: &UserAccount,
-    gate_key: u64,
+    gate_id: ValidGateId,
     supply: u64,
     royalty: &str,
 ) -> Result<(), String> {
@@ -111,7 +111,7 @@ pub fn create_collectible(
         "[{}] `{}` creating collectible `{}` with supply `{}` and royalty `{}`",
         nft.account_id(),
         user.account_id,
-        gate_id(gate_key),
+        gate_id,
         supply,
         royalty
     );
@@ -122,7 +122,7 @@ pub fn create_collectible(
     match tx(call!(
         user,
         nft.create_collectible(
-            gate_id(gate_key),
+            gate_id.clone(),
             title.to_string(),
             description.to_string(),
             U64::from(supply),
@@ -131,9 +131,9 @@ pub fn create_collectible(
         )
     )) {
         Ok(_) => {
-            let collectible = get_collectible_by_gate_id(nft, gate_key);
+            let collectible = get_collectible_by_gate_id(nft, gate_id.clone());
             print!("Checking {:?}", collectible);
-            assert_eq!(collectible.gate_id, gate_id(gate_key));
+            assert_eq!(collectible.gate_id, gate_id.to_string());
             assert_eq!(collectible.metadata.title.unwrap(), title.to_string());
             assert_eq!(collectible.metadata.description.unwrap(), description.to_string());
             assert_eq!(collectible.current_supply, U64(supply));
@@ -148,10 +148,9 @@ pub fn create_collectible(
 
 pub fn get_collectible_by_gate_id(
     nft: &ContractAccount<NftContract>,
-    gate_key: u64,
+    gate_id: ValidGateId,
 ) -> Collectible {
-    let result: Option<Collectible> =
-        view!(nft.get_collectible_by_gate_id(gate_id(gate_key))).unwrap_json();
+    let result: Option<Collectible> = view!(nft.get_collectible_by_gate_id(gate_id)).unwrap_json();
     result.unwrap()
 }
 

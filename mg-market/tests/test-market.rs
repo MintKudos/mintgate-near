@@ -3,7 +3,7 @@
 use mg_core::{
     mock_context,
     mocked_context::{alice, any, bob, charlie, gate_id, nft},
-    GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId,
+    MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId, ValidGateId,
 };
 use mg_market::{MarketContract, TokenForSale};
 use near_sdk::{
@@ -98,7 +98,7 @@ impl MockedContext<MarketContractChecker> {
                     approval_id,
                     min_price: msg.min_price,
                     nft_id: self.context.predecessor_account_id.clone(),
-                    gate_id: msg.gate_id.clone(),
+                    gate_id: msg.gate_id.clone().map(|g| g.to_string()),
                     creator_id: msg.creator_id.clone(),
                     // royalty: msg.royalty,
                 },
@@ -107,7 +107,7 @@ impl MockedContext<MarketContractChecker> {
     }
 }
 
-fn approve_msg(price: u128, gate_id: GateId, creator_id: ValidAccountId) -> MarketApproveMsg {
+fn approve_msg(price: u128, gate_id: ValidGateId, creator_id: ValidAccountId) -> MarketApproveMsg {
     MarketApproveMsg {
         min_price: price.into(),
         gate_id: Some(gate_id),
@@ -159,8 +159,7 @@ mod nft_on_approve {
     }
 
     #[test]
-    // #[should_panic(expected = "Could not find min_price in msg: ")]
-    fn nft_on_approve_with_invalid_msg_should_panic2() {
+    fn nft_on_approve_accepts_tokens_from_different_nfts() {
         init()
             .run_as(alice(), |contract| {
                 contract.nft_on_approve(
