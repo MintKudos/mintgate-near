@@ -16,7 +16,7 @@ use near_sdk_sim::{
     ContractAccount, ExecutionResult,
 };
 use near_sdk_sim::{deploy, init_simulator, to_yocto, UserAccount};
-use near_sdk_sim::{transaction::ExecutionOutcome, view};
+use near_sdk_sim::{transaction::ExecutionOutcome, view, DEFAULT_GAS, STORAGE_AMOUNT};
 use std::{convert::TryInto, fmt::Debug};
 
 pub use mg_market::MarketContractContract as MarketContract;
@@ -51,8 +51,8 @@ pub fn init(n: usize, min_royalty: &str, max_royalty: &str, mintgate_fee: &str) 
         contract_id: NFT_ID,
         bytes: &NFT_WASM_BYTES,
         signer_account: root,
-        deposit: near_sdk_sim::STORAGE_AMOUNT * 10,
-        gas: near_sdk_sim::DEFAULT_GAS,
+        deposit: STORAGE_AMOUNT * 10,
+        gas: DEFAULT_GAS,
         init_method: init(
             admin.valid_account_id(),
             metadata(),
@@ -128,7 +128,9 @@ pub fn create_collectible(
             U64::from(supply),
             url.to_string(),
             royalty.parse().unwrap()
-        )
+        ),
+        0,
+        DEFAULT_GAS
     )) {
         Ok(_) => {
             let collectible = get_collectible_by_gate_id(nft, gate_id.clone());
