@@ -83,7 +83,7 @@ impl MockedContext<NftContractChecker> {
 
         assert!(self
             .contract
-            .get_tokens_by_owner_and_gate_id(gate_id.to_string(), self.pred_id())
+            .get_tokens_by_owner_and_gate_id(gate_id.clone(), self.pred_id())
             .iter()
             .map(|token| token.token_id)
             .collect::<Vec<TokenId>>()
@@ -91,7 +91,7 @@ impl MockedContext<NftContractChecker> {
 
         assert!(self
             .contract
-            .get_tokens_by_owner_and_gate_id(gate_id.to_string(), self.pred_id())
+            .get_tokens_by_owner_and_gate_id(gate_id.clone(), self.pred_id())
             .iter()
             .map(|token| token.gate_id.clone())
             .all(|gid| gid == gate_id.to_string()));

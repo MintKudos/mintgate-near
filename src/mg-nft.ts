@@ -378,7 +378,7 @@ export interface Self {
      * 
      *  See <https://github.com/epam/mintgate/issues/14>.
      */
-    get_tokens_by_owner_and_gate_id(args: { gate_id: GateId, owner_id: ValidAccountId }): Promise<Token[]>;
+    get_tokens_by_owner_and_gate_id(args: { gate_id: ValidGateId, owner_id: ValidAccountId }): Promise<Token[]>;
 
 }
 

@@ -337,9 +337,11 @@ impl NftContract {
     /// See <https://github.com/epam/mintgate/issues/14>.
     pub fn get_tokens_by_owner_and_gate_id(
         &self,
-        gate_id: GateId,
+        gate_id: ValidGateId,
         owner_id: ValidAccountId,
     ) -> Vec<Token> {
+        let gate_id = gate_id.to_string();
+
         match self.tokens_by_owner.get(owner_id.as_ref()) {
             None => Vec::new(),
             Some(list) => list
