@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.8 https://github.com/acuarica/near-syn
+// TypeScript bindings generated with near-ts v0.2.9 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -29,8 +29,38 @@ export interface Fraction {
 
 /**
  *  The `GateId` type represents the identifier of each `Collectible`.
+ *  This type is meant to be used internally by contracts.
+ *  To pass around `GateId` in public interfaces, use `ValidGateId`.
  */
 export type GateId = string;
+
+/**
+ *  Struct used to validate gate IDs during serialization and deserializiation.
+ * 
+ *  ```
+ *  use mg_core::ValidGateId;
+ *  use near_sdk::serde_json;
+ *  use std::convert::TryInto;
+ *  use std::convert::TryFrom;
+ * 
+ *  let key: ValidGateId = serde_json::from_str("\"ALTRMDMNNMRT\"").unwrap();
+ *  assert_eq!(key.to_string(), "ALTRMDMNNMRT".to_string());
+ * 
+ *  let key: ValidGateId = serde_json::from_str("\"VDvB2TS2xszCyQiCzSQEpD\"").unwrap();
+ *  assert_eq!(key.to_string(), "VDvB2TS2xszCyQiCzSQEpD".to_string());
+ * 
+ *  let key: Result<ValidGateId, _> = serde_json::from_str("o7fSzsCYsSedUYRw5HmhTo7fSzsCYsSedUYRw5HmhT");
+ *  assert!(key.is_err());
+ * 
+ *  let key: ValidGateId = "RHFJS1LPQAS2".try_into().unwrap();
+ *  let actual: String = serde_json::to_string(&key).unwrap();
+ *  assert_eq!(actual, "\"RHFJS1LPQAS2\"");
+ * 
+ *  let key = ValidGateId::try_from("RHFJS1LPQAS2").unwrap();
+ *  assert_eq!(key.as_ref(), &"RHFJS1LPQAS2".to_string());
+ *  ```
+ */
+export type ValidGateId = GateId;
 
 /**
  *  The `TokenId` type represents the identifier of each `Token`.
@@ -273,7 +303,7 @@ export interface MarketApproveMsg {
     /**
      *  Represents the `gate_id` of the token being approved if present.
      */
-    gate_id: GateId|null;
+    gate_id: ValidGateId|null;
 
     /**
      *  Represents the `creator_id` of the collectible of the token being approved if present.
@@ -311,7 +341,7 @@ export interface Self {
      * 
      *  See <https://github.com/epam/mintgate/issues/3>.
      */
-    create_collectible(args: { gate_id: string, title: string, description: string, supply: U64, gate_url: string, royalty: Fraction }, gas?: any): Promise<void>;
+    create_collectible(args: { gate_id: ValidGateId, title: string, description: string, supply: U64, gate_url: string, royalty: Fraction }, gas?: any): Promise<void>;
 
     /**
      *  Returns the `Collectible` with the given `gate_id`.
@@ -319,7 +349,7 @@ export interface Self {
      * 
      *  See <https://github.com/epam/mintgate/issues/16>.
      */
-    get_collectible_by_gate_id(args: { gate_id: string }): Promise<Collectible|null>;
+    get_collectible_by_gate_id(args: { gate_id: ValidGateId }): Promise<Collectible|null>;
 
     /**
      *  Returns all `Collectible`s created by `creator_id`.
@@ -336,7 +366,7 @@ export interface Self {
      * 
      *  See <https://github.com/epam/mintgate/issues/6>.
      */
-    claim_token(args: { gate_id: string }, gas?: any): Promise<TokenId>;
+    claim_token(args: { gate_id: ValidGateId }, gas?: any): Promise<TokenId>;
 
     /**
      *  Returns all `Token`s owned by `owner_id`.
