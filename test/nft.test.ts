@@ -1196,9 +1196,7 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${
-              alice.accountId
-            }","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${alice.accountId}\`"}`,
+            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${alice.accountId}\`"}`,
           })
         );
       });
