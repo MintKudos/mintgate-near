@@ -3,7 +3,15 @@ import BN from 'bn.js';
 
 import type { Account } from 'near-api-js';
 
-import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger, getShare } from './utils';
+import {
+  addTestCollectible,
+  generateId,
+  isWithinLastMs,
+  formatNsToMs,
+  logger,
+  getShare,
+  validGateIdRegEx,
+} from './utils';
 import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
 
 import type { NftApproveMsg, Payout } from '../src/mg-nft';
@@ -250,6 +258,28 @@ describe('Nft contract', () => {
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: `{"err":"RoyaltyTooLarge","royalty":{"num":${num},"den":${MINTGATE_FEE.den}},"mintgate_fee":{"num":${MINTGATE_FEE.num},"den":${MINTGATE_FEE.den}},"msg":"Royalty \`${num}/${MINTGATE_FEE.den}\` is too large for the given NFT fee \`${MINTGATE_FEE.num}/${MINTGATE_FEE.den}\`"}`,
+          })
+        );
+      });
+
+      // test against any unwanted character by adding adding rows to the tagged template literal like this:
+      // ${'PDN2L5%'}                                  | ${'contains % char'}
+      // todo: test empty string after fix
+      // ${''}                                  | ${'is an empty string'}
+      it.each`
+        invalidGateId                          | description
+        ${'abc.'}                              | ${'contains dot char'}
+        ${'abc,'}                              | ${'contains coma char'}
+        ${'Ж'}                                 | ${'contains non latin chars'}
+        ${'abcdefghijklmnopqrstuvwxyzABCDEFG'} | ${'is longer than 32 chars'}
+      `('should throw if `gate_id` $description (invalid)', async ({ invalidGateId }) => {
+        expect(invalidGateId.match(validGateIdRegEx)).toBeNull();
+        await expect(addTestCollectible(alice.contract, { gate_id: invalidGateId })).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: expect.stringContaining(
+              'Failed to deserialize input from JSON.: Error("The gate ID is invalid"'
+            ),
           })
         );
       });
@@ -665,13 +695,16 @@ describe('Nft contract', () => {
         const tokenId = await bob.contract.claim_token({ gate_id: gateId });
         logger.data("Token's owner is", bob.accountId);
 
-        await bob.contract.nft_approve({
-          token_id: tokenId,
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify({
-            min_price: '5',
-          }),
-        });
+        await bob.contract.nft_approve(
+          {
+            token_id: tokenId,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify({
+              min_price: '5',
+            }),
+          },
+          GAS
+        );
         logger.data("Token's sender is approved", merchant.contract.contractId);
 
         await expect(
@@ -957,31 +990,42 @@ describe('Nft contract', () => {
       const totalSupplyBefore = await alice.contract.nft_total_supply();
       logger.data('Total supply of tokens before', totalSupplyBefore);
 
+      const alicesTokens: string[] = [];
+      const bobsTokens: string[] = [];
+
       for (let i = 0; i < numberOfTokensToAdd; i += 1) {
-        if (i % 0) {
-          await alice.contract.claim_token({ gate_id: gateId });
+        if (i % 2) {
+          alicesTokens.push(await alice.contract.claim_token({ gate_id: gateId }));
         } else {
-          await bob.contract.claim_token({ gate_id: gateId });
+          bobsTokens.push(await bob.contract.claim_token({ gate_id: gateId }));
         }
       }
 
       await alice.contract.nft_transfer({
         receiver_id: merchant.accountId,
-        token_id: (await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId }))[0].token_id,
+        token_id: alicesTokens[0],
         enforce_approval_id: null,
         memo: null,
       });
 
-      const bobsTokenId = (await alice.contract.get_tokens_by_owner({ owner_id: bob.accountId }))[0].token_id;
-
-      await bob.contract.nft_approve({
-        token_id: bobsTokenId,
-        account_id: merchant.contract.contractId,
-        msg: JSON.stringify({
-          min_price: '5',
-        }),
-      });
-      await merchant2.contract.buy_token({ token_id: bobsTokenId }, GAS, new BN('5'));
+      await bob.contract.nft_approve(
+        {
+          token_id: bobsTokens[0],
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify({
+            min_price: '5',
+          }),
+        },
+        GAS
+      );
+      await merchant2.contract.buy_token(
+        {
+          nft_id: bob.contractAccount.accountId,
+          token_id: bobsTokens[0],
+        },
+        GAS,
+        new BN('5')
+      );
 
       const totalSupplyAfter = await alice.contract.nft_total_supply();
       logger.data('Total supply of tokens minted after', totalSupplyAfter);
@@ -1037,11 +1081,14 @@ describe('Nft contract', () => {
       token = await bob.contract.nft_token({ token_id: tokenId });
       logger.data('Token before approval', token);
 
-      await bob.contract.nft_approve({
-        token_id: tokenId,
-        account_id: merchant.contract.contractId,
-        msg: JSON.stringify(message),
-      });
+      await bob.contract.nft_approve(
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify(message),
+        },
+        GAS
+      );
 
       token = await bob.contract.nft_token({ token_id: tokenId });
       logger.data('Token after approval', token);
@@ -1086,11 +1133,14 @@ describe('Nft contract', () => {
         logger.data('Attempting to approve token with message', msg);
 
         await expect(
-          alice.contract.nft_approve({
-            token_id: tokenId,
-            account_id: merchant.contract.contractId,
-            msg,
-          })
+          alice.contract.nft_approve(
+            {
+              token_id: tokenId,
+              account_id: merchant.contract.contractId,
+              msg,
+            },
+            GAS
+          )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
@@ -1119,20 +1169,23 @@ describe('Nft contract', () => {
 
       it("should throw an error if approver doesn't own the token", async () => {
         logger.data('Attempting to approve token, approver', alice.accountId);
-        logger.data('Attempting to approve token, owner', token!.owner_id);
+        logger.data('Attempting to approve token, owner', bob.accountId);
+
+        const tokenId2 = await bob.contract.claim_token({ gate_id: gateId });
 
         await expect(
-          alice.contract.nft_approve({
-            token_id: token!.token_id,
-            account_id: merchant.contract.contractId,
-            msg: JSON.stringify(message),
-          })
+          alice.contract.nft_approve(
+            {
+              token_id: tokenId2,
+              account_id: merchant.contract.contractId,
+              msg: JSON.stringify(message),
+            },
+            GAS
+          )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${
-              alice.accountId
-            }","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${alice.accountId}\`"}`,
           })
         );
       });
@@ -1140,11 +1193,14 @@ describe('Nft contract', () => {
       it('should throw an error if token is already approved', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
 
-        await alice.contract.nft_approve({
-          token_id: tokenId2,
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify(message),
-        });
+        await alice.contract.nft_approve(
+          {
+            token_id: tokenId2,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(message),
+          },
+          GAS
+        );
 
         const token2 = await alice.contract.nft_token({ token_id: tokenId2 });
         logger.data('Attempting to approve token with approvals:', token2!.approvals);
@@ -1197,20 +1253,21 @@ describe('Nft contract', () => {
         min_price: '5',
       };
 
-      await bob.contract.nft_approve({
-        token_id: tokenId,
-        account_id: merchant.contract.contractId,
-        msg: JSON.stringify(msg),
-      });
+      await bob.contract.nft_approve(
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify(msg),
+        },
+        GAS
+      );
 
       token = await bob.contract.nft_token({ token_id: tokenId });
       expect(token!.approvals[merchant.contract.contractId]).not.toBeUndefined();
 
       logger.data('Approvals before', token!.approvals);
 
-      await bob.account.functionCall(
-        bob.contractAccount.accountId,
-        'nft_revoke',
+      await bob.contract.nft_revoke(
         {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
@@ -1310,11 +1367,14 @@ describe('Nft contract', () => {
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
 
-      await bob.contract.nft_approve({
-        token_id: tokenId,
-        account_id: merchant.contract.contractId,
-        msg: JSON.stringify({ min_price: '5' }),
-      });
+      await bob.contract.nft_approve(
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify({ min_price: '5' }),
+        },
+        GAS
+      );
       expect(await merchant.contract.get_tokens_for_sale()).toContainEqual(
         expect.objectContaining({ token_id: tokenId })
       );
@@ -1324,7 +1384,7 @@ describe('Nft contract', () => {
 
       logger.data('Approvals before', tokenBefore.approvals);
 
-      await bob.account.functionCall(bob.contractAccount.accountId, 'nft_revoke_all', { token_id: tokenId }, GAS);
+      await bob.contract.nft_revoke_all({ token_id: tokenId }, GAS);
     });
 
     it('should remove an approval for one unspecified market', async () => {
@@ -1359,11 +1419,14 @@ describe('Nft contract', () => {
           min_price: '6',
         };
         approvePromises.push(
-          bob.contract.nft_approve({
-            token_id: tokenId,
-            account_id: contractId,
-            msg: JSON.stringify(msg),
-          })
+          bob.contract.nft_approve(
+            {
+              token_id: tokenId,
+              account_id: contractId,
+              msg: JSON.stringify(msg),
+            },
+            GAS
+          )
         );
       });
 

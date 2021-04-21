@@ -53,11 +53,14 @@ describe('Market contract', () => {
 
       await Promise.all(
         newTokensIds.map((tokenId) =>
-          bob.contract.nft_approve({
-            token_id: tokenId,
-            account_id: merchant.contract.contractId,
-            msg: JSON.stringify(message),
-          })
+          bob.contract.nft_approve(
+            {
+              token_id: tokenId,
+              account_id: merchant.contract.contractId,
+              msg: JSON.stringify(message),
+            },
+            GAS
+          )
         )
       );
 
@@ -85,11 +88,14 @@ describe('Market contract', () => {
 
       await Promise.all(
         newTokensIds.map((tokenId) =>
-          bob.contract.nft_approve({
-            token_id: tokenId,
-            account_id: merchant.contract.contractId,
-            msg: JSON.stringify({ min_price: '5' }),
-          })
+          bob.contract.nft_approve(
+            {
+              token_id: tokenId,
+              account_id: merchant.contract.contractId,
+              msg: JSON.stringify({ min_price: '5' }),
+            },
+            GAS
+          )
         )
       );
 
@@ -151,11 +157,14 @@ describe('Market contract', () => {
       });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
-      await alice.contract.nft_approve({
-        token_id: tokenId,
-        account_id: merchant.contract.contractId,
-        msg: JSON.stringify(message),
-      });
+      await alice.contract.nft_approve(
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify(message),
+        },
+        GAS
+      );
 
       [
         { total: buyerBalanceBefore },
@@ -169,7 +178,14 @@ describe('Market contract', () => {
         alice.account.getAccountBalance(),
       ]);
 
-      await merchant2.contract.buy_token({ token_id: tokenId }, GAS, new BN(priceInternalNear!));
+      await merchant2.contract.buy_token(
+        {
+          nft_id: bob.contractAccount.accountId,
+          token_id: tokenId,
+        },
+        GAS,
+        new BN(priceInternalNear!)
+      );
 
       [
         { total: buyerBalanceAfter },
@@ -209,7 +225,7 @@ describe('Market contract', () => {
       logger.data('creatorShare', creatorShare);
       logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
 
-      expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
+      expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 2);
     });
 
     it("should transfer the remaining amount to the seller's wallet", async () => {
@@ -325,11 +341,14 @@ describe('Market contract', () => {
         });
 
         tokenId2 = await bob.contract.claim_token({ gate_id: gateId2 });
-        await bob.contract.nft_approve({
-          token_id: tokenId2,
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify(message),
-        });
+        await bob.contract.nft_approve(
+          {
+            token_id: tokenId2,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(message),
+          },
+          GAS
+        );
 
         buyerBalanceBefore2 = (await merchant2.account.getAccountBalance()).total;
         [
@@ -342,7 +361,14 @@ describe('Market contract', () => {
           bob.account.getAccountBalance(),
         ]);
 
-        await merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+        await merchant2.contract.buy_token(
+          {
+            nft_id: bob.contractAccount.accountId,
+            token_id: tokenId2,
+          },
+          GAS,
+          new BN(priceInternalNear!)
+        );
 
         [
           { total: buyerBalanceAfter2 },
@@ -408,11 +434,14 @@ describe('Market contract', () => {
 
         const tokenId2 = await seller.contract.claim_token({ gate_id: gateId2 });
 
-        await seller.contract.nft_approve({
-          token_id: tokenId2,
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify(message),
-        });
+        await seller.contract.nft_approve(
+          {
+            token_id: tokenId2,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(message),
+          },
+          GAS
+        );
 
         const [
           { total: sellerBalanceBefore2 },
@@ -427,7 +456,10 @@ describe('Market contract', () => {
         await buyer.account.functionCall(
           merchant2.contractAccount.accountId,
           'buy_token',
-          { token_id: tokenId2 },
+          {
+            token_id: tokenId2,
+            nft_id: bob.contractAccount.accountId,
+          },
           GAS,
           new BN(priceInternalNear!)
         );
@@ -476,11 +508,14 @@ describe('Market contract', () => {
 
         const tokenId2 = await seller.contract.claim_token({ gate_id: gateId2 });
 
-        await seller.contract.nft_approve({
-          token_id: tokenId2,
-          account_id: creator.accountId,
-          msg: JSON.stringify(message),
-        });
+        await seller.contract.nft_approve(
+          {
+            token_id: tokenId2,
+            account_id: creator.accountId,
+            msg: JSON.stringify(message),
+          },
+          GAS
+        );
 
         const [
           { total: buyerBalanceBefore2 },
@@ -494,7 +529,14 @@ describe('Market contract', () => {
           creator.getAccountBalance(),
         ]);
 
-        await buyer.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+        await buyer.contract.buy_token(
+          {
+            nft_id: bob.contractAccount.accountId,
+            token_id: tokenId2,
+          },
+          GAS,
+          new BN(priceInternalNear!)
+        );
 
         const [
           { total: buyerBalanceAfter2 },
@@ -552,11 +594,16 @@ describe('Market contract', () => {
 
         const tokenId2 = JSON.parse(Buffer.from(executionOutcome.status.SuccessValue, 'base64').toString());
 
-        await merchant.contractAccount.functionCall(bob.contractAccount.accountId, 'nft_approve', {
-          token_id: tokenId2,
-          account_id: seller.accountId,
-          msg: JSON.stringify(message),
-        });
+        await merchant.contractAccount.functionCall(
+          bob.contractAccount.accountId,
+          'nft_approve',
+          {
+            token_id: tokenId2,
+            account_id: seller.accountId,
+            msg: JSON.stringify(message),
+          },
+          GAS
+        );
 
         const [
           { total: buyerBalanceBefore2 },
@@ -570,7 +617,14 @@ describe('Market contract', () => {
           creator.account.getAccountBalance(),
         ]);
 
-        await buyer.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+        await buyer.contract.buy_token(
+          {
+            nft_id: bob.contractAccount.accountId,
+            token_id: tokenId2,
+          },
+          GAS,
+          new BN(priceInternalNear!)
+        );
 
         const [
           { total: buyerBalanceAfter2 },
@@ -617,11 +671,14 @@ describe('Market contract', () => {
         });
 
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId2 });
-        await alice.contract.nft_approve({
-          token_id: tokenId2,
-          account_id: buyer.accountId,
-          msg: JSON.stringify(message),
-        });
+        await alice.contract.nft_approve(
+          {
+            token_id: tokenId2,
+            account_id: buyer.accountId,
+            msg: JSON.stringify(message),
+          },
+          GAS
+        );
 
         const [
           { total: buyerBalanceBefore2 },
@@ -638,7 +695,10 @@ describe('Market contract', () => {
         await buyer.functionCall(
           merchant2.contractAccount.accountId,
           'buy_token',
-          { token_id: tokenId2 },
+          {
+            token_id: tokenId2,
+            nft_id: bob.contractAccount.accountId,
+          },
           GAS,
           new BN(priceInternalNear!)
         );
@@ -685,22 +745,26 @@ describe('Market contract', () => {
           creator_id: '',
         };
 
-        await alice.contract.nft_transfer({
-          receiver_id: merchant2.accountId,
-          token_id: tokenId2,
-          enforce_approval_id: null,
-          memo: null,
-        });
-
-        await merchant.contract.nft_on_approve({
-          token_id: tokenId2,
-          owner_id: merchant2.accountId,
-          approval_id: '10',
-          msg: JSON.stringify(approveMessage),
-        });
+        await alice.contract.nft_approve(
+          {
+            token_id: tokenId2,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(approveMessage),
+          },
+          GAS
+        );
 
         await expect(
-          merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!))
+          alice.account.functionCall(
+            merchant.contract.contractId,
+            'buy_token',
+            {
+              nft_id: bob.contractAccount.accountId,
+              token_id: tokenId2,
+            },
+            GAS,
+            new BN(priceInternalNear!)
+          )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
@@ -713,11 +777,18 @@ describe('Market contract', () => {
         const tokenId3 = await alice.contract.claim_token({ gate_id: gateId });
 
         await expect(
-          merchant2.contract.buy_token({ token_id: tokenId3 }, GAS, new BN(priceInternalNear!))
+          merchant2.contract.buy_token(
+            {
+              nft_id: bob.contractAccount.accountId,
+              token_id: tokenId3,
+            },
+            GAS,
+            new BN(priceInternalNear!)
+          )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${tokenId3}","msg":"Token ID \`U64(${tokenId3})\` was not found"}`,
+            panic_msg: `{"err":"TokenKeyNotFound","token_key":["${bob.contractAccount.accountId}","${tokenId3}"],"msg":"Token Key \`${bob.contractAccount.accountId}:U64(${tokenId3})\` was not found"}`,
           })
         );
       });
@@ -726,13 +797,25 @@ describe('Market contract', () => {
         const tokenId4 = await alice.contract.claim_token({ gate_id: gateId });
         const notEnoughDeposit = new BN(priceInternalNear!).sub(new BN(1));
 
-        await alice.contract.nft_approve({
-          token_id: tokenId4,
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify(message),
-        });
+        await alice.contract.nft_approve(
+          {
+            token_id: tokenId4,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify(message),
+          },
+          GAS
+        );
 
-        await expect(merchant2.contract.buy_token({ token_id: tokenId4 }, GAS, notEnoughDeposit)).rejects.toThrow(
+        await expect(
+          merchant2.contract.buy_token(
+            {
+              nft_id: bob.contractAccount.accountId,
+              token_id: tokenId4,
+            },
+            GAS,
+            notEnoughDeposit
+          )
+        ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: '{"err":"NotEnoughDepositToBuyToken","msg":"Not enough deposit to cover token minimum price"}',
@@ -794,11 +877,14 @@ describe('Market contract', () => {
       });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
-      await alice.contract.nft_approve({
-        token_id: tokenId,
-        account_id: merchant.contract.contractId,
-        msg: JSON.stringify({ min_price: '5' }),
-      });
+      await alice.contract.nft_approve(
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify({ min_price: '5' }),
+        },
+        GAS
+      );
 
       await alice.contractAccount.functionCall(merchant.contract.contractId, 'nft_on_revoke', { token_id: tokenId });
 
@@ -840,26 +926,7 @@ describe('Market contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${tokenId2}","msg":"Token ID \`U64(${tokenId2})\` was not found"}`,
-          })
-        );
-      });
-
-      it('should throw when trying to call from not nft approved contract', async () => {
-        const tokenId3 = await alice.contract.claim_token({ gate_id: gateId });
-
-        await alice.contract.nft_approve({
-          token_id: tokenId3,
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify({ min_price: '5' }),
-        });
-
-        await expect(
-          bob.account.functionCall(merchant.contract.contractId, 'nft_on_revoke', { token_id: tokenId3 })
-        ).rejects.toThrow(
-          expect.objectContaining({
-            type: 'GuestPanic',
-            panic_msg: '{"err":"RevokeNotAllowed","msg":"Only nft approved contract can delist a token"}',
+            panic_msg: `{"err":"TokenKeyNotFound","token_key":["${bob.contractAccount.accountId}","${tokenId2}"],"msg":"Token Key \`${bob.contractAccount.accountId}:U64(${tokenId2})\` was not found"}`,
           })
         );
       });

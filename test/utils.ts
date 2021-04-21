@@ -94,7 +94,12 @@ export const logger = {
   data(message: string, data?: unknown): void {
     this.out.write(`\n${chalk.blue.underline(message)}: `);
     if (data !== undefined) {
-      this.out.write(`${util.inspect(data, { colors: true, depth: null })}\n\n`);
+      this.out.write(
+        `${util.inspect(data, {
+          colors: true,
+          depth: null,
+        })}\n\n`
+      );
     } else {
       this.out.write('\n\n');
     }
@@ -110,3 +115,5 @@ export const logger = {
 };
 
 export const getShare = (totalAmount: number, { num, den }: Fraction) => (totalAmount * num) / den;
+
+export const validGateIdRegEx = /^[a-z\d_-]{1,32}$/gi;
