@@ -4,7 +4,15 @@ import BN from 'bn.js';
 import type { Account } from 'near-api-js';
 import type { FinalExecutionOutcome } from 'near-api-js/lib/providers';
 
-import { addTestCollectible, generateId, isWithinLastMs, formatNsToMs, logger, getShare } from './utils';
+import {
+  addTestCollectible,
+  generateId,
+  isWithinLastMs,
+  formatNsToMs,
+  logger,
+  getShare,
+  validGateIdRegEx,
+} from './utils';
 import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
 
 import type { NftApproveMsg, Payout } from '../src/mg-nft';
@@ -251,6 +259,28 @@ describe('Nft contract', () => {
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: `{"err":"RoyaltyTooLarge","royalty":{"num":${num},"den":${MINTGATE_FEE.den}},"mintgate_fee":{"num":${MINTGATE_FEE.num},"den":${MINTGATE_FEE.den}},"msg":"Royalty \`${num}/${MINTGATE_FEE.den}\` is too large for the given NFT fee \`${MINTGATE_FEE.num}/${MINTGATE_FEE.den}\`"}`,
+          })
+        );
+      });
+
+      // test against any unwanted character by adding adding rows to the tagged template literal like this:
+      // ${'PDN2L5%'}                                  | ${'contains % char'}
+      // todo: test empty string after fix
+      // ${''}                                  | ${'is an empty string'}
+      it.each`
+        invalidGateId                          | description
+        ${'abc.'}                              | ${'contains dot char'}
+        ${'abc,'}                              | ${'contains coma char'}
+        ${'Ж'}                                 | ${'contains non latin chars'}
+        ${'abcdefghijklmnopqrstuvwxyzABCDEFG'} | ${'is longer than 32 chars'}
+      `('should throw if `gate_id` $description (invalid)', async ({ invalidGateId }) => {
+        expect(invalidGateId.match(validGateIdRegEx)).toBeNull();
+        await expect(addTestCollectible(alice.contract, { gate_id: invalidGateId })).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: expect.stringContaining(
+              'Failed to deserialize input from JSON.: Error("The gate ID is invalid"'
+            ),
           })
         );
       });
