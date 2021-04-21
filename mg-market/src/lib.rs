@@ -90,8 +90,6 @@ enum Panics {
     BuyOwnTokenNotAllowed,
     #[panic_msg = "Not enough deposit to cover token minimum price"]
     NotEnoughDepositToBuyToken,
-    #[panic_msg = "Only nft approved contract can delist a token"]
-    RevokeNotAllowed,
 }
 
 #[near_log(skip_args, only_pub)]
@@ -300,16 +298,8 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         let token_key = TokenKey(nft_id, token_id);
 
         if let Some(token) = self.tokens_for_sale.get(&token_key) {
-            if token.nft_id == token_key.0 {
-                self.remove_token_id(
-                    &token_key,
-                    &token.owner_id,
-                    &token.gate_id,
-                    &token.creator_id,
-                );
-            } else {
-                Panics::RevokeNotAllowed.panic();
-            }
+            assert_eq!(token.nft_id, token_key.0);
+            self.remove_token_id(&token_key, &token.owner_id, &token.gate_id, &token.creator_id);
         } else {
             Panics::TokenKeyNotFound { token_key }.panic();
         }
