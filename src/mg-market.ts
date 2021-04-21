@@ -36,6 +36,30 @@ export type GateId = string;
 
 /**
  *  Struct used to validate gate IDs during serialization and deserializiation.
+ *  A valid `GateId` cannot be empty nor have more than 32 chars long.
+ *  Moreover, these are the following valid chars for a `GateId`:
+ * 
+ *  > 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-'
+ * 
+ *  ## Examples
+ * 
+ *  ```
+ *  use mg_core::ValidGateId;
+ *  use std::convert::TryFrom;
+ * 
+ *  assert!(ValidGateId::try_from("TGWN_P5W6QNX").is_ok());
+ *  assert!(ValidGateId::try_from("YUF6J-4D6ZTB").is_ok());
+ *  assert!(ValidGateId::try_from("RHFJS1LPQAS2").is_ok());
+ *  assert!(ValidGateId::try_from("ALTRMDMNNMRT").is_ok());
+ *  assert!(ValidGateId::try_from("VDvB2TS2xszCyQiCzSQEpD").is_ok());
+ * 
+ *  assert!(ValidGateId::try_from("VDvB2TS2.szCyQiCzSQEpD").is_err());
+ *  assert!(ValidGateId::try_from("VDvB2TS2szCyQ/iCzSQEpD").is_err());
+ *  assert!(ValidGateId::try_from("VDvB2TS2xszCyQiCzSQEpDVDvB2TS2xszCyQiCzSQEpD").is_err());
+ *  assert!(ValidGateId::try_from("").is_err());
+ *  ```
+ * 
+ *  ## Usage
  * 
  *  ```
  *  use mg_core::ValidGateId;
