@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "d6f23feb-7161-4ce2-8523-ee1873d6cdc3",
+		"_postman_id": "ab1c6caa-b5a1-4e82-9302-bb4a45d7ebfa",
 		"name": "Mintgate",
 		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. import postman collection from `./test/mintgatePostmanCollection.json` file;\n3. install all dependencies:\n```\nyarn\n```\n4. to start api server run in the terminal from mintgate project's root dir:\n```\nnode-api-server\n```\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `collectibleId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR account are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -17,7 +17,7 @@
 							"script": {
 								"exec": [
 									"const { v4: uuidv4 } = require('uuid');\r",
-									"pm.collectionVariables.set(\"collectibleId\", uuidv4());\r",
+									"pm.collectionVariables.set(\"collectibleId\", uuidv4().slice(4));\r",
 									""
 								],
 								"type": "text/javascript"
@@ -1202,55 +1202,55 @@
 	"variable": [
 		{
 			"key": "nft",
-			"value": "nft-1618998750449-691685"
+			"value": "nft-1619009681565-277025"
 		},
 		{
 			"key": "nftPrivateKey",
-			"value": "ed25519:6MJ2skiWt7FPYGKodZ7nJtUa3FiRTKJPppyvUsXaR3WULy6qE7AXKD9cnbk2NaQcpbz5yQGqNzcraYLuYhRvKrc"
+			"value": "ed25519:4qvQkh9dRA4iFAAggBjXpdFje2DpbintxMP3zoeHHfPPCWhuDJUGLVsdG6pDtxho6VmYv4kXHE5jmxAzwfdkwrxd"
 		},
 		{
 			"key": "market",
-			"value": "market-1618998759874-197364"
+			"value": "market-1619009706510-673609"
 		},
 		{
 			"key": "marketPrivateKey",
-			"value": "ed25519:R3TxRRKFTBUeVoAbbPE3vYLUi9B2BoTAfzgMBz4yMXsijGa6G6ftzeCXcmppKPJXAYKkyZ637BBEcZLCN4y2H6z"
+			"value": "ed25519:3GoNLm5ZjuVQMeTJe3BBubwabxstRiBKvgM6hM3vfyyVKm82YKuuBQJWeugi8BuqHLYBwAKi42ppBjMubuTcfj2m"
 		},
 		{
 			"key": "alice",
-			"value": "alice-1618998768966-973906"
+			"value": "alice-1619009717404-509768"
 		},
 		{
 			"key": "alicePrivateKey",
-			"value": "ed25519:42dxE83dPWR6LiGyDKHBXebgJRZWjRX79VyqbbjmQCTwiXtC3pL7XGgnprbxaBrqndggwFXA3G9JfoozuZmzcxip"
+			"value": "ed25519:3k8riVwVkvdvqQyxTrN4GCPrmyJU9ENq8YQHrvrfC4DA51fVSJ4Xtj5cRH25Ne5djN131q2Ebt9R21dajg3StC6J"
 		},
 		{
 			"key": "bob",
-			"value": "bob-1618998771425-100424"
+			"value": "bob-1619009720533-521821"
 		},
 		{
 			"key": "bobPrivateKey",
-			"value": "ed25519:WmWCKgZSqzPTK2o9YYfWgahHygwkieA2uRsggA1QDFjJs1Txw4EfLZB7YEhRoM3nNsePMfLocvdhRf8W768wLqU"
+			"value": "ed25519:2HpsAXbUQAyRYq5cSpxTpbX4TbXrCFU6pHjJhXpXxF9BUqzZjhzoZChNwBwB4Y2Km78Qtt2G2nQChu32b7cWRQcG"
 		},
 		{
 			"key": "merchant-1",
-			"value": "merchant-1-1618998775009-981425"
+			"value": "merchant-1-1619009723982-470282"
 		},
 		{
 			"key": "merchant-1PrivateKey",
-			"value": "ed25519:1mmExXCsoZSqpGu693WJ6VvuEmMcfkYnqeQPgXCFuU3Lhq9tRcdY7CuzZZFgXTHKnhqtDrXAeTH7V5rtS7ggZD1"
+			"value": "ed25519:4mcadkTZyARUswnxFWb4hBmwk8wo8KxqDe5xkZ35vXtN3nAqx6NDJy5c7EnnCezvE7u6i1mzg8s21kfp68EWF9ZV"
 		},
 		{
 			"key": "merchant-2",
-			"value": "merchant-2-1618998778053-250383"
+			"value": "merchant-2-1619009731441-340028"
 		},
 		{
 			"key": "merchant-2PrivateKey",
-			"value": "ed25519:rV2FWTUM43FefFnvqpqbxm1EGqn4mkehK2TWUz6DYwbg48TTdy95B6wih5tPdxMDnPD9kiDcCDxv3VT46SUnhDZ"
+			"value": "ed25519:sANcun9XUjWYjbJTBEGvFz9ZAonLSBdBYGt6uXyFUssENxJbb6jgG72cGenjqyKtrwqKduHNjjxsUqkrzkbru1h"
 		},
 		{
 			"key": "mintgate-fee",
-			"value": "mintgate-fee-1618998781101-464226"
+			"value": "mintgate-fee-1619009734405-90487"
 		},
 		{
 			"key": "tokenPrice",
@@ -1258,7 +1258,7 @@
 		},
 		{
 			"key": "mintgate-feePrivateKey",
-			"value": "ed25519:jXGRzJYRdERrnP4YYpvYa8NP14BkVNfHB8Wo1Xs4nVMRq2erHXpYrYVuWqphjPBiekeu8TM9uNECP3CkFh7pikZ"
+			"value": "ed25519:bxnyeEMuXRXnzv96dSbopgcqH55pqk7KoQ7qynGjorJoZjbi66NjpFuVzdb4cdDkrwSur6d6ViYkgShQqRreeGZ"
 		},
 		{
 			"key": "serverHost",
