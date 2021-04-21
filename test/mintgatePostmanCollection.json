@@ -1202,55 +1202,55 @@
 	"variable": [
 		{
 			"key": "nft",
-			"value": "nft-1618929260089-145327"
+			"value": "nft-1618998750449-691685"
 		},
 		{
 			"key": "nftPrivateKey",
-			"value": "ed25519:2cRqAVpMnLShCE778fnM4C5ZJL1v1WzcGyVQk793XYDYMBXKs3oPd1Z62BBqP8e1v87s8N46LzPXkdPb1q8DTC8g"
+			"value": "ed25519:6MJ2skiWt7FPYGKodZ7nJtUa3FiRTKJPppyvUsXaR3WULy6qE7AXKD9cnbk2NaQcpbz5yQGqNzcraYLuYhRvKrc"
 		},
 		{
 			"key": "market",
-			"value": "market-1618929273172-369418"
+			"value": "market-1618998759874-197364"
 		},
 		{
 			"key": "marketPrivateKey",
-			"value": "ed25519:5Zewyoi4QSjqy8oEzQYpw26KWEHnvPAj3XR8mCdB2nWvtUSPx61WBdvayXn7xKazCN3dD5Z43L6NByjTqP8BQ4Yq"
+			"value": "ed25519:R3TxRRKFTBUeVoAbbPE3vYLUi9B2BoTAfzgMBz4yMXsijGa6G6ftzeCXcmppKPJXAYKkyZ637BBEcZLCN4y2H6z"
 		},
 		{
 			"key": "alice",
-			"value": "alice-1618929284746-923267"
+			"value": "alice-1618998768966-973906"
 		},
 		{
 			"key": "alicePrivateKey",
-			"value": "ed25519:2NvK869knVMxn5RWRWxH5q7aVViNDNL2QDfRkwcJd7gok1CxKXmjaPzotfa4cWw64TDQLArqHZuNHtpHsYC58PuR"
+			"value": "ed25519:42dxE83dPWR6LiGyDKHBXebgJRZWjRX79VyqbbjmQCTwiXtC3pL7XGgnprbxaBrqndggwFXA3G9JfoozuZmzcxip"
 		},
 		{
 			"key": "bob",
-			"value": "bob-1618929292451-829977"
+			"value": "bob-1618998771425-100424"
 		},
 		{
 			"key": "bobPrivateKey",
-			"value": "ed25519:5jbG6BYRr5e1XMPkPrXQyEGB8HMmuZTXewfb9WjQtJAShMaQbrm2TpALqcNFut58ZdSynxUCxWznofa84oQ9Fk1V"
+			"value": "ed25519:WmWCKgZSqzPTK2o9YYfWgahHygwkieA2uRsggA1QDFjJs1Txw4EfLZB7YEhRoM3nNsePMfLocvdhRf8W768wLqU"
 		},
 		{
 			"key": "merchant-1",
-			"value": "merchant-1-1618929295493-718340"
+			"value": "merchant-1-1618998775009-981425"
 		},
 		{
 			"key": "merchant-1PrivateKey",
-			"value": "ed25519:4Dpdr3zAqfKXs9YMmhTrLVaKSwxLWdE1qJoiPsS22kcPYTCWi8YJNBBk45kMwmTmD2beJwcsNqXM2E9kBA68DoNw"
+			"value": "ed25519:1mmExXCsoZSqpGu693WJ6VvuEmMcfkYnqeQPgXCFuU3Lhq9tRcdY7CuzZZFgXTHKnhqtDrXAeTH7V5rtS7ggZD1"
 		},
 		{
 			"key": "merchant-2",
-			"value": "merchant-2-1618929302769-270907"
+			"value": "merchant-2-1618998778053-250383"
 		},
 		{
 			"key": "merchant-2PrivateKey",
-			"value": "ed25519:3ufWW4jFzczEC879EgqDHMxgU6ECaB1UWZjmHHp8KgHka8BroUEy8gyoj7mi8dBtxwRWcT1myrpQALUsR4zEGHk2"
+			"value": "ed25519:rV2FWTUM43FefFnvqpqbxm1EGqn4mkehK2TWUz6DYwbg48TTdy95B6wih5tPdxMDnPD9kiDcCDxv3VT46SUnhDZ"
 		},
 		{
 			"key": "mintgate-fee",
-			"value": "mintgate-fee-1618929306540-796349"
+			"value": "mintgate-fee-1618998781101-464226"
 		},
 		{
 			"key": "tokenPrice",
@@ -1258,7 +1258,7 @@
 		},
 		{
 			"key": "mintgate-feePrivateKey",
-			"value": "ed25519:4rRPcdWcPnrcxE4vAdPGG9g3gHCKfzuKdrmKAYw4mRyTi6PmWivR3SRpBxYfVJFDDrgsb3kCiWaSc6Ma9yUP5tgm"
+			"value": "ed25519:jXGRzJYRdERrnP4YYpvYa8NP14BkVNfHB8Wo1Xs4nVMRq2erHXpYrYVuWqphjPBiekeu8TM9uNECP3CkFh7pikZ"
 		},
 		{
 			"key": "serverHost",
