@@ -53,9 +53,7 @@ describe('Market contract', () => {
 
       await Promise.all(
         newTokensIds.map((tokenId) =>
-          bob.account.functionCall(
-            bob.contractAccount.accountId,
-            'nft_approve',
+          bob.contract.nft_approve(
             {
               token_id: tokenId,
               account_id: merchant.contract.contractId,
@@ -90,9 +88,7 @@ describe('Market contract', () => {
 
       await Promise.all(
         newTokensIds.map((tokenId) =>
-          bob.account.functionCall(
-            bob.contractAccount.accountId,
-            'nft_approve',
+          bob.contract.nft_approve(
             {
               token_id: tokenId,
               account_id: merchant.contract.contractId,
@@ -161,9 +157,7 @@ describe('Market contract', () => {
       });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
-      await alice.account.functionCall(
-        alice.contractAccount.accountId,
-        'nft_approve',
+      await alice.contract.nft_approve(
         {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
@@ -231,7 +225,7 @@ describe('Market contract', () => {
       logger.data('creatorShare', creatorShare);
       logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
 
-      expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
+      expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 2);
     });
 
     it("should transfer the remaining amount to the seller's wallet", async () => {
@@ -347,9 +341,7 @@ describe('Market contract', () => {
         });
 
         tokenId2 = await bob.contract.claim_token({ gate_id: gateId2 });
-        await bob.account.functionCall(
-          bob.contractAccount.accountId,
-          'nft_approve',
+        await bob.contract.nft_approve(
           {
             token_id: tokenId2,
             account_id: merchant.contract.contractId,
@@ -442,9 +434,7 @@ describe('Market contract', () => {
 
         const tokenId2 = await seller.contract.claim_token({ gate_id: gateId2 });
 
-        await seller.account.functionCall(
-          seller.contractAccount.accountId,
-          'nft_approve',
+        await seller.contract.nft_approve(
           {
             token_id: tokenId2,
             account_id: merchant.contract.contractId,
@@ -518,9 +508,7 @@ describe('Market contract', () => {
 
         const tokenId2 = await seller.contract.claim_token({ gate_id: gateId2 });
 
-        await seller.account.functionCall(
-          seller.contractAccount.accountId,
-          'nft_approve',
+        await seller.contract.nft_approve(
           {
             token_id: tokenId2,
             account_id: creator.accountId,
@@ -683,9 +671,7 @@ describe('Market contract', () => {
         });
 
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId2 });
-        await alice.account.functionCall(
-          alice.contractAccount.accountId,
-          'nft_approve',
+        await alice.contract.nft_approve(
           {
             token_id: tokenId2,
             account_id: buyer.accountId,
@@ -759,9 +745,7 @@ describe('Market contract', () => {
           creator_id: '',
         };
 
-        await alice.account.functionCall(
-          alice.contractAccount.accountId,
-          'nft_approve',
+        await alice.contract.nft_approve(
           {
             token_id: tokenId2,
             account_id: merchant.contract.contractId,
@@ -813,9 +797,7 @@ describe('Market contract', () => {
         const tokenId4 = await alice.contract.claim_token({ gate_id: gateId });
         const notEnoughDeposit = new BN(priceInternalNear!).sub(new BN(1));
 
-        await alice.account.functionCall(
-          alice.contractAccount.accountId,
-          'nft_approve',
+        await alice.contract.nft_approve(
           {
             token_id: tokenId4,
             account_id: merchant.contract.contractId,
@@ -895,9 +877,7 @@ describe('Market contract', () => {
       });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
-      await alice.account.functionCall(
-        alice.contractAccount.accountId,
-        'nft_approve',
+      await alice.contract.nft_approve(
         {
           token_id: tokenId,
           account_id: merchant.contract.contractId,

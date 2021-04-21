@@ -2,7 +2,6 @@ import { formatNearAmount, parseNearAmount } from 'near-api-js/lib/utils/format'
 import BN from 'bn.js';
 
 import type { Account } from 'near-api-js';
-import type { FinalExecutionOutcome } from 'near-api-js/lib/providers';
 
 import {
   addTestCollectible,
@@ -696,9 +695,7 @@ describe('Nft contract', () => {
         const tokenId = await bob.contract.claim_token({ gate_id: gateId });
         logger.data("Token's owner is", bob.accountId);
 
-        await bob.account.functionCall(
-          bob.contractAccount.accountId,
-          'nft_approve',
+        await bob.contract.nft_approve(
           {
             token_id: tokenId,
             account_id: merchant.contract.contractId,
@@ -1011,9 +1008,7 @@ describe('Nft contract', () => {
         memo: null,
       });
 
-      await bob.account.functionCall(
-        bob.contractAccount.accountId,
-        'nft_approve',
+      await bob.contract.nft_approve(
         {
           token_id: bobsTokens[0],
           account_id: merchant.contract.contractId,
@@ -1086,9 +1081,7 @@ describe('Nft contract', () => {
       token = await bob.contract.nft_token({ token_id: tokenId });
       logger.data('Token before approval', token);
 
-      await bob.account.functionCall(
-        bob.contractAccount.accountId,
-        'nft_approve',
+      await bob.contract.nft_approve(
         {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
@@ -1140,9 +1133,7 @@ describe('Nft contract', () => {
         logger.data('Attempting to approve token with message', msg);
 
         await expect(
-          alice.account.functionCall(
-            alice.contractAccount.accountId,
-            'nft_approve',
+          alice.contract.nft_approve(
             {
               token_id: tokenId,
               account_id: merchant.contract.contractId,
@@ -1183,9 +1174,7 @@ describe('Nft contract', () => {
         const tokenId2 = await bob.contract.claim_token({ gate_id: gateId });
 
         await expect(
-          alice.account.functionCall(
-            bob.contractAccount.accountId,
-            'nft_approve',
+          alice.contract.nft_approve(
             {
               token_id: tokenId2,
               account_id: merchant.contract.contractId,
@@ -1204,9 +1193,7 @@ describe('Nft contract', () => {
       it('should throw an error if token is already approved', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
 
-        await alice.account.functionCall(
-          alice.contractAccount.accountId,
-          'nft_approve',
+        await alice.contract.nft_approve(
           {
             token_id: tokenId2,
             account_id: merchant.contract.contractId,
@@ -1266,9 +1253,7 @@ describe('Nft contract', () => {
         min_price: '5',
       };
 
-      await bob.account.functionCall(
-        bob.contractAccount.accountId,
-        'nft_approve',
+      await bob.contract.nft_approve(
         {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
@@ -1282,9 +1267,7 @@ describe('Nft contract', () => {
 
       logger.data('Approvals before', token!.approvals);
 
-      await bob.account.functionCall(
-        bob.contractAccount.accountId,
-        'nft_revoke',
+      await bob.contract.nft_revoke(
         {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
@@ -1384,9 +1367,7 @@ describe('Nft contract', () => {
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
 
-      await bob.account.functionCall(
-        bob.contractAccount.accountId,
-        'nft_approve',
+      await bob.contract.nft_approve(
         {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
@@ -1403,7 +1384,7 @@ describe('Nft contract', () => {
 
       logger.data('Approvals before', tokenBefore.approvals);
 
-      await bob.account.functionCall(bob.contractAccount.accountId, 'nft_revoke_all', { token_id: tokenId }, GAS);
+      await bob.contract.nft_revoke_all({ token_id: tokenId }, GAS);
     });
 
     it('should remove an approval for one unspecified market', async () => {
@@ -1431,16 +1412,14 @@ describe('Nft contract', () => {
     // skipped for now because currently at most one approval is allowed per Token
     // multiple approvals per Token may be allowed later
     it.skip('should remove approval for all markets', async () => {
-      const approvePromises: Promise<FinalExecutionOutcome>[] = [];
+      const approvePromises: Promise<void>[] = [];
 
       [merchant.contract.contractId, `${merchant2.contract.contractId}-1`].forEach((contractId) => {
         const msg: NftApproveMsg = {
           min_price: '6',
         };
         approvePromises.push(
-          bob.account.functionCall(
-            bob.contractAccount.accountId,
-            'nft_approve',
+          bob.contract.nft_approve(
             {
               token_id: tokenId,
               account_id: contractId,
