@@ -169,7 +169,14 @@ describe('Market contract', () => {
         alice.account.getAccountBalance(),
       ]);
 
-      await merchant2.contract.buy_token({ token_id: tokenId }, GAS, new BN(priceInternalNear!));
+      await merchant2.contract.buy_token(
+        {
+          nft_id: bob.contractAccount.accountId,
+          token_id: tokenId,
+        },
+        GAS,
+        new BN(priceInternalNear!)
+      );
 
       [
         { total: buyerBalanceAfter },
@@ -342,7 +349,14 @@ describe('Market contract', () => {
           bob.account.getAccountBalance(),
         ]);
 
-        await merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+        await merchant2.contract.buy_token(
+          {
+            nft_id: bob.contractAccount.accountId,
+            token_id: tokenId2,
+          },
+          GAS,
+          new BN(priceInternalNear!)
+        );
 
         [
           { total: buyerBalanceAfter2 },
@@ -494,7 +508,14 @@ describe('Market contract', () => {
           creator.getAccountBalance(),
         ]);
 
-        await buyer.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+        await buyer.contract.buy_token(
+          {
+            nft_id: bob.contractAccount.accountId,
+            token_id: tokenId2,
+          },
+          GAS,
+          new BN(priceInternalNear!)
+        );
 
         const [
           { total: buyerBalanceAfter2 },
@@ -570,7 +591,14 @@ describe('Market contract', () => {
           creator.account.getAccountBalance(),
         ]);
 
-        await buyer.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!));
+        await buyer.contract.buy_token(
+          {
+            nft_id: bob.contractAccount.accountId,
+            token_id: tokenId2,
+          },
+          GAS,
+          new BN(priceInternalNear!)
+        );
 
         const [
           { total: buyerBalanceAfter2 },
@@ -700,7 +728,14 @@ describe('Market contract', () => {
         });
 
         await expect(
-          merchant2.contract.buy_token({ token_id: tokenId2 }, GAS, new BN(priceInternalNear!))
+          merchant2.contract.buy_token(
+            {
+              nft_id: bob.contractAccount.accountId,
+              token_id: tokenId2,
+            },
+            GAS,
+            new BN(priceInternalNear!)
+          )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
@@ -713,7 +748,14 @@ describe('Market contract', () => {
         const tokenId3 = await alice.contract.claim_token({ gate_id: gateId });
 
         await expect(
-          merchant2.contract.buy_token({ token_id: tokenId3 }, GAS, new BN(priceInternalNear!))
+          merchant2.contract.buy_token(
+            {
+              nft_id: bob.contractAccount.accountId,
+              token_id: tokenId3,
+            },
+            GAS,
+            new BN(priceInternalNear!)
+          )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
@@ -732,7 +774,16 @@ describe('Market contract', () => {
           msg: JSON.stringify(message),
         });
 
-        await expect(merchant2.contract.buy_token({ token_id: tokenId4 }, GAS, notEnoughDeposit)).rejects.toThrow(
+        await expect(
+          merchant2.contract.buy_token(
+            {
+              nft_id: bob.contractAccount.accountId,
+              token_id: tokenId4,
+            },
+            GAS,
+            notEnoughDeposit
+          )
+        ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: '{"err":"NotEnoughDepositToBuyToken","msg":"Not enough deposit to cover token minimum price"}',

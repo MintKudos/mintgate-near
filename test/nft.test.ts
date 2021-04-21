@@ -981,7 +981,11 @@ describe('Nft contract', () => {
           min_price: '5',
         }),
       });
-      await merchant2.contract.buy_token({ token_id: bobsTokenId }, GAS, new BN('5'));
+      await merchant2.contract.buy_token(
+        { nft_id: bob.contractAccount.accountId, token_id: bobsTokenId },
+        GAS,
+        new BN('5')
+      );
 
       const totalSupplyAfter = await alice.contract.nft_total_supply();
       logger.data('Total supply of tokens minted after', totalSupplyAfter);
