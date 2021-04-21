@@ -102,35 +102,31 @@ impl FromStr for Fraction {
 /// To pass around `GateId` in public interfaces, use `ValidGateId`.
 pub type GateId = String;
 
-/// Determines whether a given slice represents a valid `GateId`.
-///
-/// ```
-/// use mg_core::is_valid_gate_id;
-///
-/// assert!(is_valid_gate_id(b"TGWN_P5W6QNX"));
-/// assert!(is_valid_gate_id(b"YUF6J-4D6ZTB"));
-/// assert!(is_valid_gate_id(b"RHFJS1LPQAS2"));
-/// assert!(is_valid_gate_id(b"ALTRMDMNNMRT"));
-/// assert!(is_valid_gate_id(b"VDvB2TS2xszCyQiCzSQEpD"));
-///
-/// assert!(!is_valid_gate_id(b"VDvB2TS2.szCyQiCzSQEpD"));
-/// assert!(!is_valid_gate_id(b"VDvB2TS2szCyQ/iCzSQEpD"));
-/// ```
-pub fn is_valid_gate_id(gate_id: &[u8]) -> bool {
-    if gate_id.len() > 32 {
-        return false;
-    }
-
-    for c in gate_id {
-        match *c {
-            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-' => {}
-            _ => return false,
-        }
-    }
-    true
-}
-
 /// Struct used to validate gate IDs during serialization and deserializiation.
+/// A valid `GateId` cannot be empty nor have more than 32 chars long.
+/// Moreover, these are the following valid chars for a `GateId`:
+///
+/// > 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-'
+///
+/// ## Examples
+///
+/// ```
+/// use mg_core::ValidGateId;
+/// use std::convert::TryFrom;
+///
+/// assert!(ValidGateId::try_from("TGWN_P5W6QNX").is_ok());
+/// assert!(ValidGateId::try_from("YUF6J-4D6ZTB").is_ok());
+/// assert!(ValidGateId::try_from("RHFJS1LPQAS2").is_ok());
+/// assert!(ValidGateId::try_from("ALTRMDMNNMRT").is_ok());
+/// assert!(ValidGateId::try_from("VDvB2TS2xszCyQiCzSQEpD").is_ok());
+///
+/// assert!(ValidGateId::try_from("VDvB2TS2.szCyQiCzSQEpD").is_err());
+/// assert!(ValidGateId::try_from("VDvB2TS2szCyQ/iCzSQEpD").is_err());
+/// assert!(ValidGateId::try_from("VDvB2TS2xszCyQiCzSQEpDVDvB2TS2xszCyQiCzSQEpD").is_err());
+/// assert!(ValidGateId::try_from("").is_err());
+/// ```
+///
+/// ## Usage
 ///
 /// ```
 /// use mg_core::ValidGateId;
@@ -160,7 +156,19 @@ pub struct ValidGateId(GateId);
 
 impl ValidGateId {
     fn is_valid(&self) -> bool {
-        is_valid_gate_id(self.0.as_bytes())
+        let gate_id = self.0.as_bytes();
+
+        if gate_id.len() == 0 || gate_id.len() > 32 {
+            return false;
+        }
+
+        for c in gate_id {
+            match *c {
+                b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-' => {}
+                _ => return false,
+            }
+        }
+        true
     }
 
     pub fn to_string(&self) -> String {
