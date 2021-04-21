@@ -115,9 +115,11 @@ pub type GateId = String;
 ///
 /// assert!(!is_valid_gate_id(b"VDvB2TS2.szCyQiCzSQEpD"));
 /// assert!(!is_valid_gate_id(b"VDvB2TS2szCyQ/iCzSQEpD"));
+/// assert!(!is_valid_gate_id(b"VDvB2TS2xszCyQiCzSQEpDVDvB2TS2xszCyQiCzSQEpD"));
+/// assert!(!is_valid_gate_id(b""));
 /// ```
 pub fn is_valid_gate_id(gate_id: &[u8]) -> bool {
-    if gate_id.len() > 32 {
+    if gate_id.len() == 0 || gate_id.len() > 32 {
         return false;
     }
 
