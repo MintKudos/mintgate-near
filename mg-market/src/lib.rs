@@ -1,10 +1,14 @@
 //! This module implement the MintGate marketplace.
 #![deny(warnings)]
 
-use std::convert::TryInto;
+use std::{
+    convert::TryInto,
+    fmt::{Debug, Display},
+};
 
 use mg_core::{
     crypto_hash, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout, TokenId,
+    ValidGateId,
 };
 use near_env::{near_ext, near_log, PanicMessage};
 use near_sdk::{
@@ -27,31 +31,46 @@ const NO_DEPOSIT: Balance = 0;
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct MarketContract {
     /// Lists all tokens for sale.
-    tokens_for_sale: UnorderedMap<TokenId, TokenForSale>,
+    tokens_for_sale: UnorderedMap<TokenKey, TokenForSale>,
     /// Holds token IDs for sale by `gate_id`.
-    tokens_by_gate_id: LookupMap<GateId, UnorderedSet<TokenId>>,
+    tokens_by_nft_id: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    /// Holds token IDs for sale by `gate_id`.
+    tokens_by_gate_id: LookupMap<GateId, UnorderedSet<TokenKey>>,
     /// Holds token IDs for sale by `owner_id`.
-    tokens_by_owner_id: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    tokens_by_owner_id: LookupMap<AccountId, UnorderedSet<TokenKey>>,
     /// Holds token IDs for sale by `creator_id`.
-    tokens_by_creator_id: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    tokens_by_creator_id: LookupMap<AccountId, UnorderedSet<TokenKey>>,
+}
+
+/// In marketplace contract, each token must be addressed by `<nft contract id, token id>`.
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TokenKey(AccountId, TokenId);
+
+impl Display for TokenKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{:?}", self.0, self.1)
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(Debug, Deserialize))]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenForSale {
+    pub nft_id: AccountId,
     pub token_id: TokenId,
     pub owner_id: AccountId,
     pub approval_id: U64,
     pub min_price: U128,
-    pub nft_id: AccountId,
-    pub gate_id: GateId,
-    pub creator_id: AccountId,
+    pub gate_id: Option<GateId>,
+    pub creator_id: Option<AccountId>,
 }
 
 #[derive(BorshSerialize, BorshStorageKey)]
 enum Keys {
     TokensForSale,
+    TokensByNftId,
+    TokensByNftIdValue(CryptoHash),
     TokensByGateId,
     TokensByGateIdValue(CryptoHash),
     TokensByOwnerId,
@@ -65,8 +84,8 @@ enum Keys {
 enum Panics {
     #[panic_msg = "Could not find min_price in msg: {}"]
     MsgFormatMinPriceMissing { reason: String },
-    #[panic_msg = "Token ID `{:?}` was not found"]
-    TokenIdNotFound { token_id: TokenId },
+    #[panic_msg = "Token Key `{}` was not found"]
+    TokenKeyNotFound { token_key: TokenKey },
     #[panic_msg = "Buyer cannot buy own token"]
     BuyOwnTokenNotAllowed,
     #[panic_msg = "Not enough deposit to cover token minimum price"]
@@ -83,6 +102,7 @@ impl MarketContract {
     pub fn init() -> Self {
         Self {
             tokens_for_sale: UnorderedMap::new(Keys::TokensForSale),
+            tokens_by_nft_id: LookupMap::new(Keys::TokensByNftId),
             tokens_by_gate_id: LookupMap::new(Keys::TokensByGateId),
             tokens_by_owner_id: LookupMap::new(Keys::TokensByOwnerId),
             tokens_by_creator_id: LookupMap::new(Keys::TokensByCreatorId),
@@ -99,14 +119,14 @@ impl MarketContract {
         result
     }
 
-    /// Returns all tokens for sale whose collectible's gate ID is `gate_id`.
-    pub fn get_tokens_by_gate_id(&self, gate_id: GateId) -> Vec<TokenForSale> {
-        get_tokens_by(&self.tokens_for_sale, &self.tokens_by_gate_id, &gate_id)
-    }
-
     /// Returns all tokens for sale owned by `owner_id`.
     pub fn get_tokens_by_owner_id(&self, owner_id: ValidAccountId) -> Vec<TokenForSale> {
         get_tokens_by(&self.tokens_for_sale, &self.tokens_by_owner_id, owner_id.as_ref())
+    }
+
+    /// Returns all tokens for sale whose collectible's gate ID is `gate_id`.
+    pub fn get_tokens_by_gate_id(&self, gate_id: ValidGateId) -> Vec<TokenForSale> {
+        get_tokens_by(&self.tokens_for_sale, &self.tokens_by_gate_id, gate_id.as_ref())
     }
 
     /// Returns all tokens for sale whose collectible's creator ID is `creator_id`.
@@ -119,9 +139,10 @@ impl MarketContract {
     // Selling price: 5NMarktplace fee: 10%, 0.5N = 4.5NRoyalty: 10%, 0.45N = 4.05N
     // Selling price: 5NMarketplace adds royalty: 10%: 5.5NMarketplace adds fee: 10%: 6.05NSelling price: 6.05N
     #[payable]
-    pub fn buy_token(&mut self, token_id: TokenId) {
-        if let Some(TokenForSale { owner_id, min_price, nft_id, gate_id, creator_id, .. }) =
-            self.tokens_for_sale.get(&token_id)
+    pub fn buy_token(&mut self, nft_id: ValidAccountId, token_id: TokenId) {
+        let token_key = TokenKey(nft_id.to_string(), token_id);
+        if let Some(TokenForSale { owner_id, min_price, gate_id, creator_id, .. }) =
+            self.tokens_for_sale.get(&token_key)
         {
             let buyer_id = env::predecessor_account_id();
 
@@ -134,7 +155,7 @@ impl MarketContract {
                 Panics::NotEnoughDepositToBuyToken.panic();
             }
 
-            self.remove_token_id(token_id, &gate_id, &owner_id, &creator_id);
+            self.remove_token_id(&token_key, &owner_id, &gate_id, &creator_id);
 
             mg_core::nft::nft_transfer_payout(
                 buyer_id.try_into().unwrap(),
@@ -152,21 +173,31 @@ impl MarketContract {
                 GAS_FOR_ROYALTIES,
             ));
         } else {
-            Panics::TokenIdNotFound { token_id }.panic();
+            Panics::TokenKeyNotFound { token_key }.panic();
         }
     }
 
     fn remove_token_id(
         &mut self,
-        token_id: TokenId,
-        gate_id: &GateId,
+        token_key: &TokenKey,
         owner_id: &AccountId,
-        creator_id: &AccountId,
+        gate_id: &Option<GateId>,
+        creator_id: &Option<AccountId>,
     ) {
-        self.tokens_for_sale.remove(&token_id);
-        remove_token_id_from(&mut self.tokens_by_gate_id, &gate_id, token_id);
-        remove_token_id_from(&mut self.tokens_by_owner_id, &owner_id, token_id);
-        remove_token_id_from(&mut self.tokens_by_creator_id, &creator_id, token_id);
+        self.tokens_for_sale.remove(&token_key);
+        remove_token_id_from(&mut self.tokens_by_nft_id, &token_key, &token_key.0, &token_key.1);
+        remove_token_id_from(&mut self.tokens_by_owner_id, &token_key, &owner_id, token_key);
+        if let Some(gate_id) = gate_id {
+            remove_token_id_from(&mut self.tokens_by_gate_id, &token_key, &gate_id, token_key);
+        }
+        if let Some(creator_id) = creator_id {
+            remove_token_id_from(
+                &mut self.tokens_by_creator_id,
+                &token_key,
+                &creator_id,
+                token_key,
+            );
+        }
     }
 }
 
@@ -211,42 +242,50 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     ) {
         match serde_json::from_str::<MarketApproveMsg>(&msg) {
             Ok(approve_msg) => {
-                // approve_msg.royalty.check();
-
                 let nft_id = env::predecessor_account_id();
 
+                let token_key = TokenKey(nft_id.clone(), token_id);
                 self.tokens_for_sale.insert(
-                    &token_id,
+                    &token_key,
                     &TokenForSale {
+                        nft_id: nft_id.clone(),
                         token_id,
                         owner_id: owner_id.clone().into(),
                         approval_id,
                         min_price: approve_msg.min_price,
-                        nft_id,
-                        gate_id: approve_msg.gate_id.clone(),
+                        gate_id: approve_msg.gate_id.clone().map(|g| g.to_string()),
                         creator_id: approve_msg.creator_id.clone(),
-                        // royalty: approve_msg.royalty,
                     },
                 );
 
                 insert_token_id_to(
-                    &mut self.tokens_by_gate_id,
-                    &approve_msg.gate_id,
-                    token_id,
-                    Keys::TokensByGateIdValue,
+                    &mut self.tokens_by_nft_id,
+                    &nft_id,
+                    &token_id,
+                    Keys::TokensByNftIdValue,
                 );
                 insert_token_id_to(
                     &mut self.tokens_by_owner_id,
                     &owner_id.into(),
-                    token_id,
+                    &token_key,
                     Keys::TokensByOwnerIdValue,
                 );
-                insert_token_id_to(
-                    &mut self.tokens_by_creator_id,
-                    &approve_msg.creator_id,
-                    token_id,
-                    Keys::TokensByCreatorIdValue,
-                );
+                if let Some(gate_id) = approve_msg.gate_id {
+                    insert_token_id_to(
+                        &mut self.tokens_by_gate_id,
+                        gate_id.as_ref(),
+                        &token_key,
+                        Keys::TokensByGateIdValue,
+                    );
+                }
+                if let Some(creator_id) = approve_msg.creator_id {
+                    insert_token_id_to(
+                        &mut self.tokens_by_creator_id,
+                        &creator_id,
+                        &token_key,
+                        Keys::TokensByCreatorIdValue,
+                    );
+                }
             }
             Err(err) => {
                 let reason = err.to_string();
@@ -258,33 +297,39 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     /// Callback method to remove this `Token` from the marketplace.
     fn nft_on_revoke(&mut self, token_id: TokenId) {
         let nft_id = env::predecessor_account_id();
+        let token_key = TokenKey(nft_id, token_id);
 
-        if let Some(token) = self.tokens_for_sale.get(&token_id) {
-            if token.nft_id == nft_id {
-                self.remove_token_id(token_id, &token.gate_id, &token.owner_id, &token.creator_id);
+        if let Some(token) = self.tokens_for_sale.get(&token_key) {
+            if token.nft_id == token_key.0 {
+                self.remove_token_id(
+                    &token_key,
+                    &token.owner_id,
+                    &token.gate_id,
+                    &token.creator_id,
+                );
             } else {
                 Panics::RevokeNotAllowed.panic();
             }
         } else {
-            Panics::TokenIdNotFound { token_id }.panic();
+            Panics::TokenKeyNotFound { token_key }.panic();
         }
     }
 }
 
-fn insert_token_id_to<F: FnOnce(CryptoHash) -> Keys>(
-    tokens_map: &mut LookupMap<String, UnorderedSet<TokenId>>,
+fn insert_token_id_to<T: BorshSerialize + BorshDeserialize, F: FnOnce(CryptoHash) -> Keys>(
+    tokens_map: &mut LookupMap<String, UnorderedSet<T>>,
     key: &String,
-    token_id: TokenId,
+    token_key: &T,
     f: F,
 ) {
     let mut tids = tokens_map.get(&key).unwrap_or_else(|| UnorderedSet::new(f(crypto_hash(key))));
-    tids.insert(&token_id);
+    tids.insert(token_key);
     tokens_map.insert(key, &tids);
 }
 
 fn get_tokens_by<K: BorshSerialize>(
-    ts: &UnorderedMap<TokenId, TokenForSale>,
-    tokens_map: &LookupMap<K, UnorderedSet<TokenId>>,
+    ts: &UnorderedMap<TokenKey, TokenForSale>,
+    tokens_map: &LookupMap<K, UnorderedSet<TokenKey>>,
     key: &K,
 ) -> Vec<TokenForSale> {
     match tokens_map.get(&key) {
@@ -295,16 +340,17 @@ fn get_tokens_by<K: BorshSerialize>(
     }
 }
 
-fn remove_token_id_from<K: BorshSerialize>(
-    tokens_map: &mut LookupMap<K, UnorderedSet<TokenId>>,
+fn remove_token_id_from<T: BorshSerialize + BorshDeserialize + Clone, K: BorshSerialize>(
+    tokens_map: &mut LookupMap<K, UnorderedSet<T>>,
+    t: &TokenKey,
     key: &K,
-    token_id: TokenId,
+    token_key: &T,
 ) {
     match tokens_map.get(&key) {
-        None => Panics::TokenIdNotFound { token_id }.panic(),
+        None => Panics::TokenKeyNotFound { token_key: t.clone() }.panic(),
         Some(mut tids) => {
-            if !tids.remove(&token_id) {
-                Panics::TokenIdNotFound { token_id }.panic();
+            if !tids.remove(token_key) {
+                Panics::TokenKeyNotFound { token_key: t.clone() }.panic();
             }
 
             tokens_map.insert(&key, &tids);

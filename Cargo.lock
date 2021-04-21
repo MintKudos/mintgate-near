@@ -48,6 +48,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ansi_term"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -404,7 +413,7 @@ version = "2.33.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37e58ac78573c40708d45522f0d80fa2f01cc4f9b4e2bf749807255454312002"
 dependencies = [
- "ansi_term",
+ "ansi_term 0.11.0",
  "atty",
  "bitflags",
  "strsim 0.8.0",
@@ -1392,6 +1401,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lipsum"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27bdfcb80998b71ab4141f3725b990c923bccebbba596d053a66c083c04f8b9c"
+dependencies = [
+ "rand 0.7.3",
+ "rand_chacha 0.2.2",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1514,6 +1533,8 @@ dependencies = [
 name = "mg-sim"
 version = "0.0.2"
 dependencies = [
+ "ansi_term 0.12.1",
+ "lipsum",
  "mg-core",
  "mg-market",
  "mg-nft",
@@ -1564,9 +1585,9 @@ dependencies = [
 
 [[package]]
 name = "near-env"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68b45ce203eef49f522e462d8923b2e8835dd2d7f7b1270ea6ae6d074efb3d6a"
+checksum = "f772eaf21eb49c7a419d8c4bb580e3a1f8791ecf38fcb61a3bd56ddf2b20b7c9"
 dependencies = [
  "proc-macro2",
  "quote",

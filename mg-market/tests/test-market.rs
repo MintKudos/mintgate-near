@@ -3,7 +3,7 @@
 use mg_core::{
     mock_context,
     mocked_context::{alice, any, bob, charlie, gate_id, nft},
-    GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId,
+    MarketApproveMsg, NonFungibleTokenApprovalsReceiver, TokenId, ValidGateId,
 };
 use mg_market::{MarketContract, TokenForSale};
 use near_sdk::{
@@ -71,9 +71,10 @@ impl MockedContext<MarketContractChecker> {
         ) -> [Vec<TokenForSale>; 4] {
             [
                 contract.get_tokens_for_sale(),
-                contract.get_tokens_by_gate_id(msg.gate_id.clone()),
                 contract.get_tokens_by_owner_id(owner_id),
-                contract.get_tokens_by_creator_id(msg.creator_id.clone().try_into().unwrap()),
+                contract.get_tokens_by_gate_id(msg.gate_id.clone().unwrap()),
+                contract
+                    .get_tokens_by_creator_id(msg.creator_id.clone().unwrap().try_into().unwrap()),
             ]
         }
 
@@ -97,7 +98,7 @@ impl MockedContext<MarketContractChecker> {
                     approval_id,
                     min_price: msg.min_price,
                     nft_id: self.context.predecessor_account_id.clone(),
-                    gate_id: msg.gate_id.clone(),
+                    gate_id: msg.gate_id.clone().map(|g| g.to_string()),
                     creator_id: msg.creator_id.clone(),
                     // royalty: msg.royalty,
                 },
@@ -106,8 +107,12 @@ impl MockedContext<MarketContractChecker> {
     }
 }
 
-fn approve_msg(price: u128, gate_id: GateId, creator_id: ValidAccountId) -> MarketApproveMsg {
-    MarketApproveMsg { min_price: price.into(), gate_id, creator_id: creator_id.to_string() }
+fn approve_msg(price: u128, gate_id: ValidGateId, creator_id: ValidAccountId) -> MarketApproveMsg {
+    MarketApproveMsg {
+        min_price: price.into(),
+        gate_id: Some(gate_id),
+        creator_id: Some(creator_id.to_string()),
+    }
 }
 
 fn init_contract() -> MockedContext<MarketContractChecker> {
@@ -154,6 +159,27 @@ mod nft_on_approve {
     }
 
     #[test]
+    fn nft_on_approve_accepts_tokens_from_different_nfts() {
+        init()
+            .run_as(alice(), |contract| {
+                contract.nft_on_approve(
+                    1.into(),
+                    charlie(),
+                    0.into(),
+                    approve_msg(100, gate_id(1), bob()),
+                );
+            })
+            .run_as(bob(), |contract| {
+                contract.nft_on_approve(
+                    1.into(),
+                    charlie(),
+                    0.into(),
+                    approve_msg(100, gate_id(1), alice()),
+                );
+            });
+    }
+
+    #[test]
     fn nft_on_approve_should_add_token_for_sale() {
         init().run_as(nft(), |contract| {
             let ids = [alice(), bob(), charlie()];
@@ -174,10 +200,10 @@ mod buy_token {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "Token ID `U64(99)` was not found")]
+    #[should_panic(expected = "Token Key `nft:U64(99)` was not found")]
     fn buy_a_non_existent_token_should_panic() {
         init().run_as(alice(), |contract| {
-            contract.buy_token(99.into());
+            contract.buy_token(nft(), 99.into());
         });
     }
 
@@ -191,7 +217,7 @@ mod buy_token {
                 contract.nft_on_approve(token_id, bob(), 0.into(), msg);
             })
             .run_as(bob(), |contract| {
-                contract.buy_token(token_id);
+                contract.buy_token(nft(), token_id);
             });
     }
 
@@ -206,7 +232,7 @@ mod buy_token {
             })
             .run_as(alice(), |contract| {
                 contract.attach_deposit(700);
-                contract.buy_token(token_id);
+                contract.buy_token(nft(), token_id);
             });
     }
 
@@ -225,7 +251,7 @@ mod buy_token {
                 assert_eq!(contract.get_tokens_by_creator_id(charlie()).len(), 1);
 
                 contract.attach_deposit(1500);
-                contract.buy_token(token_id);
+                contract.buy_token(nft(), token_id);
 
                 assert_eq!(contract.get_tokens_for_sale().len(), 0);
                 assert_eq!(contract.get_tokens_by_gate_id(gate_id(1)).len(), 0);

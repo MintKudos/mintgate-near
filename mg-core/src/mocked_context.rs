@@ -3,6 +3,8 @@ use std::convert::TryInto;
 use near_sdk::{bs58, json_types::ValidAccountId};
 use sha2::{Digest, Sha256};
 
+use crate::ValidGateId;
+
 #[macro_export]
 macro_rules! mock_context {
     () => {
@@ -105,10 +107,10 @@ pub fn market() -> ValidAccountId {
     "market".try_into().unwrap()
 }
 
-pub fn gate_id(n: u64) -> String {
+pub fn gate_id(n: u64) -> ValidGateId {
     let mut hasher = Sha256::new();
     hasher.update(n.to_ne_bytes());
     let result = hasher.finalize();
     let data: &[u8] = result[..16].try_into().unwrap();
-    bs58::encode(data).into_string()
+    bs58::encode(data).into_string().try_into().unwrap()
 }

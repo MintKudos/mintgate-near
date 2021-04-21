@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.6 https://github.com/acuarica/near-syn
+// TypeScript bindings generated with near-ts v0.2.9 https://github.com/acuarica/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -29,8 +29,38 @@ export interface Fraction {
 
 /**
  *  The `GateId` type represents the identifier of each `Collectible`.
+ *  This type is meant to be used internally by contracts.
+ *  To pass around `GateId` in public interfaces, use `ValidGateId`.
  */
 export type GateId = string;
+
+/**
+ *  Struct used to validate gate IDs during serialization and deserializiation.
+ * 
+ *  ```
+ *  use mg_core::ValidGateId;
+ *  use near_sdk::serde_json;
+ *  use std::convert::TryInto;
+ *  use std::convert::TryFrom;
+ * 
+ *  let key: ValidGateId = serde_json::from_str("\"ALTRMDMNNMRT\"").unwrap();
+ *  assert_eq!(key.to_string(), "ALTRMDMNNMRT".to_string());
+ * 
+ *  let key: ValidGateId = serde_json::from_str("\"VDvB2TS2xszCyQiCzSQEpD\"").unwrap();
+ *  assert_eq!(key.to_string(), "VDvB2TS2xszCyQiCzSQEpD".to_string());
+ * 
+ *  let key: Result<ValidGateId, _> = serde_json::from_str("o7fSzsCYsSedUYRw5HmhTo7fSzsCYsSedUYRw5HmhT");
+ *  assert!(key.is_err());
+ * 
+ *  let key: ValidGateId = "RHFJS1LPQAS2".try_into().unwrap();
+ *  let actual: String = serde_json::to_string(&key).unwrap();
+ *  assert_eq!(actual, "\"RHFJS1LPQAS2\"");
+ * 
+ *  let key = ValidGateId::try_from("RHFJS1LPQAS2").unwrap();
+ *  assert_eq!(key.as_ref(), &"RHFJS1LPQAS2".to_string());
+ *  ```
+ */
+export type ValidGateId = GateId;
 
 /**
  *  The `TokenId` type represents the identifier of each `Token`.
@@ -271,20 +301,29 @@ export interface MarketApproveMsg {
     min_price: U128;
 
     /**
-     *  Represents the `gate_id` of the token being approved.
+     *  Represents the `gate_id` of the token being approved if present.
      */
-    gate_id: GateId;
+    gate_id: ValidGateId|null;
 
     /**
-     *  Represents the `creator_id` of the collectible of the token being approved.
+     *  Represents the `creator_id` of the collectible of the token being approved if present.
      */
-    creator_id: AccountId;
+    creator_id: AccountId|null;
 
 }
 
 /**
+ *  In marketplace contract, each token must be addressed by `<nft contract id, token id>`.
+ */
+export type TokenKey = [AccountId, TokenId];
+
+/**
  */
 export interface TokenForSale {
+    /**
+     */
+    nft_id: AccountId;
+
     /**
      */
     token_id: TokenId;
@@ -303,15 +342,11 @@ export interface TokenForSale {
 
     /**
      */
-    nft_id: AccountId;
+    gate_id: GateId|null;
 
     /**
      */
-    gate_id: GateId;
-
-    /**
-     */
-    creator_id: AccountId;
+    creator_id: AccountId|null;
 
 }
 
@@ -330,14 +365,14 @@ export interface Self {
     get_tokens_for_sale(): Promise<TokenForSale[]>;
 
     /**
-     *  Returns all tokens for sale whose collectible's gate ID is `gate_id`.
-     */
-    get_tokens_by_gate_id(args: { gate_id: GateId }): Promise<TokenForSale[]>;
-
-    /**
      *  Returns all tokens for sale owned by `owner_id`.
      */
     get_tokens_by_owner_id(args: { owner_id: ValidAccountId }): Promise<TokenForSale[]>;
+
+    /**
+     *  Returns all tokens for sale whose collectible's gate ID is `gate_id`.
+     */
+    get_tokens_by_gate_id(args: { gate_id: ValidGateId }): Promise<TokenForSale[]>;
 
     /**
      *  Returns all tokens for sale whose collectible's creator ID is `creator_id`.
@@ -347,7 +382,7 @@ export interface Self {
     /**
      *  Buys the token.
      */
-    buy_token(args: { token_id: TokenId }, gas?: any, amount?: any): Promise<void>;
+    buy_token(args: { nft_id: ValidAccountId, token_id: TokenId }, gas?: any, amount?: any): Promise<void>;
 
 }
 
@@ -372,8 +407,8 @@ export type MarketContract = Self & NonFungibleTokenApprovalsReceiver;
 export const MarketContractMethods = {
     viewMethods: [
         "get_tokens_for_sale",
-        "get_tokens_by_gate_id",
         "get_tokens_by_owner_id",
+        "get_tokens_by_gate_id",
         "get_tokens_by_creator_id",
     ],
     changeMethods: [

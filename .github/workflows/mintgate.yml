@@ -41,7 +41,7 @@ jobs:
       with:
         path: ~/.cargo
         key: ${{ runner.os }}-cargo-check-${{ hashFiles('Cargo.lock') }}
-    - run: cargo install near-syn --version 0.2.6
+    - run: cargo install near-syn --version 0.2.9
     - run: yarn ts:contracts
     - run: git --no-pager diff --exit-code src/mg-nft.ts src/mg-market.ts
 

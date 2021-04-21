@@ -22,7 +22,7 @@
 use mg_core::{
     crypto_hash, Collectible, ContractMetadata, Fraction, GateId, MarketApproveMsg, NftApproveMsg,
     NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Payout, Token, TokenApproval, TokenId,
-    TokenMetadata,
+    TokenMetadata, ValidGateId,
 };
 use near_env::{near_log, PanicMessage};
 use near_sdk::{
@@ -32,7 +32,7 @@ use near_sdk::{
     json_types::{ValidAccountId, U128, U64},
     log, near_bindgen,
     serde::Serialize,
-    setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault,
+    setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
 };
 use std::{cmp::Ordering, collections::HashMap, convert::TryInto};
 
@@ -80,7 +80,7 @@ enum Keys {
 
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
-enum Panics {
+pub enum Panics {
     #[panic_msg = "Min royalty `{}` must be less or equal to max royalty `{}`"]
     MaxRoyaltyLessThanMinRoyalty { min_royalty: Fraction, max_royalty: Fraction },
     #[panic_msg = "Royalty `{}` of `{}` is less than min"]
@@ -167,20 +167,23 @@ impl NftContract {
     /// This royalty is paid when any `Token` is being resold in any marketplace.
     ///
     /// The sum of `royalty` and `mintgate_fee` should be less than `1`.
-    /// Panics otherwise. 
+    /// Panics otherwise.
     /// This is to be able to make payouts all participants.
     ///
     /// See <https://github.com/epam/mintgate/issues/3>.
     pub fn create_collectible(
         &mut self,
-        gate_id: String,
+        gate_id: ValidGateId,
         title: String,
         description: String,
         supply: U64,
         gate_url: String,
         royalty: Fraction,
     ) {
+        let gate_id = gate_id.to_string();
+
         royalty.check();
+
         if royalty.cmp(&self.min_royalty) == Ordering::Less {
             Panics::RoyaltyMinThanAllowed { royalty, gate_id }.panic();
         }
@@ -243,7 +246,9 @@ impl NftContract {
     /// Panics otherwise.
     ///
     /// See <https://github.com/epam/mintgate/issues/16>.
-    pub fn get_collectible_by_gate_id(&self, gate_id: String) -> Option<Collectible> {
+    pub fn get_collectible_by_gate_id(&self, gate_id: ValidGateId) -> Option<Collectible> {
+        let gate_id = gate_id.to_string();
+
         match self.collectibles.get(&gate_id) {
             None => None,
             Some(collectible) => {
@@ -277,7 +282,9 @@ impl NftContract {
     /// If the given `gate_id` has exhausted its supply, this call will panic.
     ///
     /// See <https://github.com/epam/mintgate/issues/6>.
-    pub fn claim_token(&mut self, gate_id: String) -> TokenId {
+    pub fn claim_token(&mut self, gate_id: ValidGateId) -> TokenId {
+        let gate_id = gate_id.to_string();
+
         match self.collectibles.get(&gate_id) {
             None => Panics::GateIdNotFound { gate_id }.panic(),
             Some(mut collectible) => {
@@ -330,9 +337,11 @@ impl NftContract {
     /// See <https://github.com/epam/mintgate/issues/14>.
     pub fn get_tokens_by_owner_and_gate_id(
         &self,
-        gate_id: GateId,
+        gate_id: ValidGateId,
         owner_id: ValidAccountId,
     ) -> Vec<Token> {
+        let gate_id = gate_id.to_string();
+
         match self.tokens_by_owner.get(owner_id.as_ref()) {
             None => Vec::new(),
             Some(list) => list
@@ -448,9 +457,9 @@ impl NonFungibleTokenCore for NftContract {
     ///
     /// - `mintgate_fee`: `25/1000` (2.5%)
     /// - `royalty`: `30/100` (30%)
-    /// 
+    ///
     /// Then `nft_payout(token_id, 5_000_000)` will return
-    /// 
+    ///
     /// - `mintgate_fee_account_id` -> 125_000
     /// - `collectible.creator_id` -> 3_375_000
     /// - `token.owner_id` -> 1_500_000
@@ -522,7 +531,12 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
     /// The `msg` argument allows the caller to pass into additional information.
     /// A contract implementing the `nft_on_approve` methods must be
     /// deployed into `account_id`.
-    fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
+    fn nft_approve(
+        &mut self,
+        token_id: TokenId,
+        account_id: ValidAccountId,
+        msg: Option<String>,
+    ) -> Promise {
         let min_price = {
             if let Some(msg) = msg.clone() {
                 match near_sdk::serde_json::from_str::<NftApproveMsg>(&msg) {
@@ -560,9 +574,8 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
             Some(collectible) => {
                 let market_msg = MarketApproveMsg {
                     min_price,
-                    gate_id: token.gate_id,
-                    creator_id: collectible.creator_id,
-                    // royalty: collectible.royalty,
+                    gate_id: Some(token.gate_id.try_into().unwrap()),
+                    creator_id: Some(collectible.creator_id),
                 };
                 mg_core::market::nft_on_approve(
                     token_id,
@@ -572,13 +585,13 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
                     account_id.as_ref(),
                     0,
                     env::prepaid_gas() / 2,
-                );
+                )
             }
         }
     }
 
     /// Revokes approval for `token_id` from `account_id`.
-    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) {
+    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) -> Promise {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
         if &owner_id != &token.owner_id {
@@ -588,7 +601,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
             Panics::RevokeApprovalFailed { account_id: account_id.to_string() }.panic();
         }
         self.tokens.insert(&token_id, &token);
-        mg_core::market::nft_on_revoke(token_id, account_id.as_ref(), 0, env::prepaid_gas() / 2);
+        mg_core::market::nft_on_revoke(token_id, account_id.as_ref(), 0, env::prepaid_gas() / 2)
     }
 
     /// Revokes all approval for `token_id`.
