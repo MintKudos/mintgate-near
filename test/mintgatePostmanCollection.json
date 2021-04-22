@@ -1,14 +1,125 @@
 {
 	"info": {
-		"_postman_id": "ab1c6caa-b5a1-4e82-9302-bb4a45d7ebfa",
+		"_postman_id": "51cd0fc3-d647-409e-bae8-f2a414be8e76",
 		"name": "Mintgate",
-		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. import postman collection from `./test/mintgatePostmanCollection.json` file;\n3. install all dependencies:\n```\nyarn\n```\n4. to start api server run in the terminal from mintgate project's root dir:\n```\nnode-api-server\n```\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `collectibleId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR account are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
+		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. install all dependencies:\n```\nyarn\n```\n3. to start api server run in the terminal from mintgate project's root dir:\n```\nyarn near-api-server\n```\n4. import postman collection from `./test/mintgatePostmanCollection.json` file;\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `collectibleId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR accounts are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
 			"name": "Nft contract",
 			"item": [
+				{
+					"name": "Errors",
+					"item": [
+						{
+							"name": "ERROR claim_token",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"const r = pm.response.json();\r",
+											"\r",
+											"if (r.error) {\r",
+											"    console.log(JSON.parse(r.error));\r",
+											"}\r",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\t\"account_id\": \"{{bob}}\",\r\n    \"private_key\": \"{{bobPrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"claim_token\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"non-existent-gate-id\"\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://{{serverHost}}:{{serverPort}}/call",
+									"protocol": "http",
+									"host": [
+										"{{serverHost}}"
+									],
+									"port": "{{serverPort}}",
+									"path": [
+										"call"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "ERROR create_collectible",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"const r = pm.response.json();\r",
+											"\r",
+											"if (r.error) {\r",
+											"    console.log(JSON.parse(r.error));\r",
+											"}\r",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{$randomCurrencyCode}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": \"0\",\r\n        \"gate_url\": \"{{$randomUrl}}\",\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        }\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://{{serverHost}}:{{serverPort}}/call",
+									"protocol": "http",
+									"host": [
+										"{{serverHost}}"
+									],
+									"port": "{{serverPort}}",
+									"path": [
+										"call"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
 				{
 					"name": "create_collectible",
 					"event": [
@@ -18,6 +129,15 @@
 								"exec": [
 									"const { v4: uuidv4 } = require('uuid');\r",
 									"pm.collectionVariables.set(\"collectibleId\", uuidv4().slice(4));\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
 									""
 								],
 								"type": "text/javascript"
@@ -184,7 +304,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"contract\": \"{{nft}}\",\r\n\t\"method\": \"get_tokens_by_owner\",\r\n\t\"params\": {\r\n\t\t\"owner_id\": \"{{alice}}\"\r\n\t}\r\n}",
+							"raw": "{\r\n\t\"contract\": \"{{nft}}\",\r\n\t\"method\": \"get_tokens_by_owner\",\r\n\t\"params\": {\r\n\t\t\"owner_id\": \"{{bob}}\"\r\n\t}\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -212,7 +332,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"get_tokens_by_owner_and_gate_id\",\r\n    \"params\": {\r\n        \"owner_id\": \"{{alice}}\",\r\n        \"gate_id\": \"{{collectibleId}}\"\r\n    }\r\n}",
+							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"get_tokens_by_owner_and_gate_id\",\r\n    \"params\": {\r\n        \"owner_id\": \"{{bob}}\",\r\n        \"gate_id\": \"{{collectibleId}}\"\r\n    }\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -756,7 +876,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"contract\": \"{{market}}\",\r\n\t\"method\": \"get_tokens_by_owner_id\",\r\n\t\"params\": {\r\n        \"owner_id\": \"{{alice}}\"\r\n    }\r\n}",
+							"raw": "{\r\n\t\"contract\": \"{{market}}\",\r\n\t\"method\": \"get_tokens_by_owner_id\",\r\n\t\"params\": {\r\n        \"owner_id\": \"{{bob}}\"\r\n    }\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -852,7 +972,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{market}}\",\r\n\t\"method\": \"buy_token\",\r\n\t\"params\": {\r\n\t\t\"token_id\": \"{{tokenId}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"{{tokenPrice}}\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{market}}\",\r\n\t\"method\": \"buy_token\",\r\n\t\"params\": {\r\n\t\t\"token_id\": \"{{tokenId}}\",\r\n        \"nft_id\": \"{{nft}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"{{tokenPrice}}\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1202,55 +1322,55 @@
 	"variable": [
 		{
 			"key": "nft",
-			"value": "nft-1619009681565-277025"
+			"value": "nft-1619088917654-470665"
 		},
 		{
 			"key": "nftPrivateKey",
-			"value": "ed25519:4qvQkh9dRA4iFAAggBjXpdFje2DpbintxMP3zoeHHfPPCWhuDJUGLVsdG6pDtxho6VmYv4kXHE5jmxAzwfdkwrxd"
+			"value": "ed25519:3tBZj4zGzPSRQMJG8ivhs1yfvRdaDtuL8UaKGPXGumKC5gS6xDQAV9t1JPHd5C1K5BhWmDG8Np6Gf5TiYCLpnYhm"
 		},
 		{
 			"key": "market",
-			"value": "market-1619009706510-673609"
+			"value": "market-1619088927509-382647"
 		},
 		{
 			"key": "marketPrivateKey",
-			"value": "ed25519:3GoNLm5ZjuVQMeTJe3BBubwabxstRiBKvgM6hM3vfyyVKm82YKuuBQJWeugi8BuqHLYBwAKi42ppBjMubuTcfj2m"
+			"value": "ed25519:5127uHwhjCURDbBFp4SMaeudCrpcfts7KgbXWuZJEdATSLZznEPqBTX6ehjinHuAZR1s6D4SpkpgQZ4LbwAoBW9E"
 		},
 		{
 			"key": "alice",
-			"value": "alice-1619009717404-509768"
+			"value": "alice-1619088935888-599154"
 		},
 		{
 			"key": "alicePrivateKey",
-			"value": "ed25519:3k8riVwVkvdvqQyxTrN4GCPrmyJU9ENq8YQHrvrfC4DA51fVSJ4Xtj5cRH25Ne5djN131q2Ebt9R21dajg3StC6J"
+			"value": "ed25519:5NrcsdUkUmxpXLL9hqgwN4JLryDYbFcjPPARrSRGEbY2u46sEuNJzH41xTaEwcimYJiy63r6V7HJJbDBFK1ZzNmA"
 		},
 		{
 			"key": "bob",
-			"value": "bob-1619009720533-521821"
+			"value": "bob-1619088939400-761162"
 		},
 		{
 			"key": "bobPrivateKey",
-			"value": "ed25519:2HpsAXbUQAyRYq5cSpxTpbX4TbXrCFU6pHjJhXpXxF9BUqzZjhzoZChNwBwB4Y2Km78Qtt2G2nQChu32b7cWRQcG"
+			"value": "ed25519:24EVQBiFVd5wnK963UPZqePxDJeESxYuCaJx5n44Z55X98dZEfpPDTCHFmHZLy9ABcLoHWQ8RikGrdguvAcMeM3b"
 		},
 		{
 			"key": "merchant-1",
-			"value": "merchant-1-1619009723982-470282"
+			"value": "merchant-1-1619088942480-970278"
 		},
 		{
 			"key": "merchant-1PrivateKey",
-			"value": "ed25519:4mcadkTZyARUswnxFWb4hBmwk8wo8KxqDe5xkZ35vXtN3nAqx6NDJy5c7EnnCezvE7u6i1mzg8s21kfp68EWF9ZV"
+			"value": "ed25519:4R5kHcNMnakiSvrWN5TC9CbzH4SJpKyr1mjN2Fe41hHWj3MVU8w4f2RgzKLinYCWro9thoc9AQbCy8ktLaxyvetG"
 		},
 		{
 			"key": "merchant-2",
-			"value": "merchant-2-1619009731441-340028"
+			"value": "merchant-2-1619088946067-136919"
 		},
 		{
 			"key": "merchant-2PrivateKey",
-			"value": "ed25519:sANcun9XUjWYjbJTBEGvFz9ZAonLSBdBYGt6uXyFUssENxJbb6jgG72cGenjqyKtrwqKduHNjjxsUqkrzkbru1h"
+			"value": "ed25519:pNYkTZQi7Z9MkKpQpWseb23kGoYinh5xeaBM2hb3A3KPyD5sHNQY6moA97vtU9wjT7MxpWJWwEzzviFqVvbiWoG"
 		},
 		{
 			"key": "mintgate-fee",
-			"value": "mintgate-fee-1619009734405-90487"
+			"value": "mintgate-fee-1619088949454-972778"
 		},
 		{
 			"key": "tokenPrice",
@@ -1258,7 +1378,7 @@
 		},
 		{
 			"key": "mintgate-feePrivateKey",
-			"value": "ed25519:bxnyeEMuXRXnzv96dSbopgcqH55pqk7KoQ7qynGjorJoZjbi66NjpFuVzdb4cdDkrwSur6d6ViYkgShQqRreeGZ"
+			"value": "ed25519:F7fGNmfxHXiXAPoHgJZxvs2jCTxDSGkdZfFoie6Mw76dEFSPqmMhuZdAm2PTm3EjsSY4t8oiBym8hK3jpSi7PU2"
 		},
 		{
 			"key": "serverHost",
