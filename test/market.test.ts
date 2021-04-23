@@ -165,6 +165,8 @@ describe('Market contract', () => {
         },
         GAS
       );
+      token = (await bob.contract.nft_token({ token_id: tokenId }))!;
+      expect(token.approvals).not.toEqual({});
 
       [
         { total: buyerBalanceBefore },
@@ -257,7 +259,7 @@ describe('Market contract', () => {
         expect(token).not.toBeUndefined();
       });
 
-      it("should disassociate token from it's previous owner", async () => {
+      it('should disassociate token from its previous owner', async () => {
         const [soldToken] = (await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId })).filter(
           ({ token_id }) => token_id === tokenId
         );
@@ -266,15 +268,19 @@ describe('Market contract', () => {
       });
 
       it("should set token's new owner", async () => {
-        expect(token!.owner_id).toBe(merchant2.accountId);
+        expect(token.owner_id).toBe(merchant2.accountId);
       });
 
       it("should update token's modified_at property", async () => {
-        expect(formatNsToMs(token!.modified_at)).toBeGreaterThan(formatNsToMs(token!.created_at));
+        expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
 
       it("should set token's sender", () => {
-        expect(token!.sender_id).toBe(merchant2.contract.contractId);
+        expect(token.sender_id).toBe(merchant2.contract.contractId);
+      });
+
+      it("should clear token's approvals", () => {
+        expect(token.approvals).toEqual({});
       });
     });
 
