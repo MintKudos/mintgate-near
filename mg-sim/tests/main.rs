@@ -1,6 +1,6 @@
-use mg_core::mocked_context::gate_id;
-use near_sdk::Balance;
-use near_sdk_sim::UserAccount;
+use mg_core::{mocked_context::gate_id, MarketApproveMsg, ValidGateId};
+use near_sdk::{json_types::ValidAccountId, serde_json};
+use near_sdk_sim::to_yocto;
 
 mod sim;
 use sim::*;
@@ -43,7 +43,7 @@ fn create_and_claim_collectibles() {
     create_collectible(nft, charlie, gate_id(1), 0, "1/10")
         .failure(mg_nft::Panics::ZeroSupplyNotAllowed { gate_id: gate_id(1).to_string() }.msg());
 
-    let n = 20;
+    let n = 4;
     for k in 1..=n {
         create_collectible(nft, alice, gate_id(k), 4, "10/100").unwrap();
         create_collectible(nft, bob, gate_id(k + n), k * 10, "10/100").unwrap();
@@ -70,7 +70,7 @@ fn nft_approve_and_revoke_tokens() {
         &init(2, "1/1000", "30/100", "25/1000");
     let users = [alice, bob, charlie];
 
-    let n = 10;
+    let n = 4;
     for u in 1..=(users.len() * n) {
         create_collectible(nft, users[(u - 1) % users.len()], gate_id(u as u64), 10, "10/100")
             .unwrap();
@@ -91,6 +91,16 @@ fn nft_approve_and_revoke_tokens() {
     }
 
     let token_id = claim_token(nft, alice, 1).unwrap();
+    nft_on_approve(
+        &markets[0],
+        &nft.user_account,
+        token_id,
+        alice.valid_account_id(),
+        1.into(),
+        approve_msg(10, gate_id(3), charlie.valid_account_id()),
+    )
+    .unwrap();
+
     nft_approve(nft, &fake_market, alice, token_id, "1").failure("CompilationError".to_string());
     nft_revoke(nft, &fake_market, alice, token_id).failure("CompilationError".to_string());
 }
@@ -103,13 +113,20 @@ fn buy_tokens() {
     claim_token(nft, bob, 1).unwrap();
     let token_id = claim_token(nft, alice, 1).unwrap();
     nft_approve(nft, &markets[0], alice, token_id, "3").unwrap();
+    let bob_balance = bob.balance();
+    let alice_balance = alice.balance();
+    let mintgate_balance = mintgate.balance();
     buy_token(&markets[0], nft, bob, token_id, "3").unwrap();
-    assert_amount(bob, 1);
-    assert_amount(alice, 1);
-    assert_amount(mintgate, 1);
+    bob.check_amount(bob_balance - to_yocto("3"));
+    alice.check_amount(alice_balance + to_yocto("3") - to_yocto("0.075"));
+    mintgate.check_amount(mintgate_balance + to_yocto("0.075"));
 }
 
-fn assert_amount(user_account: &UserAccount, _amount: Balance) {
-    let account = user_account.account().unwrap();
-    println!("{}: N{}", user_account.account_id, account.amount);
+fn approve_msg(price: u128, gate_id: ValidGateId, creator_id: ValidAccountId) -> String {
+    serde_json::to_string(&MarketApproveMsg {
+        min_price: price.into(),
+        gate_id: Some(gate_id),
+        creator_id: Some(creator_id.to_string()),
+    })
+    .unwrap()
 }
