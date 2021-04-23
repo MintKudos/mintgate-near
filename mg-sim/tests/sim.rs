@@ -3,11 +3,12 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     MARKET_WASM_BYTES => "../target/wasm32-unknown-unknown/release/mg_market.wasm",
 }
 
+use ansi_term::{Colour, Style};
 use mg_core::{mocked_context::gate_id, Collectible, NftApproveMsg, Token, TokenId, ValidGateId};
 use mg_market::TokenForSale;
 use near_sdk::{
     json_types::{ValidAccountId, U64},
-    serde_json,
+    serde_json, Balance,
 };
 use near_sdk_sim::{
     call,
@@ -24,6 +25,36 @@ pub use mg_nft::NftContractContract as NftContract;
 
 const NFT_ID: &str = "nft";
 const MARKET_ID: &str = "market";
+
+pub trait BalanceChecker {
+    fn balance(&self) -> Balance;
+    fn check_amount(&self, expected_amount: Balance);
+}
+
+impl BalanceChecker for UserAccount {
+    fn balance(&self) -> Balance {
+        let account = self.account().unwrap();
+        account.amount
+    }
+
+    fn check_amount(&self, expected_amount: Balance) {
+        let account = self.account().unwrap();
+        print!("Check balance for {}: N{} ", self.account_id, account.amount);
+        let delta = if account.amount > expected_amount {
+            account.amount - expected_amount
+        } else {
+            expected_amount - account.amount
+        };
+        print!("|{:.6}|", delta as f64 / 1e24);
+        assert!(
+            delta <= to_yocto("0.01"),
+            "Balance check failed: delta is {} {}",
+            delta,
+            expected_amount
+        );
+        println!(" [OK]");
+    }
+}
 
 pub struct Sim {
     pub root: UserAccount,
@@ -134,7 +165,7 @@ pub fn create_collectible(
     )) {
         Ok(_) => {
             let collectible = get_collectible_by_gate_id(nft, gate_id.clone());
-            print!("Checking {:?}", collectible);
+            print!("Checking `{}`", collectible.gate_id);
             assert_eq!(collectible.gate_id, gate_id.to_string());
             assert_eq!(collectible.metadata.title.unwrap(), title.to_string());
             assert_eq!(collectible.metadata.description.unwrap(), description.to_string());
@@ -178,6 +209,7 @@ pub fn get_tokens_by_owner(nft: &ContractAccount<NftContract>, user: &UserAccoun
     println!("{:?}", tokens);
     tokens
 }
+
 pub fn nft_approve(
     nft: &ContractAccount<NftContract>,
     market: &ContractAccount<MarketContract>,
@@ -233,9 +265,23 @@ pub fn nft_revoke(
     }
 }
 
+pub fn nft_on_approve(
+    market: &ContractAccount<MarketContract>,
+    user: &UserAccount,
+    token_id: TokenId,
+    owner_id: ValidAccountId,
+    approval_id: U64,
+    msg: String,
+) -> Result<(), String> {
+    println!("[{}] `{}` on approving token `{:?}`", market.account_id(), user.account_id, token_id,);
+    match tx(call!(user, market.nft_on_approve(token_id, owner_id, approval_id, msg))) {
+        Ok(_) => Ok(()),
+        Err(msg) => Err(msg),
+    }
+}
+
 pub fn get_tokens_for_sale(market: &ContractAccount<MarketContract>) -> Vec<TokenForSale> {
     let ts: Vec<TokenForSale> = view!(market.get_tokens_for_sale()).unwrap_json();
-    println!("{:?}", ts);
     ts
 }
 
@@ -244,7 +290,6 @@ pub fn get_tokens_by_owner_id(
     owner: ValidAccountId,
 ) -> Vec<TokenForSale> {
     let ts: Vec<TokenForSale> = view!(market.get_tokens_by_owner_id(owner)).unwrap_json();
-    println!("{:?}", ts);
     ts
 }
 
@@ -280,17 +325,6 @@ pub fn buy_token(
     }
 }
 
-// pub fn nft_transfer(
-//     nft: &ContractAccount<NftContract>,
-//     user: &UserAccount,
-//     receiver_id: ValidAccountId,
-//     token_id: TokenId,
-//     enforce_approval_id: Option<U64>,
-//     memo: Option<String>,
-// ) -> Result<(), u32> {
-//     tx(call!(user, market.buy_token(token_id), deposit = to_yocto(deposit)));
-// }
-
 pub trait CheckResult {
     fn failure(self, msg: String);
 }
@@ -306,8 +340,13 @@ impl<T: Debug> CheckResult for Result<T, String> {
 
 fn tx(x: ExecutionResult) -> Result<ExecutionResult, String> {
     for line in x.logs() {
-        println!("{}", ansi_term::Style::new().dimmed().paint(format!("[log :: {}]", line)));
+        println!("{}", Style::new().dimmed().paint(format!("[log :: {}]", line)));
     }
+
+    println!(
+        "{}",
+        Colour::Cyan.paint(format!("[tokens burnt: {}]", x.tokens_burnt() as f64 / 1e24))
+    );
 
     if x.is_ok() {
         Ok(x)
