@@ -24,6 +24,7 @@ declare global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
       nftFeeUser: Account;
+      adminUser: Account;
     }
   }
 }
@@ -37,6 +38,7 @@ describe('Nft contract', () => {
   const [merchant, merchant2] = global.marketUsers;
 
   const mintgate = global.nftFeeUser;
+  const admin = global.adminUser;
 
   const nonExistentUserId = 'ron-1111111111111-111111';
 
@@ -352,6 +354,68 @@ describe('Nft contract', () => {
       logger.data(`Collectibles of user with id ${nonExistentUserId}`, collectiblesNonExistent);
 
       expect(collectiblesNonExistent).toEqual([]);
+    });
+  });
+
+  describe('delete_collectible', () => {
+    it('should delete a collectible if called by creator', async () => {
+      const gateId = await generateId();
+
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+      expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
+
+      await alice.contract.delete_collectible({ gate_id: gateId });
+      expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).toBeNull();
+    });
+
+    it('should delete a collectible if called by admin', async () => {
+      const gateId = await generateId();
+
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+      expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
+
+      await admin.functionCall(alice.contract.contractId, 'delete_collectible', { gate_id: gateId });
+      expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).toBeNull();
+    });
+
+    describe('errors', () => {
+      it('should throw if provided with nonexistent gate id', async () => {
+        const nonExistentGateId = 'non-existent-gate-id';
+
+        await expect(bob.contract.delete_collectible({ gate_id: nonExistentGateId })).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentGateId}","msg":"Gate ID \`${nonExistentGateId}\` was not found"}`,
+          })
+        );
+      });
+
+      it('should throw if tokens were minted for the collectible', async () => {
+        const gateId = await generateId();
+
+        await addTestCollectible(alice.contract, { gate_id: gateId });
+        await alice.contract.claim_token({ gate_id: gateId });
+
+        await expect(alice.contract.delete_collectible({ gate_id: gateId })).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"GateIdHasTokens","gate_id":"${gateId}","msg":"Gate ID \`${gateId}\` has already some claimed tokens"}`,
+          })
+        );
+      });
+
+      it('should throw if caller is not authorized to delete (neither creator nor admin)', async () => {
+        const gateId = await generateId();
+
+        await addTestCollectible(alice.contract, { gate_id: gateId });
+
+        await expect(bob.contract.delete_collectible({ gate_id: gateId })).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"NotAuthorized","gate_id":"${gateId}","msg":"Unable to delete gate ID \`${gateId}\`"}`,
+          })
+        );
+      });
     });
   });
 
@@ -715,6 +779,37 @@ describe('Nft contract', () => {
             memo: null,
           })
         ).resolves.not.toThrow();
+      });
+
+      it('should clear approvals', async () => {
+        const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+        logger.data("Token's owner is", bob.accountId);
+
+        await bob.contract.nft_approve(
+          {
+            token_id: tokenId,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify({
+              min_price: '5',
+            }),
+          },
+          GAS
+        );
+        logger.data("Token's sender is approved", merchant.contract.contractId);
+
+        let token2 = await bob.contract.nft_token({ token_id: tokenId });
+        expect(token2!.approvals).not.toEqual({});
+
+        await bob.contract.nft_transfer({
+          receiver_id: alice.accountId,
+          token_id: tokenId,
+          enforce_approval_id: null,
+          memo: null,
+        });
+
+        token2 = await bob.contract.nft_token({ token_id: tokenId });
+
+        expect(token2!.approvals).toEqual({});
       });
 
       it.todo('enforce_approval_id');

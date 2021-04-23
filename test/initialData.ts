@@ -5,6 +5,7 @@ export const prefixes = {
     contract: 'nft',
     users: ['alice', 'bob'],
     feeUser: 'mintgate-fee',
+    admin: 'admin',
   },
   market: {
     contract: 'market',

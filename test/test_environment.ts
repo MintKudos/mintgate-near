@@ -18,6 +18,7 @@ declare global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
       nftFeeUser: Account;
+      adminUser: Account;
     }
   }
 }
@@ -29,13 +30,14 @@ export default class LocalTestEnvironment extends NodeEnvironment {
     await super.setup();
 
     const nftFeeUser = await getAccountFor(prefixes.nft.feeUser);
+    const adminUser = await getAccountFor(prefixes.nft.admin);
 
     const nftUsers = await getUsers(prefixes.nft.users);
     const marketUsers = await getUsers(prefixes.market.users);
 
     // todo: use more realistic data
     const nftContractArguments: NftContract['init'] = {
-      admin_id: 'zzz-1111111111111-111111',
+      admin_id: adminUser.accountId,
       metadata: contractMetadata,
       mintgate_fee: MINTGATE_FEE,
       mintgate_fee_account_id: nftFeeUser.accountId,
@@ -61,6 +63,7 @@ export default class LocalTestEnvironment extends NodeEnvironment {
     );
 
     this.global.nftFeeUser = nftFeeUser;
+    this.global.adminUser = adminUser;
     this.global.nftUsers = createProfilers<NftContract>(nftUsers, nftContract, NftContractMethods);
     this.global.marketUsers = createProfilers<MarketContract>(marketUsers, marketContract, MarketContractMethods);
   }
