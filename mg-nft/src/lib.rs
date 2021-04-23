@@ -449,6 +449,7 @@ impl NonFungibleTokenCore for NftContract {
         token.owner_id = receiver_id.as_ref().to_string();
         token.sender_id = sender_id;
         token.modified_at = env::block_timestamp();
+        token.approvals.clear();
         self.insert_token(&token);
     }
 

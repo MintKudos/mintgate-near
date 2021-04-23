@@ -334,6 +334,13 @@ pub struct TokenApproval {
     pub min_price: U128,
 }
 
+impl TokenApproval {
+    #[cfg(not(target_arch = "wasm"))]
+    pub fn new(approval_id: u64, min_price: U128) -> Self {
+        Self { approval_id: approval_id.into(), min_price }
+    }
+}
+
 #[near_ext]
 #[ext_contract(nft)]
 pub trait NonFungibleTokenCore {
