@@ -220,7 +220,7 @@ impl TryFrom<String> for ValidGateId {
     }
 }
 
-impl From<ValidGateId> for AccountId {
+impl From<ValidGateId> for GateId {
     fn from(value: ValidGateId) -> Self {
         value.0
     }

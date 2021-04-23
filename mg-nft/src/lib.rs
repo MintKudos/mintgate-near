@@ -97,6 +97,10 @@ pub enum Panics {
     GateIdNotFound { gate_id: GateId },
     #[panic_msg = "Tokens for gate id `{}` have already been claimed"]
     GateIdExhausted { gate_id: GateId },
+    #[panic_msg = "Gate ID `{}` has already some claimed tokens"]
+    GateIdHasTokens { gate_id: GateId },
+    #[panic_msg = "Unable to delete gate ID `{}`"]
+    NotAuthorized { gate_id: GateId },
     #[panic_msg = "Token ID `{:?}` was not found"]
     TokenIdNotFound { token_id: U64 },
     #[panic_msg = "Token ID `{:?}` does not belong to account `{}`"]
@@ -276,6 +280,31 @@ impl NftContract {
         }
     }
 
+    /// Deletes the given `Collectible` by `gate_id`.
+    /// The collectible can only be deleted if there are no minted tokens.
+    /// Moreover, only the `creator_id` of the collectible or
+    /// the contract `admin_id` are allowed to delete the collectible.
+    pub fn delete_collectible(&mut self, gate_id: ValidGateId) {
+        let gate_id: GateId = From::from(gate_id);
+        match self.collectibles.get(&gate_id) {
+            None => Panics::GateIdNotFound { gate_id }.panic(),
+            Some(collectible) => {
+                assert!(collectible.gate_id == gate_id);
+
+                if !collectible.minted_tokens.is_empty() {
+                    Panics::GateIdHasTokens { gate_id }.panic();
+                }
+
+                let pred_id = env::predecessor_account_id();
+                if pred_id == collectible.creator_id || pred_id == self.admin_id {
+                    self.collectibles.remove(&gate_id).unwrap();
+                } else {
+                    Panics::NotAuthorized { gate_id }.panic();
+                }
+            }
+        }
+    }
+
     /// Claims a `Token` for the `Collectible` indicated by `gate_id`.
     /// The claim is on behalf the `predecessor_account_id`.
     /// Returns a `TokenId` that represents this claim.
@@ -309,6 +338,7 @@ impl NftContract {
                 self.insert_token(&token);
 
                 collectible.current_supply.0 = collectible.current_supply.0 - 1;
+                collectible.minted_tokens.push(U64(token_id));
                 self.collectibles.insert(&gate_id, &collectible);
 
                 U64::from(token_id)

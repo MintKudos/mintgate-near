@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.9 https://github.com/acuarica/near-syn
+// TypeScript bindings generated with near-ts v0.2.10 https://github.com/epam/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -383,6 +383,14 @@ export interface Self {
     get_collectibles_by_creator(args: { creator_id: ValidAccountId }): Promise<Collectible[]>;
 
     /**
+     *  Deletes the given `Collectible` by `gate_id`.
+     *  The collectible can only be deleted if there are no minted tokens.
+     *  Moreover, only the `creator_id` of the collectible or
+     *  the contract `admin_id` are allowed to delete the collectible.
+     */
+    delete_collectible(args: { gate_id: ValidGateId }, gas?: any): Promise<void>;
+
+    /**
      *  Claims a `Token` for the `Collectible` indicated by `gate_id`.
      *  The claim is on behalf the `predecessor_account_id`.
      *  Returns a `TokenId` that represents this claim.
@@ -504,6 +512,7 @@ export const NftContractMethods = {
     ],
     changeMethods: [
         "create_collectible",
+        "delete_collectible",
         "claim_token",
         "nft_transfer",
         "nft_transfer_payout",

@@ -288,6 +288,65 @@ mod create_collectible {
     }
 }
 
+mod delete_collectible {
+
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Gate ID `Nekq22i3rvzDe7c51Yc8hU` was not found")]
+    fn delete_a_non_existent_collectible_should_panic() {
+        init().run_as(alice(), |contract| {
+            contract.delete_collectible(gate_id(0));
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Gate ID `GPZkspuVGaZxwWoP6bJoWU` has already some claimed tokens")]
+    fn delete_a_claimed_gate_id_should_panic() {
+        init().run_as(alice(), |contract| {
+            contract.create_test_collectible(gate_id(1), 10);
+            contract.claim_token(gate_id(1));
+            contract.delete_collectible(gate_id(1));
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Unable to delete gate ID `GPZkspuVGaZxwWoP6bJoWU`")]
+    fn delete_a_collectible_from_non_creator_should_panic() {
+        init()
+            .run_as(alice(), |contract| {
+                contract.create_test_collectible(gate_id(1), 10);
+            })
+            .run_as(bob(), |contract| {
+                contract.delete_collectible(gate_id(1));
+            });
+    }
+
+    #[test]
+    fn delete_a_collectible_from_creator() {
+        init().run_as(alice(), |contract| {
+            contract.create_test_collectible(gate_id(1), 10);
+            assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_some());
+
+            contract.delete_collectible(gate_id(1));
+            assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_none());
+        });
+    }
+
+    #[test]
+    fn delete_a_collectible_from_admin() {
+        init()
+            .run_as(alice(), |contract| {
+                contract.create_test_collectible(gate_id(1), 10);
+                assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_some());
+            })
+            .run_as(mintgate_admin(), |contract| {
+                contract.delete_collectible(gate_id(1));
+                assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_none());
+            });
+    }
+}
+
 mod claim_token {
 
     use super::*;
