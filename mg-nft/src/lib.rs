@@ -298,6 +298,11 @@ impl NftContract {
                 let pred_id = env::predecessor_account_id();
                 if pred_id == collectible.creator_id || pred_id == self.admin_id {
                     self.collectibles.remove(&gate_id).unwrap();
+
+                    let mut cs = self.collectibles_by_creator.get(&collectible.creator_id).unwrap();
+                    let removed = cs.remove(&gate_id);
+                    assert!(removed);
+                    self.collectibles_by_creator.insert(&collectible.creator_id, &cs);
                 } else {
                     Panics::NotAuthorized { gate_id }.panic();
                 }

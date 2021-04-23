@@ -330,6 +330,7 @@ mod delete_collectible {
 
             contract.delete_collectible(gate_id(1));
             assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_none());
+            assert!(contract.get_collectibles_by_creator(alice()).is_empty());
         });
     }
 
@@ -343,6 +344,7 @@ mod delete_collectible {
             .run_as(mintgate_admin(), |contract| {
                 contract.delete_collectible(gate_id(1));
                 assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_none());
+                assert!(contract.get_collectibles_by_creator(alice()).is_empty());
             });
     }
 }
