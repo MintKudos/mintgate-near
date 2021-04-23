@@ -38,7 +38,7 @@ cargo install near-syn
 Or alternatively you can install it directly from GitHub
 
 ```sh
-cargo install --git https://github.com/acuarica/near-syn --branch main
+cargo install --git https://github.com/epam/near-syn --branch main
 ```
 
 ## To Explore
