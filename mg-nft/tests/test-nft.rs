@@ -6,11 +6,11 @@ use mg_core::{
         alice, any, bob, charlie, gate_id, market, mintgate_admin, mintgate_fee_account_id,
     },
     ContractMetadata, GateId, NftApproveMsg, NonFungibleTokenApprovalMgmt, NonFungibleTokenCore,
-    TokenId, ValidGateId,
+    TokenApproval, TokenId, ValidGateId,
 };
 use mg_nft::NftContract;
 use near_sdk::{
-    json_types::{ValidAccountId, U64},
+    json_types::{ValidAccountId, U128, U64},
     serde_json,
 };
 use std::{
@@ -428,7 +428,9 @@ mod nft_approve {
             contract.nft_approve(token_id, bob(), approve_msg(10));
 
             let token = contract.nft_token(token_id).unwrap();
-            assert_eq!(token.approval_counter.0, 1);
+            assert_eq!(token.approval_counter, U64(1));
+            assert_eq!(token.approvals.len(), 1);
+            assert_eq!(token.approvals[bob().as_ref()], TokenApproval::new(1, U128(10)));
         });
     }
 
@@ -452,10 +454,19 @@ mod nft_approve {
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
                 contract.nft_approve(token_id, market(), approve_msg(10));
+
+                let token = contract.nft_token(token_id).unwrap();
+                assert_eq!(token.approval_counter, U64(1));
+                assert_eq!(token.approvals.len(), 1);
+                assert_eq!(token.approvals[market().as_ref()], TokenApproval::new(1, U128(10)));
             })
             .run_as(market(), |contract| {
                 let token_id = contract.last_claimed_token();
                 contract.nft_transfer(charlie(), token_id, None, None);
+
+                let token = contract.nft_token(token_id).unwrap();
+                assert_eq!(token.approval_counter, U64(1));
+                assert_eq!(token.approvals.len(), 0);
             });
     }
 }
