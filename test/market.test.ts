@@ -16,6 +16,7 @@ declare global {
       nftUsers: AccountContract<NftContract>[];
       marketUsers: AccountContract<MarketContract>[];
       nftFeeUser: Account;
+      adminUser: Account;
     }
   }
 }
