@@ -9,3 +9,5 @@
 
 # Near CLI deployment
 /neardev/
+
+/test/data.js
