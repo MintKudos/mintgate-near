@@ -7,7 +7,7 @@ use ansi_term::{Colour, Style};
 use mg_core::{mocked_context::gate_id, Collectible, NftApproveMsg, Token, TokenId, ValidGateId};
 use mg_market::TokenForSale;
 use near_sdk::{
-    json_types::{ValidAccountId, U64},
+    json_types::{ValidAccountId, U128, U64},
     serde_json, Balance,
 };
 use near_sdk_sim::{
@@ -210,6 +210,10 @@ pub fn get_tokens_by_owner(nft: &ContractAccount<NftContract>, user: &UserAccoun
     tokens
 }
 
+fn assert_token_in_collection(tokens: Vec<TokenForSale>, token_id: TokenId) {
+    assert!(tokens.into_iter().map(|t| t.token_id).collect::<Vec<TokenId>>().contains(&token_id));
+}
+
 pub fn nft_approve(
     nft: &ContractAccount<NftContract>,
     market: &ContractAccount<MarketContract>,
@@ -229,13 +233,6 @@ pub fn nft_approve(
     fn approve_msg(price: u128) -> Option<String> {
         serde_json::to_string(&NftApproveMsg { min_price: price.into() }).ok()
     }
-    fn assert_token_in_collection(tokens: Vec<TokenForSale>, token_id: TokenId) {
-        assert!(tokens
-            .into_iter()
-            .map(|t| t.token_id)
-            .collect::<Vec<TokenId>>()
-            .contains(&token_id));
-    }
 
     match tx(call!(
         user,
@@ -250,6 +247,55 @@ pub fn nft_approve(
             Ok(())
         }
         Err(msg) => Err(msg),
+    }
+}
+
+pub fn batch_approve(
+    nft: &ContractAccount<NftContract>,
+    market: &ContractAccount<MarketContract>,
+    user: &UserAccount,
+    tokens: Vec<(TokenId, U128)>,
+) -> Result<(), String> {
+    println!(
+        "[{}] `{}` approving tokens `{:?}` in `{}`",
+        nft.account_id(),
+        user.account_id,
+        tokens,
+        market.account_id(),
+    );
+    match tx(call!(user, nft.batch_approve(tokens.clone(), market.valid_account_id()))) {
+        Ok(_) => {
+            for (token_id, _) in tokens {
+                assert_token_in_collection(get_tokens_for_sale(market), token_id);
+                assert_token_in_collection(
+                    get_tokens_by_owner_id(market, user.valid_account_id()),
+                    token_id,
+                );
+            }
+            Ok(())
+        }
+        Err(msg) => {
+            if let Ok(mg_nft::Panic::Errors { panics }) =
+                serde_json::from_str::<mg_nft::Panic>(&msg)
+            {
+                for (token_id, _) in tokens {
+                    if !panics
+                        .0
+                        .iter()
+                        .map(|(t, _)| *t)
+                        .collect::<Vec<TokenId>>()
+                        .contains(&token_id)
+                    {
+                        assert_token_in_collection(get_tokens_for_sale(market), token_id);
+                        assert_token_in_collection(
+                            get_tokens_by_owner_id(market, user.valid_account_id()),
+                            token_id,
+                        );
+                    }
+                }
+            }
+            Err(msg)
+        }
     }
 }
 
@@ -354,13 +400,18 @@ fn tx(x: ExecutionResult) -> Result<ExecutionResult, String> {
         if let ExecutionOutcome {
             status:
                 ExecutionStatus::Failure(TxExecutionError::ActionError(ActionError {
-                    kind: ActionErrorKind::FunctionCallError(err),
+                    kind:
+                        ActionErrorKind::FunctionCallError(
+                            near_vm_errors::FunctionCallError::HostError(
+                                near_vm_errors::HostError::GuestPanic { panic_msg },
+                            ),
+                        ),
                     ..
                 })),
             ..
         } = x.outcome()
         {
-            Err(format!("{:?}", err))
+            Err(format!("{}", panic_msg))
         } else {
             Err(format!("{:?}", x.outcome()))
         }

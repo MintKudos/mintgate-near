@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.10 https://github.com/epam/near-syn
+// TypeScript bindings generated with near-ts v0.2.11 https://github.com/epam/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -7,6 +7,13 @@ export type U128 = string;
 export type I128 = string;
 export type AccountId = string;
 export type ValidAccountId = string;
+
+/**
+ */
+export enum CorePanics {
+    ZeroDenominatorFraction,
+    FractionGreaterThanOne,
+}
 
 /**
  *  Represents a number between `0` and `1`.
@@ -337,10 +344,39 @@ export interface MarketApproveMsg {
 }
 
 /**
+ */
+export enum Panic {
+    MaxRoyaltyLessThanMinRoyalty,
+    RoyaltyMinThanAllowed,
+    RoyaltyMaxThanAllowed,
+    RoyaltyTooLarge,
+    GateIdAlreadyExists,
+    ZeroSupplyNotAllowed,
+    GateIdNotFound,
+    GateIdExhausted,
+    GateIdHasTokens,
+    NotAuthorized,
+    TokenIdNotFound,
+    TokenIdNotOwnedBy,
+    OneApprovalAllowed,
+    SenderNotAuthToTransfer,
+    ReceiverIsOwner,
+    EnforceApprovalFailed,
+    MsgFormatNotRecognized,
+    MsgFormatMinPriceMissing,
+    RevokeApprovalFailed,
+    Errors,
+}
+
+/**
+ */
+export type Panics = [TokenId, Panic][];
+
+/**
  *  Methods for the NFT contract.
  *  Methods belonging to a NEP Standard are implemented in their own interfaces.
  */
-export interface Self {
+export interface Self0 {
     /**
      *  Initializes the contract.
      *  This contract methods needs to be explicitely called
@@ -497,7 +533,16 @@ export interface NonFungibleTokenApprovalMgmt {
 
 }
 
-export type NftContract = Self & NonFungibleTokenCore & NonFungibleTokenApprovalMgmt;
+/**
+ */
+export interface Self1 {
+    /**
+     */
+    batch_approve(args: { tokens: [TokenId, U128][], account_id: ValidAccountId }, gas?: any): Promise<void>;
+
+}
+
+export type NftContract = Self0 & NonFungibleTokenCore & NonFungibleTokenApprovalMgmt & Self1;
 
 export const NftContractMethods = {
     viewMethods: [
@@ -519,5 +564,6 @@ export const NftContractMethods = {
         "nft_approve",
         "nft_revoke",
         "nft_revoke_all",
+        "batch_approve",
     ],
 };

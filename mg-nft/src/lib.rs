@@ -24,17 +24,18 @@ use mg_core::{
     NonFungibleTokenApprovalMgmt, NonFungibleTokenCore, Payout, Token, TokenApproval, TokenId,
     TokenMetadata, ValidGateId,
 };
-use near_env::{near_log, PanicMessage};
+use near_env::{near_ext, near_log, PanicMessage};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::{LookupMap, UnorderedMap, UnorderedSet},
-    env,
+    env, ext_contract,
     json_types::{ValidAccountId, U128, U64},
     log, near_bindgen,
-    serde::Serialize,
-    setup_alloc, AccountId, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
+    serde::{Deserialize, Serialize},
+    serde_json, setup_alloc, AccountId, Balance, BorshStorageKey, CryptoHash, Gas, PanicOnDefault,
+    Promise, PromiseResult,
 };
-use std::{cmp::Ordering, collections::HashMap, convert::TryInto};
+use std::{cmp::Ordering, collections::HashMap, convert::TryInto, fmt::Display};
 
 setup_alloc!();
 
@@ -78,9 +79,9 @@ enum Keys {
     TokensByOwnerValue { owner_id_hash: CryptoHash },
 }
 
-#[derive(Serialize, PanicMessage)]
+#[derive(Serialize, Deserialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
-pub enum Panics {
+pub enum Panic {
     #[panic_msg = "Min royalty `{}` must be less or equal to max royalty `{}`"]
     MaxRoyaltyLessThanMinRoyalty { min_royalty: Fraction, max_royalty: Fraction },
     #[panic_msg = "Royalty `{}` of `{}` is less than min"]
@@ -119,6 +120,18 @@ pub enum Panics {
     MsgFormatMinPriceMissing { reason: String },
     #[panic_msg = "Could not revoke approval for `{}`"]
     RevokeApprovalFailed { account_id: AccountId },
+    #[panic_msg = "{} error(s) detected, see `panics` fields for a full list of errors"]
+    Errors { panics: Panics },
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Panics(pub Vec<(TokenId, Panic)>);
+
+impl Display for Panics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.len())
+    }
 }
 
 /// Methods for the NFT contract.
@@ -148,7 +161,7 @@ impl NftContract {
         mintgate_fee.check();
 
         if max_royalty.cmp(&min_royalty) == Ordering::Less {
-            Panics::MaxRoyaltyLessThanMinRoyalty { min_royalty, max_royalty }.panic();
+            Panic::MaxRoyaltyLessThanMinRoyalty { min_royalty, max_royalty }.panic();
         }
 
         Self {
@@ -189,20 +202,20 @@ impl NftContract {
         royalty.check();
 
         if royalty.cmp(&self.min_royalty) == Ordering::Less {
-            Panics::RoyaltyMinThanAllowed { royalty, gate_id }.panic();
+            Panic::RoyaltyMinThanAllowed { royalty, gate_id }.panic();
         }
         if royalty.cmp(&self.max_royalty) == Ordering::Greater {
-            Panics::RoyaltyMaxThanAllowed { royalty, gate_id }.panic();
+            Panic::RoyaltyMaxThanAllowed { royalty, gate_id }.panic();
         }
         let bn = 1_000_000_000_000_000_000_000;
         if self.mintgate_fee.mult(bn) + royalty.mult(bn) >= bn {
-            Panics::RoyaltyTooLarge { royalty, mintgate_fee: self.mintgate_fee }.panic();
+            Panic::RoyaltyTooLarge { royalty, mintgate_fee: self.mintgate_fee }.panic();
         }
         if self.collectibles.get(&gate_id).is_some() {
-            Panics::GateIdAlreadyExists { gate_id }.panic();
+            Panic::GateIdAlreadyExists { gate_id }.panic();
         }
         if supply.0 == 0 {
-            Panics::ZeroSupplyNotAllowed { gate_id }.panic();
+            Panic::ZeroSupplyNotAllowed { gate_id }.panic();
         }
 
         // if env::predecessor_account_id() != admin_id {
@@ -287,12 +300,12 @@ impl NftContract {
     pub fn delete_collectible(&mut self, gate_id: ValidGateId) {
         let gate_id: GateId = From::from(gate_id);
         match self.collectibles.get(&gate_id) {
-            None => Panics::GateIdNotFound { gate_id }.panic(),
+            None => Panic::GateIdNotFound { gate_id }.panic(),
             Some(collectible) => {
                 assert!(collectible.gate_id == gate_id);
 
                 if !collectible.minted_tokens.is_empty() {
-                    Panics::GateIdHasTokens { gate_id }.panic();
+                    Panic::GateIdHasTokens { gate_id }.panic();
                 }
 
                 let pred_id = env::predecessor_account_id();
@@ -304,7 +317,7 @@ impl NftContract {
                     assert!(removed);
                     self.collectibles_by_creator.insert(&collectible.creator_id, &cs);
                 } else {
-                    Panics::NotAuthorized { gate_id }.panic();
+                    Panic::NotAuthorized { gate_id }.panic();
                 }
             }
         }
@@ -320,10 +333,10 @@ impl NftContract {
         let gate_id = gate_id.to_string();
 
         match self.collectibles.get(&gate_id) {
-            None => Panics::GateIdNotFound { gate_id }.panic(),
+            None => Panic::GateIdNotFound { gate_id }.panic(),
             Some(mut collectible) => {
                 if collectible.current_supply.0 == 0 {
-                    Panics::GateIdExhausted { gate_id }.panic()
+                    Panic::GateIdExhausted { gate_id }.panic()
                 }
 
                 let owner_id = env::predecessor_account_id();
@@ -396,7 +409,7 @@ impl NftContract {
     /// Panics otherwise.
     fn get_token(&self, token_id: TokenId) -> Token {
         match self.tokens.get(&token_id) {
-            None => Panics::TokenIdNotFound { token_id }.panic(),
+            None => Panic::TokenIdNotFound { token_id }.panic(),
             Some(token) => {
                 assert!(token.token_id == token_id);
                 token
@@ -422,10 +435,10 @@ impl NftContract {
     /// Panics if `owner` does not own the corgi with `id`.
     fn delete_token_from(&mut self, token_id: TokenId, owner_id: &AccountId) {
         match self.tokens_by_owner.get(&owner_id) {
-            None => Panics::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() }.panic(),
+            None => Panic::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() }.panic(),
             Some(mut list) => {
                 if !list.remove(&token_id) {
-                    Panics::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() }.panic();
+                    Panic::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() }.panic();
                 }
                 self.tokens_by_owner.insert(&owner_id, &list);
 
@@ -458,11 +471,11 @@ impl NonFungibleTokenCore for NftContract {
         let mut token = self.get_token(token_id);
 
         if sender_id != token.owner_id && token.approvals.get(&sender_id).is_none() {
-            Panics::SenderNotAuthToTransfer { sender_id }.panic();
+            Panic::SenderNotAuthToTransfer { sender_id }.panic();
         }
 
         if &token.owner_id == receiver_id.as_ref() {
-            Panics::ReceiverIsOwner.panic();
+            Panic::ReceiverIsOwner.panic();
         }
 
         if let Some(enforce_approval_id) = enforce_approval_id {
@@ -471,7 +484,7 @@ impl NonFungibleTokenCore for NftContract {
                 .get(receiver_id.as_ref())
                 .expect("Receiver not an approver of this token.");
             if approval_id != &enforce_approval_id {
-                Panics::EnforceApprovalFailed.panic();
+                Panic::EnforceApprovalFailed.panic();
             }
         }
 
@@ -507,7 +520,7 @@ impl NonFungibleTokenCore for NftContract {
     fn nft_payout(&self, token_id: TokenId, balance: U128) -> Payout {
         let token = self.get_token(token_id);
         match self.collectibles.get(&token.gate_id) {
-            None => Panics::GateIdNotFound { gate_id: token.gate_id }.panic(),
+            None => Panic::GateIdNotFound { gate_id: token.gate_id }.panic(),
             Some(collectible) => {
                 let royalty_amount = collectible.royalty.mult(balance.0);
                 let fee_amount = self.mintgate_fee.mult(balance.0);
@@ -575,27 +588,22 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
     ) -> Promise {
         let min_price = {
             if let Some(msg) = msg.clone() {
-                match near_sdk::serde_json::from_str::<NftApproveMsg>(&msg) {
+                match serde_json::from_str::<NftApproveMsg>(&msg) {
                     Ok(approve_msg) => approve_msg.min_price,
-                    Err(err) => {
-                        Panics::MsgFormatMinPriceMissing { reason: err.to_string() }.panic()
-                    }
+                    Err(err) => Panic::MsgFormatMinPriceMissing { reason: err.to_string() }.panic(),
                 }
             } else {
-                Panics::MsgFormatNotRecognized.panic();
+                Panic::MsgFormatNotRecognized.panic();
             }
         };
 
         let owner_id = env::predecessor_account_id();
-
         let mut token = self.get_token(token_id);
-
         if &owner_id != &token.owner_id {
-            Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
+            Panic::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
-
         if token.approvals.len() > 0 {
-            Panics::OneApprovalAllowed.panic();
+            Panic::OneApprovalAllowed.panic();
         }
 
         token.approval_counter.0 = token.approval_counter.0 + 1;
@@ -606,7 +614,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         self.tokens.insert(&token_id, &token);
 
         match self.collectibles.get(&token.gate_id) {
-            None => Panics::GateIdNotFound { gate_id: token.gate_id }.panic(),
+            None => Panic::GateIdNotFound { gate_id: token.gate_id }.panic(),
             Some(collectible) => {
                 let market_msg = MarketApproveMsg {
                     min_price,
@@ -617,7 +625,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
                     token_id,
                     owner_id.try_into().unwrap(),
                     U64::from(token.approval_counter),
-                    near_sdk::serde_json::to_string(&market_msg).unwrap(),
+                    serde_json::to_string(&market_msg).unwrap(),
                     account_id.as_ref(),
                     0,
                     env::prepaid_gas() / 2,
@@ -631,10 +639,10 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
         if &owner_id != &token.owner_id {
-            Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
+            Panic::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
         if token.approvals.remove(account_id.as_ref()).is_none() {
-            Panics::RevokeApprovalFailed { account_id: account_id.to_string() }.panic();
+            Panic::RevokeApprovalFailed { account_id: account_id.to_string() }.panic();
         }
         self.tokens.insert(&token_id, &token);
         mg_core::market::nft_on_revoke(token_id, account_id.as_ref(), 0, env::prepaid_gas() / 2)
@@ -645,7 +653,7 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
         let owner_id = env::predecessor_account_id();
         let mut token = self.get_token(token_id);
         if &owner_id != &token.owner_id {
-            Panics::TokenIdNotOwnedBy { token_id, owner_id }.panic();
+            Panic::TokenIdNotOwnedBy { token_id, owner_id }.panic();
         }
         for (nft_id, _) in &token.approvals {
             mg_core::market::nft_on_revoke(token_id, nft_id, 0, env::prepaid_gas() / 2);
@@ -653,5 +661,96 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
 
         token.approvals.clear();
         self.tokens.insert(&token_id, &token);
+    }
+}
+
+const GAS_FOR_ROYALTIES: Gas = 120_000_000_000_000;
+const NO_DEPOSIT: Balance = 0;
+
+#[near_log(skip_args, only_pub)]
+#[near_bindgen]
+impl NftContract {
+    pub fn batch_approve(
+        &mut self,
+        tokens: Vec<(TokenId, U128)>,
+        account_id: ValidAccountId,
+    ) -> Promise {
+        let owner_id = env::predecessor_account_id();
+        let mut oks = Vec::new();
+        let mut errs = Vec::new();
+        for (token_id, min_price) in tokens {
+            match self.approve_token(token_id, &owner_id, account_id.to_string(), min_price) {
+                Ok(msg) => oks.push((token_id, msg)),
+                Err(err) => errs.push((token_id, err)),
+            }
+        }
+        mg_core::market::batch_on_approve(
+            oks,
+            owner_id.try_into().unwrap(),
+            account_id.as_ref(),
+            NO_DEPOSIT,
+            // env::prepaid_gas() / 2,
+            GAS_FOR_ROYALTIES,
+        )
+        .then(self_callback::resolve_batch_approve(
+            errs,
+            &env::current_account_id(),
+            NO_DEPOSIT,
+            GAS_FOR_ROYALTIES,
+        ))
+    }
+
+    fn approve_token(
+        &mut self,
+        token_id: TokenId,
+        owner_id: &AccountId,
+        account_id: AccountId,
+        min_price: U128,
+    ) -> Result<MarketApproveMsg, Panic> {
+        let mut token = self.get_token(token_id);
+        if owner_id != &token.owner_id {
+            return Err(Panic::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() });
+        }
+        if token.approvals.len() > 0 {
+            return Err(Panic::OneApprovalAllowed);
+        }
+
+        token.approval_counter.0 = token.approval_counter.0 + 1;
+        token
+            .approvals
+            .insert(account_id, TokenApproval { approval_id: token.approval_counter, min_price });
+        self.tokens.insert(&token_id, &token);
+
+        match self.collectibles.get(&token.gate_id) {
+            None => Err(Panic::GateIdNotFound { gate_id: token.gate_id }),
+            Some(collectible) => Ok(MarketApproveMsg {
+                min_price,
+                gate_id: Some(token.gate_id.try_into().unwrap()),
+                creator_id: Some(collectible.creator_id),
+            }),
+        }
+    }
+}
+
+#[near_ext]
+#[ext_contract(self_callback)]
+trait SelfCallback {
+    fn resolve_batch_approve(&mut self, errs: Vec<(TokenId, Panic)>);
+}
+
+#[near_log(skip_args, only_pub)]
+#[near_bindgen]
+impl SelfCallback for NftContract {
+    #[private]
+    fn resolve_batch_approve(&mut self, errs: Vec<(TokenId, Panic)>) {
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Failed => unreachable!(),
+            PromiseResult::Successful(_) => {
+                if !errs.is_empty() {
+                    Panic::Errors { panics: Panics(errs) }.panic()
+                }
+            }
+        }
     }
 }

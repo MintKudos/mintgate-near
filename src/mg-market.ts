@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.10 https://github.com/epam/near-syn
+// TypeScript bindings generated with near-ts v0.2.11 https://github.com/epam/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -7,6 +7,13 @@ export type U128 = string;
 export type I128 = string;
 export type AccountId = string;
 export type ValidAccountId = string;
+
+/**
+ */
+export enum CorePanics {
+    ZeroDenominatorFraction,
+    FractionGreaterThanOne,
+}
 
 /**
  *  Represents a number between `0` and `1`.
@@ -376,7 +383,16 @@ export interface TokenForSale {
 
 /**
  */
-export interface Self {
+export enum Panics {
+    MsgFormatMinPriceMissing,
+    TokenKeyNotFound,
+    BuyOwnTokenNotAllowed,
+    NotEnoughDepositToBuyToken,
+}
+
+/**
+ */
+export interface Self0 {
     /**
      *  Initializes the Market contract.
      */
@@ -424,9 +440,13 @@ export interface NonFungibleTokenApprovalsReceiver {
      */
     nft_on_revoke(args: { token_id: TokenId }, gas?: any): Promise<void>;
 
+    /**
+     */
+    batch_on_approve(args: { tokens: [TokenId, MarketApproveMsg][], owner_id: ValidAccountId }, gas?: any): Promise<void>;
+
 }
 
-export type MarketContract = Self & NonFungibleTokenApprovalsReceiver;
+export type MarketContract = Self0 & NonFungibleTokenApprovalsReceiver;
 
 export const MarketContractMethods = {
     viewMethods: [
@@ -439,5 +459,6 @@ export const MarketContractMethods = {
         "buy_token",
         "nft_on_approve",
         "nft_on_revoke",
+        "batch_on_approve",
     ],
 };

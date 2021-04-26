@@ -1538,8 +1538,10 @@ dependencies = [
  "mg-core",
  "mg-market",
  "mg-nft",
+ "near-primitives",
  "near-sdk",
  "near-sdk-sim",
+ "near-vm-errors",
 ]
 
 [[package]]

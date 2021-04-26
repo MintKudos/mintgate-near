@@ -241,49 +241,8 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         match serde_json::from_str::<MarketApproveMsg>(&msg) {
             Ok(approve_msg) => {
                 let nft_id = env::predecessor_account_id();
-
-                let token_key = TokenKey(nft_id.clone(), token_id);
-                self.tokens_for_sale.insert(
-                    &token_key,
-                    &TokenForSale {
-                        nft_id: nft_id.clone(),
-                        token_id,
-                        owner_id: owner_id.clone().into(),
-                        approval_id,
-                        min_price: approve_msg.min_price,
-                        gate_id: approve_msg.gate_id.clone().map(|g| g.to_string()),
-                        creator_id: approve_msg.creator_id.clone(),
-                    },
-                );
-
-                insert_token_id_to(
-                    &mut self.tokens_by_nft_id,
-                    &nft_id,
-                    &token_id,
-                    Keys::TokensByNftIdValue,
-                );
-                insert_token_id_to(
-                    &mut self.tokens_by_owner_id,
-                    &owner_id.into(),
-                    &token_key,
-                    Keys::TokensByOwnerIdValue,
-                );
-                if let Some(gate_id) = approve_msg.gate_id {
-                    insert_token_id_to(
-                        &mut self.tokens_by_gate_id,
-                        gate_id.as_ref(),
-                        &token_key,
-                        Keys::TokensByGateIdValue,
-                    );
-                }
-                if let Some(creator_id) = approve_msg.creator_id {
-                    insert_token_id_to(
-                        &mut self.tokens_by_creator_id,
-                        &creator_id,
-                        &token_key,
-                        Keys::TokensByCreatorIdValue,
-                    );
-                }
+                let owner_id = owner_id.to_string();
+                self.add_token(&owner_id, &nft_id, token_id, approve_msg, approval_id);
             }
             Err(err) => {
                 let reason = err.to_string();
@@ -302,6 +261,72 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
             self.remove_token_id(&token_key, &token.owner_id, &token.gate_id, &token.creator_id);
         } else {
             Panics::TokenKeyNotFound { token_key }.panic();
+        }
+    }
+
+    fn batch_on_approve(
+        &mut self,
+        tokens: Vec<(TokenId, MarketApproveMsg)>,
+        owner_id: ValidAccountId,
+    ) {
+        let nft_id = env::predecessor_account_id();
+        let owner_id = owner_id.to_string();
+        for (token_id, approve_msg) in tokens {
+            self.add_token(&owner_id, &nft_id, token_id, approve_msg, U64(0));
+        }
+    }
+}
+
+impl MarketContract {
+    fn add_token(
+        &mut self,
+        owner_id: &AccountId,
+        nft_id: &String,
+        token_id: TokenId,
+        approve_msg: MarketApproveMsg,
+        approval_id: U64,
+    ) {
+        let token_key = TokenKey(nft_id.clone(), token_id);
+        self.tokens_for_sale.insert(
+            &token_key,
+            &TokenForSale {
+                nft_id: nft_id.clone(),
+                token_id,
+                owner_id: owner_id.clone().into(),
+                approval_id,
+                min_price: approve_msg.min_price,
+                gate_id: approve_msg.gate_id.clone().map(|g| g.to_string()),
+                creator_id: approve_msg.creator_id.clone(),
+            },
+        );
+
+        insert_token_id_to(
+            &mut self.tokens_by_nft_id,
+            &nft_id,
+            &token_id,
+            Keys::TokensByNftIdValue,
+        );
+        insert_token_id_to(
+            &mut self.tokens_by_owner_id,
+            &owner_id.into(),
+            &token_key,
+            Keys::TokensByOwnerIdValue,
+        );
+        if let Some(gate_id) = approve_msg.gate_id {
+            insert_token_id_to(
+                &mut self.tokens_by_gate_id,
+                gate_id.as_ref(),
+                &token_key,
+                Keys::TokensByGateIdValue,
+            );
+        }
+        if let Some(creator_id) = approve_msg.creator_id {
+            insert_token_id_to(
+                &mut self.tokens_by_creator_id,
+                &creator_id,
+                &token_key,
+                Keys::TokensByCreatorIdValue,
+            );
         }
     }
 }

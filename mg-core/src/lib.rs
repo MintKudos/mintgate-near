@@ -23,7 +23,7 @@ construct_uint! {
 
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
-pub enum Panics {
+pub enum CorePanics {
     #[panic_msg = "Denominator must be a positive number, but was 0"]
     ZeroDenominatorFraction,
     #[panic_msg = "The fraction must be less or equal to 1"]
@@ -50,10 +50,10 @@ impl Fraction {
     /// - The `num` is less or equal than `den`ominator.
     pub fn check(&self) {
         if self.den == 0 {
-            Panics::ZeroDenominatorFraction.panic();
+            CorePanics::ZeroDenominatorFraction.panic();
         }
         if self.num > self.den {
-            Panics::FractionGreaterThanOne.panic();
+            CorePanics::FractionGreaterThanOne.panic();
         }
     }
 
@@ -420,6 +420,12 @@ pub trait NonFungibleTokenApprovalsReceiver {
         owner_id: ValidAccountId,
         approval_id: U64,
         msg: String,
+    );
+
+    fn batch_on_approve(
+        &mut self,
+        tokens: Vec<(TokenId, MarketApproveMsg)>,
+        owner_id: ValidAccountId,
     );
 
     fn nft_on_revoke(&mut self, token_id: TokenId);

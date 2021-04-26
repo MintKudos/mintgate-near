@@ -1,5 +1,8 @@
 use mg_core::{mocked_context::gate_id, MarketApproveMsg, ValidGateId};
-use near_sdk::{json_types::ValidAccountId, serde_json};
+use near_sdk::{
+    json_types::{ValidAccountId, U128},
+    serde_json,
+};
 use near_sdk_sim::to_yocto;
 
 mod sim;
@@ -11,13 +14,13 @@ fn create_and_claim_collectibles() {
     let users = [alice, bob, charlie];
 
     create_collectible(nft, alice, gate_id(1), 10, "1/0")
-        .failure(mg_core::Panics::ZeroDenominatorFraction {}.msg());
+        .failure(mg_core::CorePanics::ZeroDenominatorFraction {}.msg());
 
     create_collectible(nft, alice, gate_id(1), 10, "2/1")
-        .failure(mg_core::Panics::FractionGreaterThanOne {}.msg());
+        .failure(mg_core::CorePanics::FractionGreaterThanOne {}.msg());
 
     create_collectible(nft, bob, gate_id(1), 10, "0/10").failure(
-        mg_nft::Panics::RoyaltyMinThanAllowed {
+        mg_nft::Panic::RoyaltyMinThanAllowed {
             royalty: "0/10".parse().unwrap(),
             gate_id: gate_id(1).to_string(),
         }
@@ -25,7 +28,7 @@ fn create_and_claim_collectibles() {
     );
 
     create_collectible(nft, bob, gate_id(1), 10, "8/10").failure(
-        mg_nft::Panics::RoyaltyMaxThanAllowed {
+        mg_nft::Panic::RoyaltyMaxThanAllowed {
             royalty: "8/10".parse().unwrap(),
             gate_id: gate_id(1).to_string(),
         }
@@ -33,7 +36,7 @@ fn create_and_claim_collectibles() {
     );
 
     create_collectible(nft, bob, gate_id(1), 10, "70/100").failure(
-        mg_nft::Panics::RoyaltyTooLarge {
+        mg_nft::Panic::RoyaltyTooLarge {
             royalty: "70/100".parse().unwrap(),
             mintgate_fee: "35/100".parse().unwrap(),
         }
@@ -41,17 +44,17 @@ fn create_and_claim_collectibles() {
     );
 
     create_collectible(nft, charlie, gate_id(1), 0, "1/10")
-        .failure(mg_nft::Panics::ZeroSupplyNotAllowed { gate_id: gate_id(1).to_string() }.msg());
+        .failure(mg_nft::Panic::ZeroSupplyNotAllowed { gate_id: gate_id(1).to_string() }.msg());
 
     let n = 4;
     for k in 1..=n {
         create_collectible(nft, alice, gate_id(k), 4, "10/100").unwrap();
         create_collectible(nft, bob, gate_id(k + n), k * 10, "10/100").unwrap();
         create_collectible(nft, charlie, gate_id(k), k * 10, "10/100")
-            .failure(mg_nft::Panics::GateIdAlreadyExists { gate_id: gate_id(k).to_string() }.msg());
+            .failure(mg_nft::Panic::GateIdAlreadyExists { gate_id: gate_id(k).to_string() }.msg());
         create_collectible(nft, charlie, gate_id(k + 2 * n), k * 10, "10/100").unwrap();
         claim_token(nft, users[k as usize % users.len()], 0)
-            .failure(mg_nft::Panics::GateIdNotFound { gate_id: gate_id(0).to_string() }.msg());
+            .failure(mg_nft::Panic::GateIdNotFound { gate_id: gate_id(0).to_string() }.msg());
         loop {
             claim_token(nft, users[k as usize % users.len()], k).unwrap();
             let collectible = get_collectible_by_gate_id(nft, gate_id(k));
@@ -60,7 +63,7 @@ fn create_and_claim_collectibles() {
             }
         }
         claim_token(nft, users[k as usize % users.len()], k)
-            .failure(mg_nft::Panics::GateIdExhausted { gate_id: gate_id(k).to_string() }.msg());
+            .failure(mg_nft::Panic::GateIdExhausted { gate_id: gate_id(k).to_string() }.msg());
     }
 }
 
@@ -101,8 +104,44 @@ fn nft_approve_and_revoke_tokens() {
     )
     .unwrap();
 
-    nft_approve(nft, &fake_market, alice, token_id, "1").failure("CompilationError".to_string());
-    nft_revoke(nft, &fake_market, alice, token_id).failure("CompilationError".to_string());
+    nft_approve(nft, &fake_market, alice, token_id, "1").failure("cannot find contract code for account".to_string());
+    nft_revoke(nft, &fake_market, alice, token_id).failure("cannot find contract code for account".to_string());
+}
+
+#[test]
+fn batch_approve_a_few_tokens() {
+    let Sim { nft, markets, alice, bob, charlie, .. } = &init(2, "1/1000", "30/100", "25/1000");
+    let users = [alice, bob, charlie];
+
+    let n = 5;
+    for u in 1..=(users.len() * n) {
+        create_collectible(nft, users[(u - 1) % users.len()], gate_id(u as u64), 10, "10/100")
+            .unwrap();
+    }
+
+    let mut tokens = Vec::new();
+    for u in 1..=(users.len() * n) {
+        let token_id = claim_token(nft, alice, u as u64).unwrap();
+        tokens.push((token_id, U128(u as u128 * 1000)));
+    }
+
+    batch_approve(nft, &markets[0], alice, tokens.clone()).unwrap();
+
+    batch_approve(nft, &markets[0], bob, tokens.clone()).failure(format!(
+        "{} error(s) detected, see `panics` fields for a full list of errors",
+        tokens.len()
+    ));
+
+    let mut tokens = Vec::new();
+    for u in 1..=(users.len() * n) {
+        let token_id = claim_token(nft, users[u % users.len()], u as u64).unwrap();
+        tokens.push((token_id, U128(u as u128 * 1_000_000)));
+    }
+
+    batch_approve(nft, &markets[0], bob, tokens.clone()).failure(format!(
+        "{} error(s) detected, see `panics` fields for a full list of errors",
+        tokens.len() - tokens.len() / users.len()
+    ));
 }
 
 #[test]
