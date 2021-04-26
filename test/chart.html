@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" style="font-family: 'Source Code Pro', monospace">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="../node_modules/chart.js/dist/chart.js"></script>
+  <script src="data.js"></script>
+  <title>Storage Cost - Rust</title>
+</head>
+
+<body>
+<header style="text-align: center">
+  <h2 style="margin-bottom: 0">Storage Cost</h2>
+</header>
+<h3 style="text-align: center">...::[ NFT Contract ]::...</h3>
+<div style="width: 90%">
+  <canvas id="nft" width="800" height="400"></canvas>
+</div>
+<h3 style="text-align: center">...::[ Market Contract ]::...</h3>
+<div style="width: 90%">
+  <canvas id="market" width="800" height="400"></canvas>
+</div>
+<script>
+  ['nft', 'market'].forEach((prefix) => {
+    const ctx = document.getElementById(prefix);
+    const keys = data.map(entry => entry.key);
+    const values = data.map(entry => entry[`${prefix}Staked`]);
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: keys,
+        datasets: [{
+          data: values
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            display: false
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: false
+          }
+        },
+      }
+    });
+  })
+</script>
+</body>
+
+</html>
