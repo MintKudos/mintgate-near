@@ -104,8 +104,10 @@ fn nft_approve_and_revoke_tokens() {
     )
     .unwrap();
 
-    nft_approve(nft, &fake_market, alice, token_id, "1").failure("cannot find contract code for account".to_string());
-    nft_revoke(nft, &fake_market, alice, token_id).failure("cannot find contract code for account".to_string());
+    nft_approve(nft, &fake_market, alice, token_id, "1")
+        .failure("cannot find contract code for account".to_string());
+    nft_revoke(nft, &fake_market, alice, token_id)
+        .failure("cannot find contract code for account".to_string());
 }
 
 #[test]
@@ -145,13 +147,18 @@ fn batch_approve_a_few_tokens() {
 }
 
 #[test]
-fn buy_tokens() {
+fn buy_a_few_tokens() {
     let Sim { nft, mintgate, markets, alice, bob, .. } = &init(1, "1/1000", "30/100", "25/1000");
 
     create_collectible(nft, alice, gate_id(1), 10, "10/100").unwrap();
     claim_token(nft, bob, 1).unwrap();
+
     let token_id = claim_token(nft, alice, 1).unwrap();
     nft_approve(nft, &markets[0], alice, token_id, "3").unwrap();
+
+    buy_token(&markets[0], nft, bob, token_id, "2")
+        .failure(mg_market::Panics::NotEnoughDepositToBuyToken.msg());
+
     let bob_balance = bob.balance();
     let alice_balance = alice.balance();
     let mintgate_balance = mintgate.balance();
@@ -159,6 +166,16 @@ fn buy_tokens() {
     bob.check_amount(bob_balance - to_yocto("3"));
     alice.check_amount(alice_balance + to_yocto("3") - to_yocto("0.075"));
     mintgate.check_amount(mintgate_balance + to_yocto("0.075"));
+
+    let token_id = claim_token(nft, alice, 1).unwrap();
+    nft_approve(nft, &markets[0], alice, token_id, "5").unwrap();
+    let bob_balance = bob.balance();
+    let alice_balance = alice.balance();
+    let mintgate_balance = mintgate.balance();
+    buy_token(&markets[0], nft, bob, token_id, "7").unwrap();
+    bob.check_amount(bob_balance - to_yocto("7"));
+    alice.check_amount(alice_balance + to_yocto("7") - to_yocto("0.175"));
+    mintgate.check_amount(mintgate_balance + to_yocto("0.175"));
 }
 
 fn approve_msg(price: u128, gate_id: ValidGateId, creator_id: ValidAccountId) -> String {

@@ -39,13 +39,13 @@ impl BalanceChecker for UserAccount {
 
     fn check_amount(&self, expected_amount: Balance) {
         let account = self.account().unwrap();
-        print!("Check balance for {}: N{} ", self.account_id, account.amount);
+        eprint!("Check balance for {}: N{} ", self.account_id, account.amount);
         let delta = if account.amount > expected_amount {
             account.amount - expected_amount
         } else {
             expected_amount - account.amount
         };
-        print!("|{:.6}|", delta as f64 / 1e24);
+        eprint!("|{:.6}|", delta as f64 / 1e24);
         assert!(
             delta <= to_yocto("0.01"),
             "Balance check failed: delta is {} {}",

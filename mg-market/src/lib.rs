@@ -81,7 +81,7 @@ enum Keys {
 
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
-enum Panics {
+pub enum Panics {
     #[panic_msg = "Could not find min_price in msg: {}"]
     MsgFormatMinPriceMissing { reason: String },
     #[panic_msg = "Token Key `{}` was not found"]
@@ -160,7 +160,7 @@ impl MarketContract {
                 token_id,
                 None,
                 None,
-                Some(min_price),
+                Some(U128(deposit)),
                 &nft_id,
                 0,
                 env::prepaid_gas() / 3,
