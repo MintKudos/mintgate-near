@@ -11,18 +11,18 @@
 
 <body>
 <header style="text-align: center">
-  <h2 style="margin-bottom: 0">Storage Cost</h2>
+  <h1 style="margin-bottom: 50px">Storage Cost</h1>
 </header>
-<h3 style="text-align: center">...::[ NFT Contract ]::...</h3>
-<div style="width: 90%">
+<h2 style="text-align: center">...::[ NFT Contract ]::...</h2>
+<div style="width: 90%; margin: 0 auto 50px">
   <canvas id="nft" width="800" height="400"></canvas>
 </div>
-<h3 style="text-align: center">...::[ Market Contract ]::...</h3>
-<div style="width: 90%">
+<h2 style="text-align: center">...::[ Market Contract ]::...</h2>
+<div style="width: 90%; margin: 0 auto">
   <canvas id="market" width="800" height="400"></canvas>
 </div>
 <script>
-  ['nft', 'market'].forEach((prefix) => {
+  ["nft", "market"].forEach((prefix) => {
     const ctx = document.getElementById(prefix);
     const keys = data.map(entry => entry.key);
     const values = data.map(entry => entry[`${prefix}Staked`]);
@@ -31,24 +31,49 @@
       data: {
         labels: keys,
         datasets: [{
-          data: values
+          data: values,
+          backgroundColor: prefix === "nft" ? "rgba(42, 42, 252, 0.5)" : "rgba(53, 176, 37, 0.5)"
         }]
       },
       options: {
         plugins: {
           legend: {
             display: false
-          },
+          }
         },
         scales: {
           y: {
-            beginAtZero: false
+            beginAtZero: false,
+            title: {
+              display: true,
+              text: "Reserved for storage (state staked)",
+              align: "start",
+              color: "rgb(252, 42, 67)",
+              font: {
+                weight: 700,
+                size: 11
+              }
+            },
+            ticks: {
+              callback: (value) => `${value} Ⓝ`
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: "Operations performed",
+              align: "start",
+              color: "rgb(252, 42, 67)",
+              font: {
+                weight: 700,
+                size: 11
+              }
+            }
           }
-        },
+        }
       }
     });
-  })
+  });
 </script>
 </body>
-
 </html>
