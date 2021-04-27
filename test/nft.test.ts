@@ -535,6 +535,89 @@ describe('Nft contract', () => {
     });
   });
 
+  describe('burn_token', () => {
+    const initialSupply = '42';
+
+    let tokenId: string;
+    let gateId: string;
+    let collectible: Collectible;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, { gate_id: gateId, supply: initialSupply });
+
+      tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+      await alice.contract.nft_approve(
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify({ min_price: '5' }),
+        },
+        GAS
+      );
+
+      await alice.contract.burn_token({ token_id: tokenId }, GAS);
+
+      collectible = <Collectible>await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
+    });
+
+    it('should remove token from the contract', async () => {
+      expect(await alice.contract.nft_token({ token_id: tokenId })).toBeNull();
+    });
+
+    it('should remove token from the collectible', async () => {
+      expect(collectible.minted_tokens).not.toContain(tokenId);
+    });
+
+    it("should decrement `copies` on collectible's metadata", async () => {
+      expect(+collectible.metadata.copies!).toBe(+initialSupply - 1);
+    });
+
+    test('that market delists token as for sale', async () => {
+      expect((await merchant.contract.get_tokens_for_sale()).every(({ token_id }) => token_id !== tokenId)).toBe(true);
+      expect(
+        (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).every(
+          ({ token_id }) => token_id !== tokenId
+        )
+      ).toBe(true);
+      expect(
+        (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).every(
+          ({ token_id }) => token_id !== tokenId
+        )
+      ).toBe(true);
+      expect(
+        (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).every(
+          ({ token_id }) => token_id !== tokenId
+        )
+      ).toBe(true);
+    });
+
+    describe('errors', () => {
+      it('should throw if the initiator does not own the token', async () => {
+        const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
+
+        await expect(bob.contract.burn_token({ token_id: tokenId2 }, GAS)).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${bob.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${bob.accountId}\`"}`,
+          })
+        );
+      });
+
+      it('should throw if provided with nonexistent `token_id`', async () => {
+        const nonexistentTokenId = '11212112';
+
+        await expect(bob.contract.burn_token({ token_id: nonexistentTokenId }, GAS)).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}","msg":"Token ID \`U64(${nonexistentTokenId})\` was not found"}`,
+          })
+        );
+      });
+    });
+  });
+
   describe('get_tokens_by_owner', () => {
     const numberOfTokensToClaim = 3;
 
