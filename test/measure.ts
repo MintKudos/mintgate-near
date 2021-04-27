@@ -51,7 +51,7 @@ const measure = async () => {
   await setup();
 
   const priceHrNear = '1';
-  const priceInternalNear = parseNearAmount(priceHrNear);
+  const priceInternalNear = <string>parseNearAmount(priceHrNear);
 
   const nftFeeUser = await getAccountFor(prefixes.nft.feeUser);
   const adminUser = await getAccountFor(prefixes.nft.admin);
@@ -245,21 +245,20 @@ const measure = async () => {
       break;
     }
 
-    await Promise.all(
-      Array.from({ length: tokensToApproveNow }, async (_, index) =>
-        alice.contract.nft_approve(
-          {
-            token_id: tokens[i + index].token_id,
-            account_id: merchant1.contract.contractId,
-            msg: JSON.stringify({ min_price: priceInternalNear }),
-          },
-          GAS
-        )
-      )
+    await alice.contract.batch_approve(
+      {
+        tokens: tokens.slice(i, i + approvalsConcurrently).map(({ token_id }) => [token_id, priceInternalNear]),
+        account_id: merchant1.contract.contractId,
+      },
+      GAS
     );
 
     data.push(
-      await getDataEntry(`tokens approved: ${i + tokensToApproveNow}`, alice.contractAccount, merchant1.contractAccount)
+      await getDataEntry(
+        `tokens batch approved: ${i + tokensToApproveNow}`,
+        alice.contractAccount,
+        merchant1.contractAccount
+      )
     );
   }
 

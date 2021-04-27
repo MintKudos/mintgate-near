@@ -116,7 +116,7 @@ ts-node test/measure.ts --collectibles 100 -- tokens 200
 ``` 
 where:
 - `--collectibles`: number of collectibles to add. Number of times `create_collectible`, `delete_collectible` will be executed.
-- `--tokens`: number of tokens to add. Number of times `claim_token`, `nft_transfer`, `nft_revoke`, `buy_token` will be executed. `nft_approve` will be executed twice as many times to test both `nft_revoke` and `buy_token`.
+- `--tokens`: number of tokens to add. `claim_token`, `nft_transfer`, `nft_approve`, `batch_approve`, `nft_revoke`, `buy_token` will be executed for this number of tokens.
 
 The script generates `data.js` file in `tests` folder. The information from `data.js` as datasets for charts in `chart.html` file also located in `tests` folder. To see the charts open `chart.html` in any browser.
 
