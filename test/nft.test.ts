@@ -266,14 +266,13 @@ describe('Nft contract', () => {
 
       // test against any unwanted character by adding adding rows to the tagged template literal like this:
       // ${'PDN2L5%'}                                  | ${'contains % char'}
-      // todo: test empty string after fix
-      // ${''}                                  | ${'is an empty string'}
       it.each`
         invalidGateId                          | description
         ${'abc.'}                              | ${'contains dot char'}
         ${'abc,'}                              | ${'contains coma char'}
         ${'Ж'}                                 | ${'contains non latin chars'}
         ${'abcdefghijklmnopqrstuvwxyzABCDEFG'} | ${'is longer than 32 chars'}
+        ${''}                                  | ${'is an empty string'}
       `('should throw if `gate_id` $description (invalid)', async ({ invalidGateId }) => {
         expect(invalidGateId.match(validGateIdRegEx)).toBeNull();
         await expect(addTestCollectible(alice.contract, { gate_id: invalidGateId })).rejects.toThrow(
@@ -363,9 +362,15 @@ describe('Nft contract', () => {
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
 
       await alice.contract.delete_collectible({ gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).toBeNull();
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).not.toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
     });
 
     it('should delete a collectible if called by admin', async () => {
@@ -373,9 +378,14 @@ describe('Nft contract', () => {
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
-
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
       await admin.functionCall(alice.contract.contractId, 'delete_collectible', { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).toBeNull();
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).not.toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
     });
 
     describe('errors', () => {
@@ -529,6 +539,89 @@ describe('Nft contract', () => {
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: `{"err":"GateIdExhausted","gate_id":"${gateIdNoSupply}","msg":"Tokens for gate id \`${gateIdNoSupply}\` have already been claimed"}`,
+          })
+        );
+      });
+    });
+  });
+
+  describe('burn_token', () => {
+    const initialSupply = '42';
+
+    let tokenId: string;
+    let gateId: string;
+    let collectible: Collectible;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, { gate_id: gateId, supply: initialSupply });
+
+      tokenId = await alice.contract.claim_token({ gate_id: gateId });
+
+      await alice.contract.nft_approve(
+        {
+          token_id: tokenId,
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify({ min_price: '5' }),
+        },
+        GAS
+      );
+
+      await alice.contract.burn_token({ token_id: tokenId }, GAS);
+
+      collectible = <Collectible>await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
+    });
+
+    it('should remove token from the contract', async () => {
+      expect(await alice.contract.nft_token({ token_id: tokenId })).toBeNull();
+    });
+
+    it('should remove token from the collectible', async () => {
+      expect(collectible.minted_tokens).not.toContain(tokenId);
+    });
+
+    it("should decrement `copies` on collectible's metadata", async () => {
+      expect(+collectible.metadata.copies!).toBe(+initialSupply - 1);
+    });
+
+    test('that market delists token as for sale', async () => {
+      expect((await merchant.contract.get_tokens_for_sale()).every(({ token_id }) => token_id !== tokenId)).toBe(true);
+      expect(
+        (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).every(
+          ({ token_id }) => token_id !== tokenId
+        )
+      ).toBe(true);
+      expect(
+        (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).every(
+          ({ token_id }) => token_id !== tokenId
+        )
+      ).toBe(true);
+      expect(
+        (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).every(
+          ({ token_id }) => token_id !== tokenId
+        )
+      ).toBe(true);
+    });
+
+    describe('errors', () => {
+      it('should throw if the initiator does not own the token', async () => {
+        const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
+
+        await expect(bob.contract.burn_token({ token_id: tokenId2 }, GAS)).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${bob.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${bob.accountId}\`"}`,
+          })
+        );
+      });
+
+      it('should throw if provided with nonexistent `token_id`', async () => {
+        const nonexistentTokenId = '11212112';
+
+        await expect(bob.contract.burn_token({ token_id: nonexistentTokenId }, GAS)).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}","msg":"Token ID \`U64(${nonexistentTokenId})\` was not found"}`,
           })
         );
       });
@@ -1573,6 +1666,162 @@ describe('Nft contract', () => {
           panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
         })
       );
+    });
+  });
+
+  describe('batch_approve', () => {
+    const randomMinPrice = '50';
+
+    let gateId: string;
+    let tokensIds: string[];
+    let tokens: (Token | null)[];
+
+    beforeAll(async () => {
+      const numberOfTokensToApprove = 5;
+
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+
+      tokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToApprove }, () => alice.contract.claim_token({ gate_id: gateId }))
+      );
+
+      await alice.contract.batch_approve(
+        {
+          tokens: tokensIds.map((id) => [id, randomMinPrice]),
+          account_id: merchant.contract.contractId,
+        },
+        GAS
+      );
+
+      tokens = await Promise.all(tokensIds.map((id) => bob.contract.nft_token({ token_id: id })));
+    });
+
+    it('should increment approval counter of tokens', () => {
+      expect(tokens.every((token) => token && token.approval_counter === '1')).toBe(true);
+    });
+
+    it("should update tokens' approvals", () => {
+      expect(tokens.map((token) => token!.approvals)).toEqual(
+        tokens.map(() => ({
+          [merchant.contract.contractId]: {
+            approval_id: '1',
+            min_price: randomMinPrice,
+          },
+        }))
+      );
+    });
+
+    test('that market lists tokens as for sale', async () => {
+      expect((await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id)).toEqual(
+        expect.arrayContaining(tokensIds)
+      );
+      expect(
+        (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).map(({ token_id }) => token_id)
+      ).toEqual(expect.arrayContaining(tokensIds));
+      expect(
+        (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).map(({ token_id }) => token_id)
+      ).toEqual(expect.arrayContaining(tokensIds));
+      expect(
+        (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).map(
+          ({ token_id }) => token_id
+        )
+      ).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    describe('with errors', () => {
+      let error: Error;
+
+      let validToken: Token | null;
+      let validToken2: Token | null;
+
+      let validTokenId: string;
+      let validTokenId2: string;
+
+      const nonexistentTokenId = '11111111111';
+      let alreadyApprovedTokenId: string;
+      let foreignTokenId: string;
+
+      beforeAll(async () => {
+        [alreadyApprovedTokenId] = tokensIds;
+        foreignTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+        validTokenId = await alice.contract.claim_token({ gate_id: gateId });
+        validTokenId2 = await alice.contract.claim_token({ gate_id: gateId });
+
+        try {
+          await alice.contract.batch_approve(
+            {
+              tokens: [
+                [validTokenId, randomMinPrice],
+                [nonexistentTokenId, randomMinPrice],
+                [alreadyApprovedTokenId, randomMinPrice],
+                [foreignTokenId, randomMinPrice],
+                [validTokenId2, randomMinPrice],
+              ],
+              account_id: merchant.contract.contractId,
+            },
+            GAS
+          );
+        } catch (e) {
+          error = e;
+        }
+
+        [validToken, validToken2] = await Promise.all([
+          bob.contract.nft_token({ token_id: validTokenId }),
+          bob.contract.nft_token({ token_id: validTokenId2 }),
+        ]);
+      });
+
+      it('should increment approval counter of valid tokens', () => {
+        expect([validToken, validToken2].every((token) => token && token.approval_counter === '1')).toBe(true);
+      });
+
+      it("should update valid tokens' approvals", () => {
+        expect([validToken, validToken2].map((token) => token!.approvals)).toEqual(
+          [validToken, validToken2].map(() => ({
+            [merchant.contract.contractId]: {
+              approval_id: '1',
+              min_price: randomMinPrice,
+            },
+          }))
+        );
+      });
+
+      it('should throw an error with rejected tokens', () => {
+        expect(error).toEqual(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"Errors","panics":[["${nonexistentTokenId}",{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}"}],["${alreadyApprovedTokenId}",{"err":"OneApprovalAllowed"}],["${foreignTokenId}",{"err":"TokenIdNotOwnedBy","token_id":"${foreignTokenId}","owner_id":"${alice.accountId}"}]],"msg":"3 error(s) detected, see \`panics\` fields for a full list of errors"}`,
+          })
+        );
+      });
+
+      test('that market lists valid tokens as for sale', async () => {
+        expect((await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id)).toEqual(
+          expect.arrayContaining([validTokenId, validTokenId2])
+        );
+        expect(
+          (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).map(
+            ({ token_id }) => token_id
+          )
+        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
+        expect(
+          (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).map(({ token_id }) => token_id)
+        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
+        expect(
+          (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).map(
+            ({ token_id }) => token_id
+          )
+        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
+      });
+
+      test('that market does not list invalid tokens as for sale', async () => {
+        const tokensIdsForSale = (await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id);
+
+        expect(tokensIdsForSale).not.toContain(nonexistentTokenId);
+        expect(tokensIdsForSale).not.toContain(foreignTokenId);
+      });
     });
   });
 });

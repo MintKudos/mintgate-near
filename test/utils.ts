@@ -33,7 +33,7 @@ export const addTestCollectible = async (
 ): Promise<void> => {
   let { gate_id } = collectibleData;
 
-  if (!gate_id) {
+  if (gate_id === undefined) {
     gate_id = await generateId();
   }
 
@@ -114,6 +114,6 @@ export const logger = {
   },
 };
 
-export const getShare = (totalAmount: number, { num, den }: Fraction) => (totalAmount * num) / den;
+export const getShare = (totalAmount: number, { num, den }: Fraction): number => (totalAmount * num) / den;
 
 export const validGateIdRegEx = /^[a-z\d_-]{1,32}$/gi;
