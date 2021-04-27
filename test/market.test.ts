@@ -743,6 +743,111 @@ describe('Market contract', () => {
       });
     });
 
+    describe('deposit exceeds `min_price`', () => {
+      const priceHrNearSmall = '4';
+      const priceInternalNearSmall = parseNearAmount(priceHrNearSmall);
+      const depositNearLarge = '10';
+      const depositInternalNearLarge = parseNearAmount(depositNearLarge);
+
+      const mintgateShare2 = getShare(+depositNearLarge, MINTGATE_FEE);
+      const creatorShare2 = getShare(+depositNearLarge, royalty);
+      const sellerShare2 = +depositNearLarge - mintgateShare2 - creatorShare2;
+
+      beforeAll(async () => {
+        const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
+        await alice.contract.nft_approve(
+          {
+            token_id: tokenId2,
+            account_id: merchant.contract.contractId,
+            msg: JSON.stringify({ min_price: priceInternalNearSmall! }),
+          },
+          GAS
+        );
+
+        [
+          { total: buyerBalanceBefore },
+          { total: mintgateBalanceBefore },
+          { total: creatorBalanceBefore },
+          { total: sellerBalanceBefore },
+        ] = await Promise.all([
+          merchant2.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          bob.account.getAccountBalance(),
+          alice.account.getAccountBalance(),
+        ]);
+
+        await merchant2.contract.buy_token(
+          {
+            nft_id: bob.contractAccount.accountId,
+            token_id: tokenId2,
+          },
+          GAS,
+          new BN(depositInternalNearLarge!)
+        );
+
+        [
+          { total: buyerBalanceAfter },
+          { total: mintgateBalanceAfter },
+          { total: creatorBalanceAfter },
+          { total: sellerBalanceAfter },
+        ] = await Promise.all([
+          merchant2.account.getAccountBalance(),
+          mintgate.getAccountBalance(),
+          bob.account.getAccountBalance(),
+          alice.account.getAccountBalance(),
+        ]);
+      });
+
+      it("should transfer mintgate's fee to its' wallet", async () => {
+        const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore);
+        const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter);
+
+        logger.data('mintgateBalanceBeforeHr', mintgateBalanceBeforeHr);
+        logger.data('mintgateBalanceAfterHr', mintgateBalanceAfterHr);
+        logger.data('mintgateShare', mintgateShare2);
+        logger.data('mintgateShareActual', +mintgateBalanceAfterHr - +mintgateBalanceBeforeHr);
+
+        expect(+mintgateBalanceBeforeHr + mintgateShare2).toBeCloseTo(+mintgateBalanceAfterHr, 5);
+      });
+
+      it("should transfer royalty to the creator's wallet", async () => {
+        const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore);
+        const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter);
+
+        logger.data('creatorBalanceBeforeHr', creatorBalanceBeforeHr);
+        logger.data('creatorBalanceAfterHr', creatorBalanceAfterHr);
+        logger.data('creatorShare', creatorShare2);
+        logger.data('creatorShareActual', +creatorBalanceAfterHr - +creatorBalanceBeforeHr);
+
+        expect(+creatorBalanceBeforeHr + creatorShare2).toBeCloseTo(+creatorBalanceAfterHr, 2);
+      });
+
+      it("should transfer the remaining amount to the seller's wallet", async () => {
+        const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore);
+        const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter);
+
+        logger.data('sellerBalanceBeforeHr', sellerBalanceBeforeHr);
+        logger.data('sellerBalanceAfterHr', sellerBalanceAfterHr);
+        logger.data('sellerShare', sellerShare2);
+        logger.data('sellerShareActual', +sellerBalanceAfterHr - +sellerBalanceBeforeHr);
+
+        expect(+sellerBalanceBeforeHr + sellerShare2).toBeCloseTo(+sellerBalanceAfterHr, 2);
+      });
+
+      it("should deduct deposit from buyer's wallet", async () => {
+        const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore);
+        const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter);
+
+        logger.data('buyerBalanceBeforeHr', buyerBalanceBeforeHr);
+        logger.data('buyerBalanceAfterHr', buyerBalanceAfterHr);
+        logger.data('priceHrNear', priceHrNearSmall);
+        logger.data('depositNearLarge', depositNearLarge);
+        logger.data('buyerShareActual', +buyerBalanceAfterHr - +buyerBalanceBeforeHr);
+
+        expect(+buyerBalanceBeforeHr - +depositNearLarge).toBeCloseTo(+buyerBalanceAfterHr, 1);
+      });
+    });
+
     describe('errors', () => {
       it('should throw when the buyer and the seller are the same person', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
