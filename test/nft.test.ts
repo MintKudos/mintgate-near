@@ -266,14 +266,13 @@ describe('Nft contract', () => {
 
       // test against any unwanted character by adding adding rows to the tagged template literal like this:
       // ${'PDN2L5%'}                                  | ${'contains % char'}
-      // todo: test empty string after fix
-      // ${''}                                  | ${'is an empty string'}
       it.each`
         invalidGateId                          | description
         ${'abc.'}                              | ${'contains dot char'}
         ${'abc,'}                              | ${'contains coma char'}
         ${'Ж'}                                 | ${'contains non latin chars'}
         ${'abcdefghijklmnopqrstuvwxyzABCDEFG'} | ${'is longer than 32 chars'}
+        ${''}                                  | ${'is an empty string'}
       `('should throw if `gate_id` $description (invalid)', async ({ invalidGateId }) => {
         expect(invalidGateId.match(validGateIdRegEx)).toBeNull();
         await expect(addTestCollectible(alice.contract, { gate_id: invalidGateId })).rejects.toThrow(
@@ -1778,7 +1777,7 @@ describe('Nft contract', () => {
         );
       });
 
-      it('should throw an errors with rejected tokens', () => {
+      it('should throw an error with rejected tokens', () => {
         expect(error).toEqual(
           expect.objectContaining({
             type: 'GuestPanic',
