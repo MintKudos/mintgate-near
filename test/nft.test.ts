@@ -362,9 +362,15 @@ describe('Nft contract', () => {
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
 
       await alice.contract.delete_collectible({ gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).toBeNull();
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).not.toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
     });
 
     it('should delete a collectible if called by admin', async () => {
@@ -372,9 +378,14 @@ describe('Nft contract', () => {
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
-
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
       await admin.functionCall(alice.contract.contractId, 'delete_collectible', { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).toBeNull();
+      expect(await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId })).not.toContainEqual(
+        expect.objectContaining({ gate_id: gateId })
+      );
     });
 
     describe('errors', () => {
