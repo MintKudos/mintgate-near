@@ -313,7 +313,20 @@
 									"const tokenId = JSON.parse((Buffer.from(pm.response.json().status.SuccessValue, 'base64')).toString());\r",
 									"\r",
 									"console.log('Created token with id: ', tokenId);\r",
-									"pm.collectionVariables.set(\"tokenId\", tokenId);"
+									"pm.collectionVariables.set(\"tokenId\", tokenId);\r",
+									"\r",
+									"const recentlyMinted3TokensWithPrice = pm.collectionVariables.get(\"recentlyMinted3TokensWithPrice\");\r",
+									"const tokenPrice = pm.collectionVariables.get(\"tokenPrice\");\r",
+									"\r",
+									"if (!recentlyMinted3TokensWithPrice) {\r",
+									"    pm.collectionVariables.set(\"recentlyMinted3TokensWithPrice\", JSON.stringify([[tokenId, tokenPrice]]));\r",
+									"} else {\r",
+									"    pm.collectionVariables.set(\r",
+									"        \"recentlyMinted3TokensWithPrice\", \r",
+									"        JSON.stringify([...JSON.parse(recentlyMinted3TokensWithPrice), [tokenId, tokenPrice]].slice(-3))\r",
+									"    );\r",
+									"}\r",
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -860,7 +873,11 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									""
+									"const r = pm.response.json();\r",
+									"\r",
+									"if (r.error) {\r",
+									"    console.log(JSON.parse(r.error));\r",
+									"}"
 								],
 								"type": "text/javascript"
 							}
@@ -871,7 +888,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{bob}}\",\r\n    \"private_key\": \"{{bobPrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"batch_approve\",\r\n\t\"params\": {\r\n\t\t\"tokens\": [[\"{{tokenId}}\", \"5\"]],\r\n        \"account_id\": \"{{market}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{bob}}\",\r\n    \"private_key\": \"{{bobPrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"batch_approve\",\r\n\t\"params\": {\r\n\t\t\"tokens\": {{recentlyMinted3TokensWithPrice}},\r\n        \"account_id\": \"{{market}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1546,6 +1563,10 @@
 		},
 		{
 			"key": "tokenId",
+			"value": ""
+		},
+		{
+			"key": "recentlyMinted3TokensWithPrice",
 			"value": ""
 		}
 	]
