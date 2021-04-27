@@ -16,7 +16,7 @@
         "deploy:contract": "near deploy --wasmFile target/wasm32-unknown-unknown/release/mg_nft.wasm",
         "build:lib": "rm -rf lib/ && yarn tsc",
         "lint:lib": "eslint src test",
-        "measure:storage-costs": "npx ts-node test/measure.ts"
+        "measure:storage-costs": "ts-node test/measure.ts"
     },
     "dependencies": {
         "big.js": "^6.0.3",
@@ -50,6 +50,7 @@
         "near-seed-phrase": "^0.1.1",
         "prettier": "^2.2.1",
         "ts-jest": "^27.0.0-next.10",
+        "ts-node": "^9.1.1",
         "typescript": "^4.2.3"
     }
 }
