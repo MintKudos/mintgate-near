@@ -437,6 +437,11 @@ export interface Self0 {
     claim_token(args: { gate_id: ValidGateId }, gas?: any): Promise<TokenId>;
 
     /**
+     *  Burns token
+     */
+    burn_token(args: { token_id: TokenId }, gas?: any): Promise<void>;
+
+    /**
      *  Returns all `Token`s owned by `owner_id`.
      */
     get_tokens_by_owner(args: { owner_id: ValidAccountId }): Promise<Token[]>;
@@ -559,6 +564,7 @@ export const NftContractMethods = {
         "create_collectible",
         "delete_collectible",
         "claim_token",
+        "burn_token",
         "nft_transfer",
         "nft_transfer_payout",
         "nft_approve",

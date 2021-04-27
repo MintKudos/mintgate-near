@@ -1,6 +1,7 @@
-use mg_core::{mocked_context::gate_id, MarketApproveMsg, ValidGateId};
+use mg_core::{mocked_context::gate_id, MarketApproveMsg, TokenId, ValidGateId};
+use mg_nft::Panic;
 use near_sdk::{
-    json_types::{ValidAccountId, U128},
+    json_types::{ValidAccountId, U128, U64},
     serde_json,
 };
 use near_sdk_sim::to_yocto;
@@ -79,6 +80,11 @@ fn nft_approve_and_revoke_tokens() {
             .unwrap();
     }
 
+    let token_id = claim_token(nft, alice, 1).unwrap();
+    burn_token(nft, alice, token_id).unwrap();
+    nft_approve(nft, &markets[0], alice, token_id, "1")
+        .failure(Panic::TokenIdNotFound { token_id }.msg());
+
     let mut tokens = Vec::new();
     for u in 1..=(users.len() * n) {
         let token_id = claim_token(nft, alice, u as u64).unwrap();
@@ -90,7 +96,17 @@ fn nft_approve_and_revoke_tokens() {
     }
 
     for token_id in &tokens {
-        nft_revoke(nft, &markets[0], alice, *token_id).unwrap();
+        let tokens = get_tokens_for_sale(&markets[0]);
+        assert!(tokens.iter().map(|t| t.token_id).collect::<Vec<TokenId>>().contains(token_id));
+
+        if token_id.0 % 2 == 0 {
+            nft_revoke(nft, &markets[0], alice, *token_id).unwrap();
+        } else {
+            burn_token(nft, alice, *token_id).unwrap();
+        }
+
+        let tokens = get_tokens_for_sale(&markets[0]);
+        assert!(!tokens.iter().map(|t| t.token_id).collect::<Vec<TokenId>>().contains(token_id));
     }
 
     let token_id = claim_token(nft, alice, 1).unwrap();
@@ -129,6 +145,7 @@ fn batch_approve_a_few_tokens() {
 
     batch_approve(nft, &markets[0], alice, tokens.clone()).unwrap();
 
+    tokens.push((U64(1_111_111_111), U128(1)));
     batch_approve(nft, &markets[0], bob, tokens.clone()).failure(format!(
         "{} error(s) detected, see `panics` fields for a full list of errors",
         tokens.len()

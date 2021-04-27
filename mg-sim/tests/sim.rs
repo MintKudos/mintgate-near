@@ -203,6 +203,26 @@ pub fn claim_token(
     }
 }
 
+pub fn burn_token(
+    nft: &ContractAccount<NftContract>,
+    user: &UserAccount,
+    token_id: TokenId,
+) -> Result<(), String> {
+    println!("[{}] `{}` burning token `{:?}`", nft.account_id(), user.account_id, token_id);
+    match tx(call!(user, nft.burn_token(token_id))) {
+        Ok(_) => {
+            let tokens = get_tokens_by_owner(nft, user);
+            assert!(!tokens
+                .into_iter()
+                .map(|t| t.token_id)
+                .collect::<Vec<TokenId>>()
+                .contains(&token_id));
+            Ok(())
+        }
+        Err(msg) => Err(msg),
+    }
+}
+
 pub fn get_tokens_by_owner(nft: &ContractAccount<NftContract>, user: &UserAccount) -> Vec<Token> {
     let tokens: Vec<Token> =
         view!(nft.get_tokens_by_owner(user.account_id().try_into().unwrap())).unwrap_json();

@@ -364,6 +364,39 @@ impl NftContract {
         }
     }
 
+    /// Burns token
+    pub fn burn_token(&mut self, token_id: TokenId) {
+        let token = self.get_token(token_id);
+        let gate_id = token.gate_id;
+
+        match self.collectibles.get(&gate_id) {
+            None => Panic::GateIdNotFound { gate_id }.panic(),
+            Some(mut collectible) => {
+                let owner_id = env::predecessor_account_id();
+                self.delete_token_from(token_id, &owner_id);
+
+                if let Some(copies) = collectible.metadata.copies {
+                    collectible.metadata.copies = Some(U64(copies.0 - 1));
+                }
+
+                let mut i = 0;
+                for tid in &collectible.minted_tokens {
+                    if tid == &token_id {
+                        collectible.minted_tokens.remove(i);
+                        break;
+                    }
+
+                    i += 1;
+                }
+                self.collectibles.insert(&gate_id, &collectible);
+
+                for (market_id, _) in &token.approvals {
+                    mg_core::market::nft_on_revoke(token_id, market_id, 0, env::prepaid_gas() / 2);
+                }
+            }
+        }
+    }
+
     /// Returns all `Token`s owned by `owner_id`.
     pub fn get_tokens_by_owner(&self, owner_id: ValidAccountId) -> Vec<Token> {
         match self.tokens_by_owner.get(owner_id.as_ref()) {
@@ -707,7 +740,11 @@ impl NftContract {
         account_id: AccountId,
         min_price: U128,
     ) -> Result<MarketApproveMsg, Panic> {
-        let mut token = self.get_token(token_id);
+        let mut token = match self.tokens.get(&token_id) {
+            None => return Err(Panic::TokenIdNotFound { token_id }),
+            Some(token) => token,
+        };
+
         if owner_id != &token.owner_id {
             return Err(Panic::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() });
         }

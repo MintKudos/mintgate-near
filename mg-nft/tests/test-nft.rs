@@ -411,6 +411,50 @@ mod claim_token {
     }
 }
 
+mod burn_token {
+
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Token ID `U64(0)` was not found")]
+    fn burn_a_non_existent_token_should_panic() {
+        init().run_as(alice(), |contract| {
+            contract.burn_token(0.into());
+        });
+    }
+
+    #[test]
+    fn burn_a_few_tokens() {
+        init().run_as(alice(), |contract| {
+            contract.create_test_collectible(gate_id(1), 10);
+            let token_id = contract.claim_token(gate_id(1));
+            contract.burn_token(token_id);
+            let collectible = contract.get_collectible_by_gate_id(gate_id(1)).unwrap();
+            assert_eq!(collectible.metadata.copies.unwrap(), U64(9));
+
+            let token_id = contract.claim_token(gate_id(1));
+            contract.nft_approve(token_id, bob(), approve_msg(10));
+            contract.burn_token(token_id);
+            let collectible = contract.get_collectible_by_gate_id(gate_id(1)).unwrap();
+            assert_eq!(collectible.metadata.copies.unwrap(), U64(8));
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Token ID `U64(0)` does not belong to account `bob`")]
+    fn transfer_a_non_approved_token_should_panic() {
+        init()
+            .run_as(alice(), |contract| {
+                contract.create_test_collectible(gate_id(1), 10);
+                contract.claim_token(gate_id(1));
+            })
+            .run_as(bob(), |contract| {
+                let token_id = contract.last_claimed_token();
+                contract.burn_token(token_id);
+            });
+    }
+}
+
 mod nft_transfer {
 
     use super::*;
