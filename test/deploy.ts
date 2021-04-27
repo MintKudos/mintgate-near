@@ -8,6 +8,8 @@ import BN from 'bn.js';
 
 import { Contract, keyStores, Near, utils } from 'near-api-js';
 
+import type { AccountBalance, AccountState } from 'near-api-js/lib/account';
+
 import type { Account } from 'near-api-js';
 
 import { logger } from './utils';
@@ -54,7 +56,7 @@ export const getUsers = async (usersPrefixes: string[]): Promise<Account[]> =>
 
 const logAmount = (value: string) => logger.warn(utils.format.formatNearAmount(value, 4));
 
-const getState = async (account: Account, prefix: string) => {
+export const getState = async (account: Account, prefix: string): Promise<AccountState & AccountBalance> => {
   const state = await account.state();
   const balance = await account.getAccountBalance();
 

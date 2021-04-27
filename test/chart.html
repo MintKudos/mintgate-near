@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" style="font-family: 'Source Code Pro', monospace">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="../node_modules/chart.js/dist/chart.js"></script>
+  <script src="data.js"></script>
+  <title>Storage Cost - Rust</title>
+</head>
+
+<body>
+<header style="text-align: center">
+  <h1 style="margin-bottom: 50px">Storage Cost</h1>
+</header>
+<h2 style="text-align: center">...::[ NFT Contract ]::...</h2>
+<div style="width: 90%; margin: 0 auto 50px">
+  <canvas id="nft" width="800" height="400"></canvas>
+</div>
+<h2 style="text-align: center">...::[ Market Contract ]::...</h2>
+<div style="width: 90%; margin: 0 auto">
+  <canvas id="market" width="800" height="400"></canvas>
+</div>
+<script>
+  ["nft", "market"].forEach((prefix) => {
+    const ctx = document.getElementById(prefix);
+    const keys = data.map(entry => entry.key);
+    const values = data.map(entry => entry[`${prefix}Staked`]);
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: keys,
+        datasets: [{
+          data: values,
+          backgroundColor: prefix === "nft" ? "rgba(42, 42, 252, 0.5)" : "rgba(53, 176, 37, 0.5)"
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            title: {
+              display: true,
+              text: "Reserved for storage (state staked)",
+              align: "start",
+              color: "rgb(252, 42, 67)",
+              font: {
+                weight: 700,
+                size: 11
+              }
+            },
+            ticks: {
+              callback: (value) => `${value} Ⓝ`
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: "Operations performed",
+              align: "start",
+              color: "rgb(252, 42, 67)",
+              font: {
+                weight: 700,
+                size: 11
+              }
+            }
+          }
+        }
+      }
+    });
+  });
+</script>
+</body>
+</html>
