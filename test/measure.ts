@@ -24,8 +24,8 @@ interface DataEntry {
 
 const GAS = new BN(300000000000000);
 
-const collectiblesToAdd = argv[2] ? Number.parseInt(argv[2], 10) : 20;
-const tokensToAdd = argv[3] ? Number.parseInt(argv[3], 10) : 40;
+const collectiblesToAdd = Number(argv.find((arg, i) => argv[i - 1] === '--collectibles') || 20);
+const tokensToAdd = Number(argv.find((arg, i) => argv[i - 1] === '--tokens') || 40);
 
 const collectiblesConcurrently = 5;
 const tokensConcurrently = 5;
