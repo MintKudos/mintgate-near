@@ -149,11 +149,15 @@ fn approve_msg(price: u128) -> Option<String> {
     serde_json::to_string(&NftApproveMsg { min_price: price.into() }).ok()
 }
 
-fn init_contract(min_royalty: &str, max_royalty: &str) -> MockedContext<NftContractChecker> {
+fn init_contract(
+    min_royalty: &str,
+    max_royalty: &str,
+    metadata: NFTContractMetadata,
+) -> MockedContext<NftContractChecker> {
     MockedContext::new(|| NftContractChecker {
         contract: NftContract::init(
             mintgate_admin(),
-            metadata(),
+            metadata,
             min_royalty.parse().unwrap(),
             max_royalty.parse().unwrap(),
             "25/1000".parse().unwrap(),
@@ -164,19 +168,23 @@ fn init_contract(min_royalty: &str, max_royalty: &str) -> MockedContext<NftContr
 }
 
 fn init() -> MockedContext<NftContractChecker> {
-    init_contract("5/100", "30/100")
+    init_contract("5/100", "30/100", metadata(base_uri()))
 }
 
-fn metadata() -> NFTContractMetadata {
+fn metadata(base_uri: Option<String>) -> NFTContractMetadata {
     NFTContractMetadata {
         spec: "mg-nft-1.0.0".to_string(),
         name: "MintGate App".to_string(),
         symbol: "MG".to_string(),
         icon: None,
-        base_uri: Some("https://mintgate.app/t/".to_string()),
+        base_uri,
         reference: None,
         reference_hash: None,
     }
+}
+
+fn base_uri() -> Option<String> {
+    Some("https://mintgate.app/t/".to_string())
 }
 
 mod initial_state {
@@ -188,31 +196,31 @@ mod initial_state {
     #[test]
     #[should_panic(expected = "Denominator must be a positive number, but was 0")]
     fn init_state_with_zero_den_min_royalty_should_panic() {
-        init_contract("1/0", "5/10");
+        init_contract("1/0", "5/10", metadata(base_uri()));
     }
 
     #[test]
     #[should_panic(expected = "Denominator must be a positive number, but was 0")]
     fn init_state_with_zero_den_max_royalty_should_panic() {
-        init_contract("1/1", "5/0");
+        init_contract("1/1", "5/0", metadata(base_uri()));
     }
 
     #[test]
     #[should_panic(expected = "The fraction must be less or equal to 1")]
     fn init_state_with_invalid_min_royalty_should_panic() {
-        init_contract("5/4", "2/3");
+        init_contract("5/4", "2/3", metadata(base_uri()));
     }
 
     #[test]
     #[should_panic(expected = "The fraction must be less or equal to 1")]
     fn init_state_with_invalid_max_royalty_should_panic() {
-        init_contract("5/10", "3/2");
+        init_contract("5/10", "3/2", metadata(base_uri()));
     }
 
     #[test]
     #[should_panic(expected = "Min royalty `5/100` must be less or equal to max royalty `2/100`")]
     fn init_state_with_max_royalty_less_than_min_royalty_should_panic() {
-        init_contract("5/100", "2/100");
+        init_contract("5/100", "2/100", metadata(base_uri()));
     }
 
     #[test]
@@ -221,7 +229,7 @@ mod initial_state {
             assert_eq!(contract.get_collectibles_by_creator(any()).len(), 0);
             assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 0);
             assert_eq!(contract.get_tokens_by_owner(any()).len(), 0);
-            assert_eq!(contract.nft_metadata(), metadata());
+            assert_eq!(contract.nft_metadata(), metadata(base_uri()));
             assert_eq!(contract.get_collectible_by_gate_id(gate_id(0)), None);
             assert_eq!(contract.nft_token(0.into()), None);
             assert_eq!(contract.nft_total_supply(), U64(0));
@@ -295,7 +303,7 @@ mod create_collectible {
     #[test]
     #[should_panic(expected = "Royalty `1/1` is too large for the given NFT fee `25/1000`")]
     fn create_a_collectible_with_full_royalty_should_panic() {
-        init_contract("0/10", "30/30").run_as(alice(), |contract| {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
             contract.create_royalty_collectible(gate_id(1), 10, "1/1");
         });
     }
@@ -407,9 +415,12 @@ mod claim_token {
                 assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 1);
             })
             .run_as(bob(), |contract| {
-                contract.claim_token(gate_id(1));
-                contract.claim_token(gate_id(1));
-                contract.claim_token(gate_id(1));
+                let uri = format!("{}{}", base_uri().unwrap(), gate_id(1));
+
+                for _i in 0..3 {
+                    let token_id = contract.claim_token(gate_id(1));
+                    assert_eq!(contract.nft_token_uri(token_id).unwrap(), uri);
+                }
 
                 let tokens = contract.get_tokens_by_owner(bob());
                 assert_eq!(tokens.len(), 3);
@@ -470,7 +481,6 @@ mod claim_token {
                 for _i in 0..20 {
                     contract.claim_token(gate_id(1));
                 }
-
             })
             .run_as(bob(), |contract| {
                 contract.create_test_collectible(gate_id(2), 15);
@@ -498,6 +508,48 @@ mod claim_token {
     }
 }
 
+mod nft_token_uri {
+
+    use super::*;
+
+    #[test]
+    fn get_token_uri_with_base_uri() {
+        init_contract("5/100", "30/100", metadata(base_uri())).run_as(alice(), |contract| {
+            assert_eq!(contract.nft_token_uri(U64(0)), None);
+
+            contract.create_test_collectible(gate_id(1), 10);
+            let uri = format!("{}{}", base_uri().unwrap(), gate_id(1));
+            let token_id = contract.claim_token(gate_id(1));
+            assert_eq!(contract.nft_token_uri(token_id).unwrap(), uri);
+        });
+    }
+
+    #[test]
+    fn get_token_uri_with_no_slash_base_uri() {
+        init_contract("5/100", "30/100", metadata(Some("https://mintgate/t".to_string()))).run_as(
+            alice(),
+            |contract| {
+                assert_eq!(contract.nft_token_uri(U64(0)), None);
+
+                contract.create_test_collectible(gate_id(1), 10);
+                let uri = format!("{}/{}", "https://mintgate/t", gate_id(1));
+                let token_id = contract.claim_token(gate_id(1));
+                assert_eq!(contract.nft_token_uri(token_id).unwrap(), uri);
+            },
+        );
+    }
+
+    #[test]
+    fn get_token_uri_with_none_base_uri() {
+        init_contract("5/100", "30/100", metadata(None)).run_as(alice(), |contract| {
+            assert_eq!(contract.nft_token_uri(U64(0)), None);
+
+            contract.create_test_collectible(gate_id(1), 10);
+            let token_id = contract.claim_token(gate_id(1));
+            assert_eq!(contract.nft_token_uri(token_id), None);
+        });
+    }
+}
 mod burn_token {
 
     use super::*;
@@ -703,7 +755,7 @@ mod nft_payout {
 
     #[test]
     fn nft_get_payout_no_royalty() {
-        init_contract("0/10", "30/100")
+        init_contract("0/10", "30/100", metadata(base_uri()))
             .run_as(alice(), |contract| {
                 contract.create_royalty_collectible(gate_id(1), 10, "0/1");
             })
@@ -795,7 +847,7 @@ mod nft_payout {
 
     #[test]
     fn nft_get_payout_when_creator_and_owner_are_the_same_with_no_royalty() {
-        init_contract("0/1", "1/1").run_as(bob(), |contract| {
+        init_contract("0/1", "1/1", metadata(base_uri())).run_as(bob(), |contract| {
             contract.create_royalty_collectible(gate_id(1), 10, "0/7");
             let token_id = contract.claim_token(gate_id(1));
             let payout = contract.nft_payout(token_id, 2000.into());

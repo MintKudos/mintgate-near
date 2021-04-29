@@ -883,10 +883,12 @@ impl NonFungibleTokenEnumeration for NftContract {
     /// The uri combines the `base_uri` from the contract metadata and
     /// the `gate_id` from the token.
     fn nft_token_uri(&self, token_id: TokenId) -> Option<String> {
-        self.metadata
-            .base_uri
-            .clone()
-            .and_then(|uri| self.tokens.get(&token_id).map(|t| uri + t.gate_id.as_str()))
+        self.metadata.base_uri.clone().and_then(|uri| {
+            self.tokens.get(&token_id).map(|t| {
+                let sep = if uri.ends_with("/") { "" } else { "/" };
+                format!("{}{}{}", uri, sep, t.gate_id)
+            })
+        })
     }
 }
 
