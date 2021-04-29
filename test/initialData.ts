@@ -18,7 +18,7 @@ export const contractMetadata: NFTContractMetadata = {
   name: 'someName',
   symbol: 'someSymbol',
   icon: 'someIcon',
-  base_uri: 'someUri',
+  base_uri: 'https://example.com',
   reference: 'someReference',
   reference_hash: 'someReferenceHash',
 };

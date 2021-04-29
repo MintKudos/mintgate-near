@@ -1862,4 +1862,20 @@ describe('Nft contract', () => {
       });
     });
   });
+
+  describe('nft_token_uri', () => {
+    it('should return URI for the provided token', async () => {
+      const gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      expect(await bob.contract.nft_token_uri({ token_id: tokenId })).toBe(`${contractMetadata.base_uri}/${gateId}`);
+    });
+
+    it('should return `null` if token not found', async () => {
+      expect(await bob.contract.nft_token_uri({ token_id: '1212121212' })).toBeNull();
+    });
+  });
 });
