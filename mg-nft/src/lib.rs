@@ -836,7 +836,7 @@ impl NonFungibleTokenEnumeration for NftContract {
         result
     }
 
-    /// Returns how many `Token`s were minted by `account_id`.
+    /// Returns how many `Token`s are owned by `account_id`.
     fn nft_supply_for_owner(&self, account_id: ValidAccountId) -> U64 {
         match self.tokens_by_owner.get(account_id.as_ref()) {
             None => 0.into(),
@@ -844,7 +844,7 @@ impl NonFungibleTokenEnumeration for NftContract {
         }
     }
 
-    /// Returns all or paginated `Token`s minted by `account_id`.
+    /// Returns all or paginated `Token`s owned by `account_id`.
     /// Pagination is given by:
     ///
     /// - `from_index` the index to start fetching tokens.
