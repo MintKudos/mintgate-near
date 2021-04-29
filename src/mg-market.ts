@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.11 https://github.com/epam/near-syn
+// TypeScript bindings generated with near-ts v0.2.15 https://github.com/epam/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -9,10 +9,19 @@ export type AccountId = string;
 export type ValidAccountId = string;
 
 /**
+ *  The errors thrown by *mg-core*.
  */
 export enum CorePanics {
+    /**
+     *  Thrown when a denominator in a `Fraction` is `0`.
+     */
     ZeroDenominatorFraction,
+
+    /**
+     *  Thrown when a `Fraction` is more than `1`.
+     */
     FractionGreaterThanOne,
+
 }
 
 /**
@@ -51,7 +60,7 @@ export type GateId = string;
  *  ## Examples
  * 
  *  ```
- *  use mg_core::ValidGateId;
+ *  use mg_core::gate::ValidGateId;
  *  use std::convert::TryFrom;
  * 
  *  assert!(ValidGateId::try_from("TGWN_P5W6QNX").is_ok());
@@ -69,7 +78,7 @@ export type GateId = string;
  *  ## Usage
  * 
  *  ```
- *  use mg_core::ValidGateId;
+ *  use mg_core::gate::ValidGateId;
  *  use near_sdk::serde_json;
  *  use std::convert::TryInto;
  *  use std::convert::TryFrom;
@@ -102,9 +111,8 @@ export type TokenId = U64;
 
 /**
  *  Unix epoch, expressed in miliseconds.
- *  Note that 64 bits `number`s cannot be represented in JavaScript.
- *  Therefore, this type cannot be used in public interfaces.
- *  Only for internal `struct`s.
+ *  Note that 64 bits `number`s cannot be represented in JavaScript,
+ *  thus maximum number allowed is `2^53`.
  */
 export type Timestamp = number;
 
@@ -115,125 +123,41 @@ export type Timestamp = number;
 export type Payout = Record<AccountId, U128>;
 
 /**
- *  Associated metadata for the NFT contract as defined by
- *  https://github.com/near/NEPs/discussions/177
- */
-export interface ContractMetadata {
-    /**
-     */
-    spec: string;
-
-    /**
-     */
-    name: string;
-
-    /**
-     */
-    symbol: string;
-
-    /**
-     */
-    icon: string|null;
-
-    /**
-     */
-    base_uri: string|null;
-
-    /**
-     */
-    reference: string|null;
-
-    /**
-     */
-    reference_hash: string|null;
-
-}
-
-/**
- *  Associated metadata with a `GateId` as defined by
- *  https://github.com/near/NEPs/discussions/177
- */
-export interface TokenMetadata {
-    /**
-     */
-    title: string|null;
-
-    /**
-     */
-    description: string|null;
-
-    /**
-     */
-    media: string|null;
-
-    /**
-     */
-    media_hash: string|null;
-
-    /**
-     */
-    copies: U64|null;
-
-    /**
-     */
-    issued_at: Timestamp|null;
-
-    /**
-     */
-    expires_at: Timestamp|null;
-
-    /**
-     */
-    starts_at: Timestamp|null;
-
-    /**
-     */
-    updated_at: Timestamp|null;
-
-    /**
-     */
-    extra: string|null;
-
-    /**
-     */
-    reference: string|null;
-
-    /**
-     */
-    reference_hash: string|null;
-
-}
-
-/**
+ *  A `Collectible` represents something of value.
+ *  `Token`s can be then minted from a given collectible.
+ *  A collectible is identified by `gate_id`.
  */
 export interface Collectible {
     /**
+     *  The unique identifier of this `Collectible`.
      */
     gate_id: GateId;
 
     /**
+     *  The account id that created this `Collectible`.
      */
     creator_id: AccountId;
 
     /**
+     *  Indicates how many `Token`s can be minted out of this `Collectible`.
      */
-    current_supply: U64;
+    current_supply: number;
 
     /**
-     */
-    gate_url: string;
-
-    /**
+     *  The list of `TokenId`s actually minted out of this `Collectible`.
      */
     minted_tokens: TokenId[];
 
     /**
+     *  Indicates the royalty as percentage (in NEARs) to be paid to `creator_id`
+     *  every time a minted token out of this `Collectible` is reselled.
      */
     royalty: Fraction;
 
     /**
+     *  Additional info provided by NEP-177
      */
-    metadata: TokenMetadata;
+    metadata: Metadata;
 
 }
 
@@ -269,12 +193,6 @@ export interface Token {
     modified_at: number;
 
     /**
-     *  If this `Token` was transferred, this field holds the previous owner.
-     *  Otherwise is empty.
-     */
-    sender_id: AccountId;
-
-    /**
      *  Holds the list of accounts that can `transfer_token`s on behalf of the token's owner.
      *  It is mapped to the approval id and minimum amount that this token should be transfer for.
      */
@@ -284,6 +202,65 @@ export interface Token {
      *  Counter to assign next approval ID.
      */
     approval_counter: U64;
+
+    /**
+     */
+    metadata: Metadata;
+
+}
+
+/**
+ *  Associated metadata with a `GateId` as defined by
+ *  https://github.com/near/NEPs/discussions/177
+ */
+export interface Metadata {
+    /**
+     */
+    title: string|null;
+
+    /**
+     */
+    description: string|null;
+
+    /**
+     */
+    media: string|null;
+
+    /**
+     */
+    media_hash: string|null;
+
+    /**
+     */
+    copies: number|null;
+
+    /**
+     */
+    issued_at: Timestamp|null;
+
+    /**
+     */
+    expires_at: Timestamp|null;
+
+    /**
+     */
+    starts_at: Timestamp|null;
+
+    /**
+     */
+    updated_at: Timestamp|null;
+
+    /**
+     */
+    extra: string|null;
+
+    /**
+     */
+    reference: string|null;
+
+    /**
+     */
+    reference_hash: string|null;
 
 }
 
@@ -300,6 +277,42 @@ export interface TokenApproval {
      *  Minimum price a token should be sell for.
      */
     min_price: U128;
+
+}
+
+/**
+ *  Associated metadata for the NFT contract as defined by
+ *  https://github.com/near/NEPs/discussions/177
+ *  https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface
+ */
+export interface NFTContractMetadata {
+    /**
+     */
+    spec: string;
+
+    /**
+     */
+    name: string;
+
+    /**
+     */
+    symbol: string;
+
+    /**
+     */
+    icon: string|null;
+
+    /**
+     */
+    base_uri: string|null;
+
+    /**
+     */
+    reference: string|null;
+
+    /**
+     */
+    reference_hash: string|null;
 
 }
 
@@ -384,10 +397,22 @@ export interface TokenForSale {
 /**
  */
 export enum Panics {
+    /**
+     */
     MsgFormatMinPriceMissing,
+
+    /**
+     */
     TokenKeyNotFound,
+
+    /**
+     */
     BuyOwnTokenNotAllowed,
+
+    /**
+     */
     NotEnoughDepositToBuyToken,
+
 }
 
 /**

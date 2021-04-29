@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.11 https://github.com/epam/near-syn
+// TypeScript bindings generated with near-ts v0.2.15 https://github.com/epam/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
@@ -9,10 +9,19 @@ export type AccountId = string;
 export type ValidAccountId = string;
 
 /**
+ *  The errors thrown by *mg-core*.
  */
 export enum CorePanics {
+    /**
+     *  Thrown when a denominator in a `Fraction` is `0`.
+     */
     ZeroDenominatorFraction,
+
+    /**
+     *  Thrown when a `Fraction` is more than `1`.
+     */
     FractionGreaterThanOne,
+
 }
 
 /**
@@ -51,7 +60,7 @@ export type GateId = string;
  *  ## Examples
  * 
  *  ```
- *  use mg_core::ValidGateId;
+ *  use mg_core::gate::ValidGateId;
  *  use std::convert::TryFrom;
  * 
  *  assert!(ValidGateId::try_from("TGWN_P5W6QNX").is_ok());
@@ -69,7 +78,7 @@ export type GateId = string;
  *  ## Usage
  * 
  *  ```
- *  use mg_core::ValidGateId;
+ *  use mg_core::gate::ValidGateId;
  *  use near_sdk::serde_json;
  *  use std::convert::TryInto;
  *  use std::convert::TryFrom;
@@ -102,9 +111,8 @@ export type TokenId = U64;
 
 /**
  *  Unix epoch, expressed in miliseconds.
- *  Note that 64 bits `number`s cannot be represented in JavaScript.
- *  Therefore, this type cannot be used in public interfaces.
- *  Only for internal `struct`s.
+ *  Note that 64 bits `number`s cannot be represented in JavaScript,
+ *  thus maximum number allowed is `2^53`.
  */
 export type Timestamp = number;
 
@@ -115,125 +123,41 @@ export type Timestamp = number;
 export type Payout = Record<AccountId, U128>;
 
 /**
- *  Associated metadata for the NFT contract as defined by
- *  https://github.com/near/NEPs/discussions/177
- */
-export interface ContractMetadata {
-    /**
-     */
-    spec: string;
-
-    /**
-     */
-    name: string;
-
-    /**
-     */
-    symbol: string;
-
-    /**
-     */
-    icon: string|null;
-
-    /**
-     */
-    base_uri: string|null;
-
-    /**
-     */
-    reference: string|null;
-
-    /**
-     */
-    reference_hash: string|null;
-
-}
-
-/**
- *  Associated metadata with a `GateId` as defined by
- *  https://github.com/near/NEPs/discussions/177
- */
-export interface TokenMetadata {
-    /**
-     */
-    title: string|null;
-
-    /**
-     */
-    description: string|null;
-
-    /**
-     */
-    media: string|null;
-
-    /**
-     */
-    media_hash: string|null;
-
-    /**
-     */
-    copies: U64|null;
-
-    /**
-     */
-    issued_at: Timestamp|null;
-
-    /**
-     */
-    expires_at: Timestamp|null;
-
-    /**
-     */
-    starts_at: Timestamp|null;
-
-    /**
-     */
-    updated_at: Timestamp|null;
-
-    /**
-     */
-    extra: string|null;
-
-    /**
-     */
-    reference: string|null;
-
-    /**
-     */
-    reference_hash: string|null;
-
-}
-
-/**
+ *  A `Collectible` represents something of value.
+ *  `Token`s can be then minted from a given collectible.
+ *  A collectible is identified by `gate_id`.
  */
 export interface Collectible {
     /**
+     *  The unique identifier of this `Collectible`.
      */
     gate_id: GateId;
 
     /**
+     *  The account id that created this `Collectible`.
      */
     creator_id: AccountId;
 
     /**
+     *  Indicates how many `Token`s can be minted out of this `Collectible`.
      */
-    current_supply: U64;
+    current_supply: number;
 
     /**
-     */
-    gate_url: string;
-
-    /**
+     *  The list of `TokenId`s actually minted out of this `Collectible`.
      */
     minted_tokens: TokenId[];
 
     /**
+     *  Indicates the royalty as percentage (in NEARs) to be paid to `creator_id`
+     *  every time a minted token out of this `Collectible` is reselled.
      */
     royalty: Fraction;
 
     /**
+     *  Additional info provided by NEP-177
      */
-    metadata: TokenMetadata;
+    metadata: Metadata;
 
 }
 
@@ -269,12 +193,6 @@ export interface Token {
     modified_at: number;
 
     /**
-     *  If this `Token` was transferred, this field holds the previous owner.
-     *  Otherwise is empty.
-     */
-    sender_id: AccountId;
-
-    /**
      *  Holds the list of accounts that can `transfer_token`s on behalf of the token's owner.
      *  It is mapped to the approval id and minimum amount that this token should be transfer for.
      */
@@ -284,6 +202,65 @@ export interface Token {
      *  Counter to assign next approval ID.
      */
     approval_counter: U64;
+
+    /**
+     */
+    metadata: Metadata;
+
+}
+
+/**
+ *  Associated metadata with a `GateId` as defined by
+ *  https://github.com/near/NEPs/discussions/177
+ */
+export interface Metadata {
+    /**
+     */
+    title: string|null;
+
+    /**
+     */
+    description: string|null;
+
+    /**
+     */
+    media: string|null;
+
+    /**
+     */
+    media_hash: string|null;
+
+    /**
+     */
+    copies: number|null;
+
+    /**
+     */
+    issued_at: Timestamp|null;
+
+    /**
+     */
+    expires_at: Timestamp|null;
+
+    /**
+     */
+    starts_at: Timestamp|null;
+
+    /**
+     */
+    updated_at: Timestamp|null;
+
+    /**
+     */
+    extra: string|null;
+
+    /**
+     */
+    reference: string|null;
+
+    /**
+     */
+    reference_hash: string|null;
 
 }
 
@@ -300,6 +277,42 @@ export interface TokenApproval {
      *  Minimum price a token should be sell for.
      */
     min_price: U128;
+
+}
+
+/**
+ *  Associated metadata for the NFT contract as defined by
+ *  https://github.com/near/NEPs/discussions/177
+ *  https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface
+ */
+export interface NFTContractMetadata {
+    /**
+     */
+    spec: string;
+
+    /**
+     */
+    name: string;
+
+    /**
+     */
+    symbol: string;
+
+    /**
+     */
+    icon: string|null;
+
+    /**
+     */
+    base_uri: string|null;
+
+    /**
+     */
+    reference: string|null;
+
+    /**
+     */
+    reference_hash: string|null;
 
 }
 
@@ -346,26 +359,90 @@ export interface MarketApproveMsg {
 /**
  */
 export enum Panic {
+    /**
+     */
     MaxRoyaltyLessThanMinRoyalty,
+
+    /**
+     */
     RoyaltyMinThanAllowed,
+
+    /**
+     */
     RoyaltyMaxThanAllowed,
+
+    /**
+     */
     RoyaltyTooLarge,
+
+    /**
+     */
     GateIdAlreadyExists,
+
+    /**
+     */
     ZeroSupplyNotAllowed,
+
+    /**
+     */
+    InvalidArgument,
+
+    /**
+     */
     GateIdNotFound,
+
+    /**
+     */
     GateIdExhausted,
+
+    /**
+     */
     GateIdHasTokens,
+
+    /**
+     */
     NotAuthorized,
+
+    /**
+     */
     TokenIdNotFound,
+
+    /**
+     */
     TokenIdNotOwnedBy,
+
+    /**
+     */
     OneApprovalAllowed,
+
+    /**
+     */
     SenderNotAuthToTransfer,
+
+    /**
+     */
     ReceiverIsOwner,
+
+    /**
+     */
     EnforceApprovalFailed,
+
+    /**
+     */
     MsgFormatNotRecognized,
+
+    /**
+     */
     MsgFormatMinPriceMissing,
+
+    /**
+     */
     RevokeApprovalFailed,
+
+    /**
+     */
     Errors,
+
 }
 
 /**
@@ -387,7 +464,7 @@ export interface Self0 {
      *  - `min_royalty` and `max_royalty` indicates what must be the max and min royalty respectively when creating a collectible.
      *  - `mintgate_fee` is the percetange to be paid to `mintgate_fee_account_id` for each sale.
      */
-    init: { admin_id: ValidAccountId, metadata: ContractMetadata, min_royalty: Fraction, max_royalty: Fraction, mintgate_fee: Fraction, mintgate_fee_account_id: ValidAccountId };
+    init: { admin_id: ValidAccountId, metadata: NFTContractMetadata, min_royalty: Fraction, max_royalty: Fraction, mintgate_fee: Fraction, mintgate_fee_account_id: ValidAccountId };
 
     /**
      *  Creates a new `Collectible`, identified by `gate_id`.
@@ -401,7 +478,7 @@ export interface Self0 {
      * 
      *  See <https://github.com/epam/mintgate/issues/3>.
      */
-    create_collectible(args: { gate_id: ValidGateId, title: string, description: string, supply: U64, gate_url: string, royalty: Fraction }, gas?: any): Promise<void>;
+    create_collectible(args: { gate_id: ValidGateId, title: string, description: string, supply: number, royalty: Fraction }, gas?: any): Promise<void>;
 
     /**
      *  Returns the `Collectible` with the given `gate_id`.
@@ -453,16 +530,16 @@ export interface Self0 {
      */
     get_tokens_by_owner_and_gate_id(args: { gate_id: ValidGateId, owner_id: ValidAccountId }): Promise<Token[]>;
 
+    /**
+     *  Gets
+     */
+    get_token_by_id(args: { token_id: TokenId }): Promise<Token|null>;
+
 }
 
 /**
  */
 export interface NonFungibleTokenCore {
-    /**
-     *  Returns the NFT metadata for this contract.
-     */
-    nft_metadata(): Promise<ContractMetadata>;
-
     /**
      *  Transfer the token `token_id` to the `receiver_id` account.
      * 
@@ -501,17 +578,22 @@ export interface NonFungibleTokenCore {
     nft_transfer_payout(args: { receiver_id: ValidAccountId, token_id: TokenId, approval_id: U64|null, memo: string|null, balance: U128|null }, gas?: any): Promise<Payout|null>;
 
     /**
-     *  Returns the total token supply.
-     */
-    nft_total_supply(): Promise<U64>;
-
-    /**
      *  Returns the token identified by `token_id`.
      *  Or `null` if the `token_id` was not found.
      * 
      *  See <https://github.com/epam/mintgate/issues/17>.
      */
     nft_token(args: { token_id: TokenId }): Promise<Token|null>;
+
+}
+
+/**
+ */
+export interface NonFungibleTokenMetadata {
+    /**
+     *  Returns the NFT metadata for this contract.
+     */
+    nft_metadata(): Promise<NFTContractMetadata>;
 
 }
 
@@ -540,6 +622,32 @@ export interface NonFungibleTokenApprovalMgmt {
 
 /**
  */
+export interface NonFungibleTokenEnumeration {
+    /**
+     *  Returns the total token supply.
+     */
+    nft_total_supply(): Promise<U64>;
+
+    /**
+     */
+    nft_tokens(args: { from_index: U64|null, limit: number|null }): Promise<Token[]>;
+
+    /**
+     */
+    nft_supply_for_owner(args: { account_id: ValidAccountId }): Promise<U64>;
+
+    /**
+     */
+    nft_tokens_for_owner(args: { account_id: ValidAccountId, from_index: U64|null, limit: number|null }): Promise<Token[]>;
+
+    /**
+     */
+    nft_token_uri(args: { token_id: TokenId }): Promise<string|null>;
+
+}
+
+/**
+ */
 export interface Self1 {
     /**
      */
@@ -547,7 +655,7 @@ export interface Self1 {
 
 }
 
-export type NftContract = Self0 & NonFungibleTokenCore & NonFungibleTokenApprovalMgmt & Self1;
+export type NftContract = Self0 & NonFungibleTokenCore & NonFungibleTokenMetadata & NonFungibleTokenApprovalMgmt & NonFungibleTokenEnumeration & Self1;
 
 export const NftContractMethods = {
     viewMethods: [
@@ -555,10 +663,15 @@ export const NftContractMethods = {
         "get_collectibles_by_creator",
         "get_tokens_by_owner",
         "get_tokens_by_owner_and_gate_id",
-        "nft_metadata",
+        "get_token_by_id",
         "nft_payout",
-        "nft_total_supply",
         "nft_token",
+        "nft_metadata",
+        "nft_total_supply",
+        "nft_tokens",
+        "nft_supply_for_owner",
+        "nft_tokens_for_owner",
+        "nft_token_uri",
     ],
     changeMethods: [
         "create_collectible",

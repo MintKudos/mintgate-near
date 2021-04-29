@@ -1,4 +1,4 @@
-use mg_core::Fraction;
+use mg_core::fraction::Fraction;
 use near_sdk::{test_utils::VMContextBuilder, testing_env, MockedBlockchain};
 use std::cmp::Ordering;
 

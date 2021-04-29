@@ -7,8 +7,9 @@ use std::{
 };
 
 use mg_core::{
-    crypto_hash, GateId, MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout, TokenId,
-    ValidGateId,
+    crypto_hash,
+    gate::{GateId, ValidGateId},
+    MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout, TokenId,
 };
 use near_env::{near_ext, near_log, PanicMessage};
 use near_sdk::{
@@ -155,7 +156,7 @@ impl MarketContract {
 
             self.remove_token_id(&token_key, &owner_id, &gate_id, &creator_id);
 
-            mg_core::nft::nft_transfer_payout(
+            mg_core::nep171::nft::nft_transfer_payout(
                 buyer_id.try_into().unwrap(),
                 token_id,
                 None,

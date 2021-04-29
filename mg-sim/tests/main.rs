@@ -1,4 +1,4 @@
-use mg_core::{mocked_context::gate_id, MarketApproveMsg, TokenId, ValidGateId};
+use mg_core::{gate::ValidGateId, mocked_context::gate_id, MarketApproveMsg, TokenId};
 use mg_nft::Panic;
 use near_sdk::{
     json_types::{ValidAccountId, U128, U64},
@@ -59,7 +59,7 @@ fn create_and_claim_collectibles() {
         loop {
             claim_token(nft, users[k as usize % users.len()], k).unwrap();
             let collectible = get_collectible_by_gate_id(nft, gate_id(k));
-            if collectible.current_supply.0 == 0 {
+            if collectible.current_supply == 0 {
                 break;
             }
         }
@@ -76,7 +76,7 @@ fn nft_approve_and_revoke_tokens() {
 
     let n = 4;
     for u in 1..=(users.len() * n) {
-        create_collectible(nft, users[(u - 1) % users.len()], gate_id(u as u64), 10, "10/100")
+        create_collectible(nft, users[(u - 1) % users.len()], gate_id(u as u16), 10, "10/100")
             .unwrap();
     }
 
@@ -87,7 +87,7 @@ fn nft_approve_and_revoke_tokens() {
 
     let mut tokens = Vec::new();
     for u in 1..=(users.len() * n) {
-        let token_id = claim_token(nft, alice, u as u64).unwrap();
+        let token_id = claim_token(nft, alice, u as u16).unwrap();
         tokens.push(token_id);
     }
 
@@ -133,13 +133,13 @@ fn batch_approve_a_few_tokens() {
 
     let n = 5;
     for u in 1..=(users.len() * n) {
-        create_collectible(nft, users[(u - 1) % users.len()], gate_id(u as u64), 10, "10/100")
+        create_collectible(nft, users[(u - 1) % users.len()], gate_id(u as u16), 10, "10/100")
             .unwrap();
     }
 
     let mut tokens = Vec::new();
     for u in 1..=(users.len() * n) {
-        let token_id = claim_token(nft, alice, u as u64).unwrap();
+        let token_id = claim_token(nft, alice, u as u16).unwrap();
         tokens.push((token_id, U128(u as u128 * 1000)));
     }
 
@@ -153,7 +153,7 @@ fn batch_approve_a_few_tokens() {
 
     let mut tokens = Vec::new();
     for u in 1..=(users.len() * n) {
-        let token_id = claim_token(nft, users[u % users.len()], u as u64).unwrap();
+        let token_id = claim_token(nft, users[u % users.len()], u as u16).unwrap();
         tokens.push((token_id, U128(u as u128 * 1_000_000)));
     }
 
