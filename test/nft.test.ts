@@ -145,32 +145,35 @@ describe('Nft contract', () => {
       });
 
       it('should throw if supply is zero', async () => {
-        const gateId2 = await generateId();
+        const supplyInvalid = 0;
 
-        await expect(
-          addTestCollectible(alice.contract, {
-            gate_id: gateId2,
-            supply: 0,
-          })
-        ).rejects.toThrow(
-          expect.objectContaining({
-            type: 'GuestPanic',
-            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateId2}","msg":"Gate ID \`${gateId2}\` must have a positive supply"}`,
-          })
-        );
-      });
-
-      it.each([-10])('should throw if supply is not valid, i.e. %s', async (supplyNew) => {
-        logger.data('Attempting to create collectible with supply', supplyNew);
+        logger.data('Attempting to create collectible with supply', supplyInvalid);
 
         const gateIdNew = await generateId();
 
         await expect(
           addTestCollectible(alice.contract, {
             gate_id: gateIdNew,
-            supply: supplyNew,
+            supply: supplyInvalid,
           })
-        ).rejects.toThrow('invalid digit found in string');
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateIdNew}","msg":"Gate ID \`${gateIdNew}\` must have a positive supply"}`,
+          })
+        );
+      });
+
+      it('should throw if supply is negative number', async () => {
+        const supplyInvalid = -1;
+        logger.data('Attempting to create collectible with supply', supplyInvalid);
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: await generateId(),
+            supply: supplyInvalid,
+          })
+        ).rejects.toThrow(`invalid value: integer &#x60;${supplyInvalid}&#x60;, expected u16`);
       });
 
       it('should throw if royalty is less than minimum', async () => {

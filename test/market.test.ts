@@ -505,7 +505,7 @@ describe('Market contract', () => {
           gate_url: 'Test gate url',
           title: 'Test title',
           description: 'Test description',
-          supply: '100',
+          supply: 100,
           royalty,
         });
 
