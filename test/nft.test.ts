@@ -284,6 +284,25 @@ describe('Nft contract', () => {
           })
         );
       });
+
+      it('should throw if provided with title longer than 140 symbols', async () => {
+        const gateIdNew = await generateId();
+        const titleInvalid =
+          "Acceptance doesn't beautifully realize any self — but the power is what preaches. Our magical definition for fear is to visualize others lie.";
+        expect(titleInvalid.length).toBeGreaterThan(140);
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            title: titleInvalid,
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"Title exceeds 140 chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds 140 chars"}`,
+          })
+        );
+      });
     });
   });
 
