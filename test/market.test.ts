@@ -934,37 +934,73 @@ describe('Market contract', () => {
   });
 
   describe('nft_on_approve', () => {
+    const minPrice = '10';
+    const approvalId = '5';
+
     let gateId: string;
     let tokenId: string;
 
-    const message: MarketApproveMsg = {
-      min_price: '5',
-      gate_id: '',
-      creator_id: '',
-    };
+    let tokensForSale: TokenForSale[];
+    let tokensByGateId: TokenForSale[];
+    let tokensByOwnerId: TokenForSale[];
+    let tokensByCreatorId: TokenForSale[];
 
     beforeAll(async () => {
       gateId = await generateId();
-
-      message.creator_id = bob.contract.contractId;
-      message.gate_id = gateId;
+      const message: MarketApproveMsg = {
+        min_price: minPrice,
+        gate_id: gateId,
+        creator_id: bob.accountId,
+      };
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
 
-      await merchant.contract.nft_on_approve({
+      await alice.contractAccount.functionCall(merchant.contract.contractId, 'nft_on_approve', {
         token_id: tokenId,
         owner_id: alice.accountId,
-        approval_id: '5',
+        approval_id: approvalId,
         msg: JSON.stringify(message),
       });
+
+      [tokensForSale, tokensByGateId, tokensByOwnerId, tokensByCreatorId] = await Promise.all([
+        merchant.contract.get_tokens_for_sale(),
+        merchant.contract.get_tokens_by_gate_id({ gate_id: gateId }),
+        merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId }),
+        merchant.contract.get_tokens_by_creator_id({ creator_id: bob.accountId }),
+      ]);
     });
 
     test('that market lists the token as for sale', async () => {
-      const tokensForSale = await merchant.contract.get_tokens_for_sale();
-
       expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that market lists the token as for sale by gate id', async () => {
+      expect(tokensByGateId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that market lists the token as for sale by owner id', async () => {
+      expect(tokensByOwnerId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that market lists the token as for sale by creator id', async () => {
+      expect(tokensByCreatorId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that token for sale gets correct data', async () => {
+      const token = tokensForSale[tokensForSale.length - 1];
+
+      expect(token).toEqual(
+        expect.objectContaining({
+          nft_contract_id: bob.contractAccount.accountId,
+          owner_id: alice.accountId,
+          approval_id: approvalId,
+          min_price: minPrice,
+          gate_id: gateId,
+          creator_id: bob.accountId,
+        })
+      );
     });
   });
 
@@ -1104,8 +1140,6 @@ describe('Market contract', () => {
 
     test('that token for sale gets correct data', async () => {
       const token = tokensForSale[tokensForSale.length - 1];
-
-      logger.data('', token);
 
       expect(token).toEqual(
         expect.objectContaining({
