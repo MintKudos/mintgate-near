@@ -418,7 +418,7 @@ impl NftContract {
             Some(list) => list
                 .iter()
                 .map(|token_id| {
-                    let token = self.get_token_by_id(token_id).expect("Token not found");
+                    let token = self.get_token(token_id).expect("Token not found");
                     assert!(token.token_id == token_id);
                     assert!(&token.owner_id == owner_id.as_ref());
                     token
@@ -442,7 +442,7 @@ impl NftContract {
             Some(list) => list
                 .iter()
                 .map(|token_id| {
-                    let token = self.get_token_by_id(token_id).expect("Token not found");
+                    let token = self.get_token(token_id).expect("Token not found");
                     assert!(token.token_id == token_id);
                     assert!(&token.owner_id == owner_id.as_ref());
                     token
@@ -452,13 +452,12 @@ impl NftContract {
         }
     }
 
+    // pub fn get_token_by_id(&self, token_id: TokenId) -> Option<Token> {
+    //     self.get_token(token_id)
+    // }
+
     /// Returns the token given by `token_id`.
     /// Otherwise returns `None`.
-    pub fn get_token_by_id(&self, token_id: TokenId) -> Option<Token> {
-        self.get_token(token_id)
-    }
-
-    /// Gets the `Token` with given `token_id`.
     fn get_token(&self, token_id: TokenId) -> Option<Token> {
         match self.tokens.get(&token_id) {
             None => None,
@@ -694,7 +693,7 @@ impl NonFungibleTokenCore for NftContract {
     ///
     /// See <https://github.com/epam/mintgate/issues/17>.
     fn nft_token(&self, token_id: TokenId) -> Option<Token> {
-        self.get_token_by_id(token_id)
+        self.get_token(token_id)
     }
 }
 
@@ -863,7 +862,7 @@ impl NonFungibleTokenEnumeration for NftContract {
                 let mut result = Vec::new();
                 while result.len() < limit.unwrap_or(u32::MAX) as usize {
                     if let Some(token_id) = list.as_vector().get(i) {
-                        let token = self.get_token_by_id(token_id).expect("Token not found");
+                        let token = self.get_token(token_id).expect("Token not found");
                         assert!(token.token_id == token_id);
                         assert!(&token.owner_id == account_id.as_ref());
                         result.push(token);

@@ -568,12 +568,6 @@ export interface Self0 {
     get_tokens_by_owner_and_gate_id(args: { gate_id: ValidGateId, owner_id: ValidAccountId }): Promise<Token[]>;
 
     /**
-     *  Returns the token given by `token_id`.
-     *  Otherwise returns `None`.
-     */
-    get_token_by_id(args: { token_id: TokenId }): Promise<Token|null>;
-
-    /**
      *  Approves a batch of tokens, similar to `nft_approve`.
      *  Each approval contains the `TokenId` to approve and the minimum price to sell the token for.
      *  `account_id` indicates the market account contract where list these tokens.
@@ -727,7 +721,6 @@ export const NftContractMethods = {
         "get_collectibles_by_creator",
         "get_tokens_by_owner",
         "get_tokens_by_owner_and_gate_id",
-        "get_token_by_id",
         "nft_payout",
         "nft_token",
         "nft_metadata",

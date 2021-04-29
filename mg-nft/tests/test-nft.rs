@@ -88,7 +88,7 @@ impl MockedContext<NftContractChecker> {
         assert_eq!(self.contract.nft_total_supply(), U64(total_supply + 1));
         assert_eq!(self.contract.nft_supply_for_owner(self.pred_id()), U64(supply_for_owner + 1));
 
-        let token = self.get_token_by_id(token_id).unwrap();
+        let token = self.nft_token(token_id).unwrap();
         assert_eq!(&token.gate_id, gate_id.as_ref());
         assert_eq!(token.owner_id, self.pred_id().to_string());
         assert_eq!(token.approvals.len(), 0);
