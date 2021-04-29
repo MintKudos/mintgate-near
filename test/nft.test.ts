@@ -842,12 +842,6 @@ describe('Nft contract', () => {
         expect(formatNsToMs(token!.modified_at)).toBeGreaterThan(formatNsToMs(token!.created_at));
       });
 
-      it("should set token's sender", () => {
-        logger.data("Token's sender", token!.sender_id);
-
-        expect(token!.sender_id).toBe(bob.accountId);
-      });
-
       it('should not throw if sender is not an owner but approved', async () => {
         const tokenId = await bob.contract.claim_token({ gate_id: gateId });
         logger.data("Token's owner is", bob.accountId);
@@ -1158,10 +1152,6 @@ describe('Nft contract', () => {
 
       it("should update token's modified_at property", async () => {
         expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
-      });
-
-      it("should set token's sender", () => {
-        expect(token.sender_id).toBe(alice.accountId);
       });
     });
   });

@@ -276,10 +276,6 @@ describe('Market contract', () => {
         expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
 
-      it("should set token's sender", () => {
-        expect(token.sender_id).toBe(merchant2.contract.contractId);
-      });
-
       it("should clear token's approvals", () => {
         expect(token.approvals).toEqual({});
       });
