@@ -691,12 +691,12 @@ export interface NonFungibleTokenEnumeration {
     nft_tokens(args: { from_index: U64|null, limit: number|null }): Promise<Token[]>;
 
     /**
-     *  Returns how many `Token`s were minted by `account_id`.
+     *  Returns how many `Token`s are owned by `account_id`.
      */
     nft_supply_for_owner(args: { account_id: ValidAccountId }): Promise<U64>;
 
     /**
-     *  Returns all or paginated `Token`s minted by `account_id`.
+     *  Returns all or paginated `Token`s owned by `account_id`.
      *  Pagination is given by:
      * 
      *  - `from_index` the index to start fetching tokens.

@@ -40,7 +40,7 @@ describe('Nft contract', () => {
   const mintgate = global.nftFeeUser;
   const admin = global.adminUser;
 
-  const nonExistentUserId = 'ron-1111111111111-111111';
+  const nonExistentAccountId = 'ron-1111111111111-111111';
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
@@ -54,8 +54,7 @@ describe('Nft contract', () => {
     let gateId: string;
     let title: string;
     let description: string;
-    let supply: string;
-    let gateUrl: string;
+    let supply: number;
     let royalty: Fraction;
 
     let collectible: Collectible | null;
@@ -65,8 +64,7 @@ describe('Nft contract', () => {
 
       title = 'Test title';
       description = 'Test description';
-      supply = '100';
-      gateUrl = 'Test url';
+      supply = 100;
       royalty = {
         num: 25,
         den: 100,
@@ -77,7 +75,6 @@ describe('Nft contract', () => {
         title,
         description,
         supply,
-        gate_url: gateUrl,
         royalty,
       });
 
@@ -148,32 +145,35 @@ describe('Nft contract', () => {
       });
 
       it('should throw if supply is zero', async () => {
-        const gateId2 = await generateId();
+        const supplyInvalid = 0;
 
-        await expect(
-          addTestCollectible(alice.contract, {
-            gate_id: gateId2,
-            supply: '0',
-          })
-        ).rejects.toThrow(
-          expect.objectContaining({
-            type: 'GuestPanic',
-            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateId2}","msg":"Gate ID \`${gateId2}\` must have a positive supply"}`,
-          })
-        );
-      });
-
-      it.each(['-10', '1b', 'c'])('should throw if supply is not a number, i.e. %s', async (supplyNew) => {
-        logger.data('Attempting to create collectible with supply', supplyNew);
+        logger.data('Attempting to create collectible with supply', supplyInvalid);
 
         const gateIdNew = await generateId();
 
         await expect(
           addTestCollectible(alice.contract, {
             gate_id: gateIdNew,
-            supply: supplyNew,
+            supply: supplyInvalid,
           })
-        ).rejects.toThrow('invalid digit found in string');
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateIdNew}","msg":"Gate ID \`${gateIdNew}\` must have a positive supply"}`,
+          })
+        );
+      });
+
+      it('should throw if supply is negative number', async () => {
+        const supplyInvalid = -1;
+        logger.data('Attempting to create collectible with supply', supplyInvalid);
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: await generateId(),
+            supply: supplyInvalid,
+          })
+        ).rejects.toThrow(`invalid value: integer &#x60;${supplyInvalid}&#x60;, expected u16`);
       });
 
       it('should throw if royalty is less than minimum', async () => {
@@ -284,6 +284,25 @@ describe('Nft contract', () => {
           })
         );
       });
+
+      it('should throw if provided with title longer than 140 symbols', async () => {
+        const gateIdNew = await generateId();
+        const titleInvalid =
+          "Acceptance doesn't beautifully realize any self — but the power is what preaches. Our magical definition for fear is to visualize others lie.";
+        expect(titleInvalid.length).toBeGreaterThan(140);
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            title: titleInvalid,
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"Title exceeds 140 chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds 140 chars"}`,
+          })
+        );
+      });
     });
   });
 
@@ -347,10 +366,10 @@ describe('Nft contract', () => {
 
     it('should return empty array if no collectibles found', async () => {
       const collectiblesNonExistent = await alice.contract.get_collectibles_by_creator({
-        creator_id: nonExistentUserId,
+        creator_id: nonExistentAccountId,
       });
 
-      logger.data(`Collectibles of user with id ${nonExistentUserId}`, collectiblesNonExistent);
+      logger.data(`Collectibles of user with id ${nonExistentAccountId}`, collectiblesNonExistent);
 
       expect(collectiblesNonExistent).toEqual([]);
     });
@@ -431,7 +450,7 @@ describe('Nft contract', () => {
 
   describe('claim_token', () => {
     let gateId: string;
-    const initialSupply = '1000';
+    const initialSupply = 1000;
     let tokenId: string;
     let initialTokensOfBob: Token[];
 
@@ -506,7 +525,7 @@ describe('Nft contract', () => {
 
       logger.data("Collectible's current supply", current_supply);
 
-      expect(current_supply).toBe(String(+initialSupply - 1));
+      expect(current_supply).toBe(initialSupply - 1);
     });
 
     describe('errors', () => {
@@ -528,7 +547,7 @@ describe('Nft contract', () => {
 
         await addTestCollectible(alice.contract, {
           gate_id: gateIdNoSupply,
-          supply: '1',
+          supply: 1,
         });
 
         logger.data('Attempting to claim 2 tokens for gate id created with supply of', 1);
@@ -546,7 +565,7 @@ describe('Nft contract', () => {
   });
 
   describe('burn_token', () => {
-    const initialSupply = '42';
+    const initialSupply = 42;
 
     let tokenId: string;
     let gateId: string;
@@ -753,6 +772,162 @@ describe('Nft contract', () => {
     });
   });
 
+  describe('batch_approve', () => {
+    const randomMinPrice = '50';
+
+    let gateId: string;
+    let tokensIds: string[];
+    let tokens: (Token | null)[];
+
+    beforeAll(async () => {
+      const numberOfTokensToApprove = 5;
+
+      gateId = await generateId();
+      await addTestCollectible(alice.contract, { gate_id: gateId });
+
+      tokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToApprove }, () => alice.contract.claim_token({ gate_id: gateId }))
+      );
+
+      await alice.contract.batch_approve(
+        {
+          tokens: tokensIds.map((id) => [id, randomMinPrice]),
+          account_id: merchant.contract.contractId,
+        },
+        GAS
+      );
+
+      tokens = await Promise.all(tokensIds.map((id) => bob.contract.nft_token({ token_id: id })));
+    });
+
+    it('should increment approval counter of tokens', () => {
+      expect(tokens.every((token) => token && token.approval_counter === '1')).toBe(true);
+    });
+
+    it("should update tokens' approvals", () => {
+      expect(tokens.map((token) => token!.approvals)).toEqual(
+        tokens.map(() => ({
+          [merchant.contract.contractId]: {
+            approval_id: '1',
+            min_price: randomMinPrice,
+          },
+        }))
+      );
+    });
+
+    test('that market lists tokens as for sale', async () => {
+      expect((await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id)).toEqual(
+        expect.arrayContaining(tokensIds)
+      );
+      expect(
+        (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).map(({ token_id }) => token_id)
+      ).toEqual(expect.arrayContaining(tokensIds));
+      expect(
+        (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).map(({ token_id }) => token_id)
+      ).toEqual(expect.arrayContaining(tokensIds));
+      expect(
+        (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).map(
+          ({ token_id }) => token_id
+        )
+      ).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    describe('with errors', () => {
+      let error: Error;
+
+      let validToken: Token | null;
+      let validToken2: Token | null;
+
+      let validTokenId: string;
+      let validTokenId2: string;
+
+      const nonexistentTokenId = '11111111111';
+      let alreadyApprovedTokenId: string;
+      let foreignTokenId: string;
+
+      beforeAll(async () => {
+        [alreadyApprovedTokenId] = tokensIds;
+        foreignTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+        validTokenId = await alice.contract.claim_token({ gate_id: gateId });
+        validTokenId2 = await alice.contract.claim_token({ gate_id: gateId });
+
+        try {
+          await alice.contract.batch_approve(
+            {
+              tokens: [
+                [validTokenId, randomMinPrice],
+                [nonexistentTokenId, randomMinPrice],
+                [alreadyApprovedTokenId, randomMinPrice],
+                [foreignTokenId, randomMinPrice],
+                [validTokenId2, randomMinPrice],
+              ],
+              account_id: merchant.contract.contractId,
+            },
+            GAS
+          );
+        } catch (e) {
+          error = e;
+        }
+
+        [validToken, validToken2] = await Promise.all([
+          bob.contract.nft_token({ token_id: validTokenId }),
+          bob.contract.nft_token({ token_id: validTokenId2 }),
+        ]);
+      });
+
+      it('should increment approval counter of valid tokens', () => {
+        expect([validToken, validToken2].every((token) => token && token.approval_counter === '1')).toBe(true);
+      });
+
+      it("should update valid tokens' approvals", () => {
+        expect([validToken, validToken2].map((token) => token!.approvals)).toEqual(
+          [validToken, validToken2].map(() => ({
+            [merchant.contract.contractId]: {
+              approval_id: '1',
+              min_price: randomMinPrice,
+            },
+          }))
+        );
+      });
+
+      it('should throw an error with rejected tokens', () => {
+        expect(error).toEqual(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: `{"err":"Errors","panics":[["${nonexistentTokenId}",{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}"}],["${alreadyApprovedTokenId}",{"err":"OneApprovalAllowed"}],["${foreignTokenId}",{"err":"TokenIdNotOwnedBy","token_id":"${foreignTokenId}","owner_id":"${alice.accountId}"}]],"msg":"3 error(s) detected, see \`panics\` fields for a full list of errors"}`,
+          })
+        );
+      });
+
+      test('that market lists valid tokens as for sale', async () => {
+        expect((await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id)).toEqual(
+          expect.arrayContaining([validTokenId, validTokenId2])
+        );
+        expect(
+          (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).map(
+            ({ token_id }) => token_id
+          )
+        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
+        expect(
+          (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).map(({ token_id }) => token_id)
+        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
+        expect(
+          (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).map(
+            ({ token_id }) => token_id
+          )
+        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
+      });
+
+      test('that market does not list invalid tokens as for sale', async () => {
+        const tokensIdsForSale = (await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id);
+
+        expect(tokensIdsForSale).not.toContain(nonexistentTokenId);
+        expect(tokensIdsForSale).not.toContain(foreignTokenId);
+      });
+    });
+  });
+
   describe('nft_metadata', () => {
     it("should return contract's metadata", async () => {
       logger.data('Contract created with metadata', contractMetadata);
@@ -768,7 +943,7 @@ describe('Nft contract', () => {
     let gateId: string;
 
     beforeAll(async () => {
-      const initialSupply = '2000';
+      const initialSupply = 2000;
 
       gateId = await generateId();
       await addTestCollectible(alice.contract, {
@@ -840,12 +1015,6 @@ describe('Nft contract', () => {
         logger.data('Token modified at', new Date(formatNsToMs(token!.modified_at)));
 
         expect(formatNsToMs(token!.modified_at)).toBeGreaterThan(formatNsToMs(token!.created_at));
-      });
-
-      it("should set token's sender", () => {
-        logger.data("Token's sender", token!.sender_id);
-
-        expect(token!.sender_id).toBe(bob.accountId);
       });
 
       it('should not throw if sender is not an owner but approved', async () => {
@@ -1159,66 +1328,6 @@ describe('Nft contract', () => {
       it("should update token's modified_at property", async () => {
         expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
-
-      it("should set token's sender", () => {
-        expect(token.sender_id).toBe(alice.accountId);
-      });
-    });
-  });
-
-  describe('nft_total_supply', () => {
-    it('should return the number of tokens minted for the contract', async () => {
-      const numberOfTokensToAdd = 6;
-
-      const gateId = await generateId();
-      await addTestCollectible(alice.contract, {
-        gate_id: gateId,
-      });
-
-      const totalSupplyBefore = await alice.contract.nft_total_supply();
-      logger.data('Total supply of tokens before', totalSupplyBefore);
-
-      const alicesTokens: string[] = [];
-      const bobsTokens: string[] = [];
-
-      for (let i = 0; i < numberOfTokensToAdd; i += 1) {
-        if (i % 2) {
-          alicesTokens.push(await alice.contract.claim_token({ gate_id: gateId }));
-        } else {
-          bobsTokens.push(await bob.contract.claim_token({ gate_id: gateId }));
-        }
-      }
-
-      await alice.contract.nft_transfer({
-        receiver_id: merchant.accountId,
-        token_id: alicesTokens[0],
-        enforce_approval_id: null,
-        memo: null,
-      });
-
-      await bob.contract.nft_approve(
-        {
-          token_id: bobsTokens[0],
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify({
-            min_price: '5',
-          }),
-        },
-        GAS
-      );
-      await merchant2.contract.buy_token(
-        {
-          nft_id: bob.contractAccount.accountId,
-          token_id: bobsTokens[0],
-        },
-        GAS,
-        new BN('5')
-      );
-
-      const totalSupplyAfter = await alice.contract.nft_total_supply();
-      logger.data('Total supply of tokens minted after', totalSupplyAfter);
-
-      expect(+totalSupplyAfter).toBe(+totalSupplyBefore + numberOfTokensToAdd);
     });
   });
 
@@ -1669,159 +1778,279 @@ describe('Nft contract', () => {
     });
   });
 
-  describe('batch_approve', () => {
-    const randomMinPrice = '50';
+  describe('nft_total_supply', () => {
+    it('should return the number of tokens minted for the contract', async () => {
+      const numberOfTokensToAdd = 6;
 
-    let gateId: string;
-    let tokensIds: string[];
-    let tokens: (Token | null)[];
+      const gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+      });
 
-    beforeAll(async () => {
-      const numberOfTokensToApprove = 5;
+      const totalSupplyBefore = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens before', totalSupplyBefore);
 
-      gateId = await generateId();
-      await addTestCollectible(alice.contract, { gate_id: gateId });
+      const alicesTokens: string[] = [];
+      const bobsTokens: string[] = [];
 
-      tokensIds = await Promise.all(
-        Array.from({ length: numberOfTokensToApprove }, () => alice.contract.claim_token({ gate_id: gateId }))
-      );
+      for (let i = 0; i < numberOfTokensToAdd; i += 1) {
+        if (i % 2) {
+          alicesTokens.push(await alice.contract.claim_token({ gate_id: gateId }));
+        } else {
+          bobsTokens.push(await bob.contract.claim_token({ gate_id: gateId }));
+        }
+      }
 
-      await alice.contract.batch_approve(
+      await alice.contract.nft_transfer({
+        receiver_id: merchant.accountId,
+        token_id: alicesTokens[0],
+        enforce_approval_id: null,
+        memo: null,
+      });
+
+      await bob.contract.nft_approve(
         {
-          tokens: tokensIds.map((id) => [id, randomMinPrice]),
+          token_id: bobsTokens[0],
           account_id: merchant.contract.contractId,
+          msg: JSON.stringify({
+            min_price: '5',
+          }),
         },
         GAS
       );
-
-      tokens = await Promise.all(tokensIds.map((id) => bob.contract.nft_token({ token_id: id })));
-    });
-
-    it('should increment approval counter of tokens', () => {
-      expect(tokens.every((token) => token && token.approval_counter === '1')).toBe(true);
-    });
-
-    it("should update tokens' approvals", () => {
-      expect(tokens.map((token) => token!.approvals)).toEqual(
-        tokens.map(() => ({
-          [merchant.contract.contractId]: {
-            approval_id: '1',
-            min_price: randomMinPrice,
-          },
-        }))
+      await merchant2.contract.buy_token(
+        {
+          nft_id: bob.contractAccount.accountId,
+          token_id: bobsTokens[0],
+        },
+        GAS,
+        new BN('5')
       );
-    });
 
-    test('that market lists tokens as for sale', async () => {
-      expect((await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id)).toEqual(
-        expect.arrayContaining(tokensIds)
+      const totalSupplyAfter = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens minted after', totalSupplyAfter);
+
+      expect(+totalSupplyAfter).toBe(+totalSupplyBefore + numberOfTokensToAdd);
+    });
+  });
+
+  describe('nft_tokens', () => {
+    const numberOfTokensToClaim = 6;
+
+    let gateId: string;
+    let newTokensIds: string[];
+    let tokensBefore: Token[];
+    let tokensAfter: Token[];
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensBefore = await bob.contract.nft_tokens({ from_index: null, limit: null });
+      logger.data('Tokens before', tokensBefore.length);
+
+      const firstTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      newTokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToClaim - 1 }, async () => bob.contract.claim_token({ gate_id: gateId }))
       );
-      expect(
-        (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).map(({ token_id }) => token_id)
-      ).toEqual(expect.arrayContaining(tokensIds));
-      expect(
-        (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).map(({ token_id }) => token_id)
-      ).toEqual(expect.arrayContaining(tokensIds));
-      expect(
-        (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).map(
-          ({ token_id }) => token_id
-        )
-      ).toEqual(expect.arrayContaining(tokensIds));
+      newTokensIds.push(firstTokenId);
+
+      tokensAfter = await bob.contract.nft_tokens({ from_index: null, limit: null });
+
+      logger.data('Tokens claimed', numberOfTokensToClaim);
     });
 
-    describe('with errors', () => {
-      let error: Error;
+    it('should return all tokens', async () => {
+      logger.data('Total number of tokens after', tokensAfter.length);
 
-      let validToken: Token | null;
-      let validToken2: Token | null;
+      expect(tokensAfter.length).toBe(tokensBefore.length + numberOfTokensToClaim);
+      expect(tokensAfter.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(newTokensIds));
+    });
 
-      let validTokenId: string;
-      let validTokenId2: string;
+    describe('pagination', () => {
+      const numberOfTokensOnPage = 2;
 
-      const nonexistentTokenId = '11111111111';
-      let alreadyApprovedTokenId: string;
-      let foreignTokenId: string;
+      it('should return correct tokens for the first page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({ from_index: '0', limit: numberOfTokensOnPage });
 
-      beforeAll(async () => {
-        [alreadyApprovedTokenId] = tokensIds;
-        foreignTokenId = await bob.contract.claim_token({ gate_id: gateId });
-
-        validTokenId = await alice.contract.claim_token({ gate_id: gateId });
-        validTokenId2 = await alice.contract.claim_token({ gate_id: gateId });
-
-        try {
-          await alice.contract.batch_approve(
-            {
-              tokens: [
-                [validTokenId, randomMinPrice],
-                [nonexistentTokenId, randomMinPrice],
-                [alreadyApprovedTokenId, randomMinPrice],
-                [foreignTokenId, randomMinPrice],
-                [validTokenId2, randomMinPrice],
-              ],
-              account_id: merchant.contract.contractId,
-            },
-            GAS
-          );
-        } catch (e) {
-          error = e;
-        }
-
-        [validToken, validToken2] = await Promise.all([
-          bob.contract.nft_token({ token_id: validTokenId }),
-          bob.contract.nft_token({ token_id: validTokenId2 }),
-        ]);
+        expect(tokensOnPage).toEqual(tokensAfter.slice(0, numberOfTokensOnPage));
       });
 
-      it('should increment approval counter of valid tokens', () => {
-        expect([validToken, validToken2].every((token) => token && token.approval_counter === '1')).toBe(true);
+      it('should return correct tokens for the second page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({
+          from_index: String(numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(numberOfTokensOnPage, numberOfTokensOnPage * 2));
       });
 
-      it("should update valid tokens' approvals", () => {
-        expect([validToken, validToken2].map((token) => token!.approvals)).toEqual(
-          [validToken, validToken2].map(() => ({
-            [merchant.contract.contractId]: {
-              approval_id: '1',
-              min_price: randomMinPrice,
-            },
-          }))
-        );
+      it('should return correct tokens for the last page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({
+          from_index: String(tokensAfter.length - numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(-numberOfTokensOnPage));
       });
 
-      it('should throw an error with rejected tokens', () => {
-        expect(error).toEqual(
-          expect.objectContaining({
-            type: 'GuestPanic',
-            panic_msg: `{"err":"Errors","panics":[["${nonexistentTokenId}",{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}"}],["${alreadyApprovedTokenId}",{"err":"OneApprovalAllowed"}],["${foreignTokenId}",{"err":"TokenIdNotOwnedBy","token_id":"${foreignTokenId}","owner_id":"${alice.accountId}"}]],"msg":"3 error(s) detected, see \`panics\` fields for a full list of errors"}`,
-          })
-        );
+      it('should return an empty array if no tokens found for provided page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({
+          from_index: String(tokensAfter.length),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual([]);
+      });
+    });
+  });
+
+  describe('nft_supply_for_owner', () => {
+    const numberOfTokensToClaim = 4;
+
+    let gateId: string;
+    let tokensAmtOwnedBefore: string;
+    let tokensAmtOwnedAfter: string;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensAmtOwnedBefore = await bob.contract.nft_supply_for_owner({ account_id: alice.accountId });
+      logger.data('Tokens owned by alice before', tokensAmtOwnedBefore);
+
+      await alice.contract.claim_token({ gate_id: gateId });
+
+      await Promise.all(
+        Array.from({ length: numberOfTokensToClaim - 1 }, async () => alice.contract.claim_token({ gate_id: gateId }))
+      );
+
+      tokensAmtOwnedAfter = await bob.contract.nft_supply_for_owner({ account_id: alice.accountId });
+
+      logger.data('Tokens claimed', numberOfTokensToClaim);
+    });
+
+    it('should return how many token are owned by a specified account', () => {
+      logger.data('Tokens owned by alice after', tokensAmtOwnedAfter);
+
+      expect(+tokensAmtOwnedAfter).toBe(+tokensAmtOwnedBefore + numberOfTokensToClaim);
+    });
+
+    it("should return '0' if no tokens owned by a specified account", async () => {
+      logger.data('Getting supply for nonexistent account', nonExistentAccountId);
+
+      expect(await bob.contract.nft_supply_for_owner({ account_id: nonExistentAccountId })).toBe('0');
+    });
+  });
+
+  describe('nft_tokens_for_owner', () => {
+    const numberOfTokensToClaim = 6;
+
+    let gateId: string;
+    let newTokensIds: string[];
+    let tokensBefore: Token[];
+    let tokensAfter: Token[];
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensBefore = await alice.contract.nft_tokens_for_owner({
+        account_id: bob.accountId,
+        from_index: null,
+        limit: null,
+      });
+      logger.data('Tokens before', tokensBefore.length);
+
+      const firstTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      newTokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToClaim - 1 }, async () => bob.contract.claim_token({ gate_id: gateId }))
+      );
+      newTokensIds.push(firstTokenId);
+
+      tokensAfter = await alice.contract.nft_tokens_for_owner({
+        account_id: bob.accountId,
+        from_index: null,
+        limit: null,
       });
 
-      test('that market lists valid tokens as for sale', async () => {
-        expect((await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id)).toEqual(
-          expect.arrayContaining([validTokenId, validTokenId2])
-        );
-        expect(
-          (await merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId })).map(
-            ({ token_id }) => token_id
-          )
-        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
-        expect(
-          (await merchant.contract.get_tokens_by_gate_id({ gate_id: gateId })).map(({ token_id }) => token_id)
-        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
-        expect(
-          (await merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId })).map(
-            ({ token_id }) => token_id
-          )
-        ).toEqual(expect.arrayContaining([validTokenId, validTokenId2]));
+      logger.data('Tokens claimed', numberOfTokensToClaim);
+    });
+
+    it('should return all tokens of a specified user', async () => {
+      logger.data('Number of tokens after', tokensAfter.length);
+
+      expect(tokensAfter.length).toBe(tokensBefore.length + numberOfTokensToClaim);
+      expect(tokensAfter.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(newTokensIds));
+    });
+
+    it('should return tokens owned by only a specified user', async () => {
+      expect([...new Set(tokensAfter.map(({ owner_id }) => owner_id))]).toEqual([bob.accountId]);
+    });
+
+    describe('pagination', () => {
+      const numberOfTokensOnPage = 2;
+
+      it('should return correct tokens for the first page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: '0',
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(0, numberOfTokensOnPage));
       });
 
-      test('that market does not list invalid tokens as for sale', async () => {
-        const tokensIdsForSale = (await merchant.contract.get_tokens_for_sale()).map(({ token_id }) => token_id);
+      it('should return correct tokens for the second page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: String(numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
 
-        expect(tokensIdsForSale).not.toContain(nonexistentTokenId);
-        expect(tokensIdsForSale).not.toContain(foreignTokenId);
+        expect(tokensOnPage).toEqual(tokensAfter.slice(numberOfTokensOnPage, numberOfTokensOnPage * 2));
       });
+
+      it('should return correct tokens for the last page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: String(tokensAfter.length - numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(-numberOfTokensOnPage));
+      });
+
+      it('should return an empty array if no tokens found for provided page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: String(tokensAfter.length),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual([]);
+      });
+    });
+  });
+
+  describe('nft_token_uri', () => {
+    it('should return URI for the provided token', async () => {
+      const gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      expect(await bob.contract.nft_token_uri({ token_id: tokenId })).toBe(`${contractMetadata.base_uri}/${gateId}`);
+    });
+
+    it('should return `null` if token not found', async () => {
+      expect(await bob.contract.nft_token_uri({ token_id: '1212121212' })).toBeNull();
     });
   });
 });

@@ -3,7 +3,7 @@ import { NearConfig } from 'near-api-js/lib/near';
 import { MarketContract } from './mg-market';
 import { NftContract } from './mg-nft';
 
-export { Fraction, ContractMetadata, NftContract, NftContractMethods, Collectible, Token } from './mg-nft';
+export { Fraction, NFTContractMetadata, NftContract, NftContractMethods, Collectible, Token } from './mg-nft';
 export { MarketContract, MarketContractMethods } from './mg-market';
 
 export interface Config extends NearConfig {

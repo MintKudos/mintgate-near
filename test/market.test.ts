@@ -276,10 +276,6 @@ describe('Market contract', () => {
         expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
 
-      it("should set token's sender", () => {
-        expect(token.sender_id).toBe(merchant2.contract.contractId);
-      });
-
       it("should clear token's approvals", () => {
         expect(token.approvals).toEqual({});
       });
@@ -509,7 +505,7 @@ describe('Market contract', () => {
           gate_url: 'Test gate url',
           title: 'Test title',
           description: 'Test description',
-          supply: '100',
+          supply: 100,
           royalty,
         });
 
@@ -938,37 +934,73 @@ describe('Market contract', () => {
   });
 
   describe('nft_on_approve', () => {
+    const minPrice = '10';
+    const approvalId = '5';
+
     let gateId: string;
     let tokenId: string;
 
-    const message: MarketApproveMsg = {
-      min_price: '5',
-      gate_id: '',
-      creator_id: '',
-    };
+    let tokensForSale: TokenForSale[];
+    let tokensByGateId: TokenForSale[];
+    let tokensByOwnerId: TokenForSale[];
+    let tokensByCreatorId: TokenForSale[];
 
     beforeAll(async () => {
       gateId = await generateId();
-
-      message.creator_id = bob.contract.contractId;
-      message.gate_id = gateId;
+      const message: MarketApproveMsg = {
+        min_price: minPrice,
+        gate_id: gateId,
+        creator_id: bob.accountId,
+      };
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
 
-      await merchant.contract.nft_on_approve({
+      await alice.contractAccount.functionCall(merchant.contract.contractId, 'nft_on_approve', {
         token_id: tokenId,
         owner_id: alice.accountId,
-        approval_id: '5',
+        approval_id: approvalId,
         msg: JSON.stringify(message),
       });
+
+      [tokensForSale, tokensByGateId, tokensByOwnerId, tokensByCreatorId] = await Promise.all([
+        merchant.contract.get_tokens_for_sale(),
+        merchant.contract.get_tokens_by_gate_id({ gate_id: gateId }),
+        merchant.contract.get_tokens_by_owner_id({ owner_id: alice.accountId }),
+        merchant.contract.get_tokens_by_creator_id({ creator_id: bob.accountId }),
+      ]);
     });
 
     test('that market lists the token as for sale', async () => {
-      const tokensForSale = await merchant.contract.get_tokens_for_sale();
-
       expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that market lists the token as for sale by gate id', async () => {
+      expect(tokensByGateId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that market lists the token as for sale by owner id', async () => {
+      expect(tokensByOwnerId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that market lists the token as for sale by creator id', async () => {
+      expect(tokensByCreatorId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
+    });
+
+    test('that token for sale gets correct data', async () => {
+      const token = tokensForSale[tokensForSale.length - 1];
+
+      expect(token).toEqual(
+        expect.objectContaining({
+          nft_contract_id: bob.contractAccount.accountId,
+          owner_id: alice.accountId,
+          approval_id: approvalId,
+          min_price: minPrice,
+          gate_id: gateId,
+          creator_id: bob.accountId,
+        })
+      );
     });
   });
 
@@ -1042,6 +1074,83 @@ describe('Market contract', () => {
           })
         );
       });
+    });
+  });
+
+  describe('batch_on_approve', () => {
+    const minPrice = '5';
+
+    let tokensIds: string[];
+    let gateId: string;
+
+    let tokensForSale: TokenForSale[];
+    let tokensByGateId: TokenForSale[];
+    let tokensByOwnerId: TokenForSale[];
+    let tokensByCreatorId: TokenForSale[];
+
+    beforeAll(async () => {
+      const numberOfTokensToAdd = 5;
+
+      gateId = await generateId();
+      const message: MarketApproveMsg = {
+        min_price: minPrice,
+        gate_id: gateId,
+        creator_id: alice.accountId,
+      };
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToAdd }, () => bob.contract.claim_token({ gate_id: gateId }))
+      );
+
+      await alice.contractAccount.functionCall(
+        merchant.contract.contractId,
+        'batch_on_approve',
+        {
+          tokens: tokensIds.map((tokenId) => [tokenId, message]),
+          owner_id: bob.accountId,
+        },
+        GAS
+      );
+
+      [tokensForSale, tokensByGateId, tokensByOwnerId, tokensByCreatorId] = await Promise.all([
+        merchant.contract.get_tokens_for_sale(),
+        merchant.contract.get_tokens_by_gate_id({ gate_id: gateId }),
+        merchant.contract.get_tokens_by_owner_id({ owner_id: bob.accountId }),
+        merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId }),
+      ]);
+    });
+
+    test('that market lists tokens as for sale', async () => {
+      expect(tokensForSale.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that market lists tokens as for sale by gate id', async () => {
+      expect(tokensByGateId.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that market lists tokens as for sale by creator id', async () => {
+      expect(tokensByCreatorId.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that market lists tokens as for sale by owner id', async () => {
+      expect(tokensByOwnerId.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that token for sale gets correct data', async () => {
+      const token = tokensForSale[tokensForSale.length - 1];
+
+      expect(token).toEqual(
+        expect.objectContaining({
+          nft_contract_id: bob.contractAccount.accountId,
+          owner_id: bob.accountId,
+          approval_id: '0',
+          min_price: minPrice,
+          gate_id: gateId,
+          creator_id: alice.accountId,
+        })
+      );
     });
   });
 });

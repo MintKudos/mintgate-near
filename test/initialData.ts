@@ -1,4 +1,4 @@
-import { ContractMetadata, Fraction } from '../src';
+import { NFTContractMetadata, Fraction } from '../src';
 
 export const prefixes = {
   nft: {
@@ -13,12 +13,12 @@ export const prefixes = {
   },
 };
 
-export const contractMetadata: ContractMetadata = {
+export const contractMetadata: NFTContractMetadata = {
   spec: 'someSpec',
   name: 'someName',
   symbol: 'someSymbol',
   icon: 'someIcon',
-  base_uri: 'someUri',
+  base_uri: 'https://example.com',
   reference: 'someReference',
   reference_hash: 'someReferenceHash',
 };
