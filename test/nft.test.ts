@@ -40,7 +40,7 @@ describe('Nft contract', () => {
   const mintgate = global.nftFeeUser;
   const admin = global.adminUser;
 
-  const nonExistentUserId = 'ron-1111111111111-111111';
+  const nonExistentAccountId = 'ron-1111111111111-111111';
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
@@ -366,10 +366,10 @@ describe('Nft contract', () => {
 
     it('should return empty array if no collectibles found', async () => {
       const collectiblesNonExistent = await alice.contract.get_collectibles_by_creator({
-        creator_id: nonExistentUserId,
+        creator_id: nonExistentAccountId,
       });
 
-      logger.data(`Collectibles of user with id ${nonExistentUserId}`, collectiblesNonExistent);
+      logger.data(`Collectibles of user with id ${nonExistentAccountId}`, collectiblesNonExistent);
 
       expect(collectiblesNonExistent).toEqual([]);
     });
@@ -1930,6 +1930,45 @@ describe('Nft contract', () => {
 
         expect(tokensOnPage).toEqual([]);
       });
+    });
+  });
+
+  describe('nft_supply_for_owner', () => {
+    const numberOfTokensToClaim = 4;
+
+    let gateId: string;
+    let tokensAmtOwnedBefore: string;
+    let tokensAmtOwnedAfter: string;
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensAmtOwnedBefore = await bob.contract.nft_supply_for_owner({ account_id: alice.accountId });
+      logger.data('Tokens owned by alice before', tokensAmtOwnedBefore);
+
+      await alice.contract.claim_token({ gate_id: gateId });
+
+      await Promise.all(
+        Array.from({ length: numberOfTokensToClaim - 1 }, async () => alice.contract.claim_token({ gate_id: gateId }))
+      );
+
+      tokensAmtOwnedAfter = await bob.contract.nft_supply_for_owner({ account_id: alice.accountId });
+
+      logger.data('Tokens claimed', numberOfTokensToClaim);
+    });
+
+    it('should return how many token are owned by a specified account', () => {
+      logger.data('Tokens owned by alice after', tokensAmtOwnedAfter);
+
+      expect(+tokensAmtOwnedAfter).toBe(+tokensAmtOwnedBefore + numberOfTokensToClaim);
+    });
+
+    it("should return '0' if no tokens owned by a specified account", async () => {
+      logger.data('Getting supply for nonexistent account', nonExistentAccountId);
+
+      expect(await bob.contract.nft_supply_for_owner({ account_id: nonExistentAccountId })).toBe('0');
     });
   });
 
