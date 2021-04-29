@@ -54,8 +54,7 @@ describe('Nft contract', () => {
     let gateId: string;
     let title: string;
     let description: string;
-    let supply: string;
-    let gateUrl: string;
+    let supply: number;
     let royalty: Fraction;
 
     let collectible: Collectible | null;
@@ -65,8 +64,7 @@ describe('Nft contract', () => {
 
       title = 'Test title';
       description = 'Test description';
-      supply = '100';
-      gateUrl = 'Test url';
+      supply = 100;
       royalty = {
         num: 25,
         den: 100,
@@ -77,7 +75,6 @@ describe('Nft contract', () => {
         title,
         description,
         supply,
-        gate_url: gateUrl,
         royalty,
       });
 
@@ -153,7 +150,7 @@ describe('Nft contract', () => {
         await expect(
           addTestCollectible(alice.contract, {
             gate_id: gateId2,
-            supply: '0',
+            supply: 0,
           })
         ).rejects.toThrow(
           expect.objectContaining({
@@ -163,7 +160,7 @@ describe('Nft contract', () => {
         );
       });
 
-      it.each(['-10', '1b', 'c'])('should throw if supply is not a number, i.e. %s', async (supplyNew) => {
+      it.each([-10])('should throw if supply is not valid, i.e. %s', async (supplyNew) => {
         logger.data('Attempting to create collectible with supply', supplyNew);
 
         const gateIdNew = await generateId();
@@ -431,7 +428,7 @@ describe('Nft contract', () => {
 
   describe('claim_token', () => {
     let gateId: string;
-    const initialSupply = '1000';
+    const initialSupply = 1000;
     let tokenId: string;
     let initialTokensOfBob: Token[];
 
@@ -506,7 +503,7 @@ describe('Nft contract', () => {
 
       logger.data("Collectible's current supply", current_supply);
 
-      expect(current_supply).toBe(String(+initialSupply - 1));
+      expect(current_supply).toBe(initialSupply - 1);
     });
 
     describe('errors', () => {
@@ -528,7 +525,7 @@ describe('Nft contract', () => {
 
         await addTestCollectible(alice.contract, {
           gate_id: gateIdNoSupply,
-          supply: '1',
+          supply: 1,
         });
 
         logger.data('Attempting to claim 2 tokens for gate id created with supply of', 1);
@@ -546,7 +543,7 @@ describe('Nft contract', () => {
   });
 
   describe('burn_token', () => {
-    const initialSupply = '42';
+    const initialSupply = 42;
 
     let tokenId: string;
     let gateId: string;
@@ -768,7 +765,7 @@ describe('Nft contract', () => {
     let gateId: string;
 
     beforeAll(async () => {
-      const initialSupply = '2000';
+      const initialSupply = 2000;
 
       gateId = await generateId();
       await addTestCollectible(alice.contract, {

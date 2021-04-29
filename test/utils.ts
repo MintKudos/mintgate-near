@@ -10,10 +10,9 @@ const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
 export const generateId = async (): Promise<string> => nanoid();
 
 const collectibleDefaultData = {
-  gate_url: 'Test gate url',
   title: 'Test title',
   description: 'Test description',
-  supply: '100',
+  supply: 100,
   royalty: {
     num: 3,
     den: 10,
@@ -24,10 +23,9 @@ export const addTestCollectible = async (
   contract: NftContract,
   collectibleData: {
     gate_id?: string;
-    gate_url?: string;
     title?: string;
     description?: string;
-    supply?: string;
+    supply?: number;
     royalty?: Fraction;
   } = {}
 ): Promise<void> => {
