@@ -9,7 +9,7 @@ export type AccountId = string;
 export type ValidAccountId = string;
 
 /**
- *  The errors thrown by *mg-core*.
+ *  The error variants thrown by *mg-core*.
  */
 export enum CorePanics {
     /**
@@ -155,13 +155,14 @@ export interface Collectible {
     royalty: Fraction;
 
     /**
-     *  Additional info provided by NEP-177
+     *  Additional info provided by NEP-177.
      */
     metadata: Metadata;
 
 }
 
 /**
+ *  Represents a copy made out of a given collectible.
  */
 export interface Token {
     /**
@@ -172,6 +173,7 @@ export interface Token {
     token_id: TokenId;
 
     /**
+     *  The collectible identifier for this `Token`.
      */
     gate_id: GateId;
 
@@ -204,61 +206,80 @@ export interface Token {
     approval_counter: U64;
 
     /**
+     *  Additional info defined by NEP-177.
+     *  This `metadata` effectively joins fields from its respective `gate_id`.
      */
     metadata: Metadata;
 
 }
 
 /**
- *  Associated metadata with a `GateId` as defined by
- *  https://github.com/near/NEPs/discussions/177
+ *  Associated metadata with a `GateId` as defined by NEP-177
+ * 
+ *  Doc-comments for these fields were taken from:
+ *  <https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface>
  */
 export interface Metadata {
     /**
+     *  ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055".
      */
     title: string|null;
 
     /**
+     *  Free-form description.
      */
     description: string|null;
 
     /**
+     *  URL to associated media, preferably to decentralized, content-addressed storage.
      */
     media: string|null;
 
     /**
+     *  Base64-encoded sha256 hash of content referenced by the `media` field.
+     *  Required if `media` is included.
      */
     media_hash: string|null;
 
     /**
+     *  Number of copies of this set of metadata in existence when token was minted.
      */
     copies: number|null;
 
     /**
+     *  ISO 8601 datetime when token was issued or minted.
      */
     issued_at: Timestamp|null;
 
     /**
+     *  ISO 8601 datetime when token expires.
      */
     expires_at: Timestamp|null;
 
     /**
+     *  ISO 8601 datetime when token starts being valid.
      */
     starts_at: Timestamp|null;
 
     /**
+     *  ISO 8601 datetime when token was last updated.
      */
     updated_at: Timestamp|null;
 
     /**
+     *  anything extra the NFT wants to store on-chain.
+     *  It can be stringified JSON.
      */
     extra: string|null;
 
     /**
+     *  URL to an off-chain JSON file with more info.
      */
     reference: string|null;
 
     /**
+     *  Base64-encoded sha256 hash of JSON from reference field.
+     *  Required if `reference` is included.
      */
     reference_hash: string|null;
 
@@ -281,36 +302,44 @@ export interface TokenApproval {
 }
 
 /**
- *  Associated metadata for the NFT contract as defined by
- *  https://github.com/near/NEPs/discussions/177
- *  https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface
+ *  Associated metadata for the NFT contract as defined by NEP-177
+ * 
+ *  Doc-comments for these fields were taken from:
+ *  <https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface>
  */
 export interface NFTContractMetadata {
     /**
+     *  Required, essentially a version like "nft-1.0.0".
      */
     spec: string;
 
     /**
+     *  Required, ex. "Mochi Rising — Digital Edition" or "Metaverse 3".
      */
     name: string;
 
     /**
+     *  Required, ex. "MOCHI".
      */
     symbol: string;
 
     /**
+     *  Data URL.
      */
     icon: string|null;
 
     /**
+     *  Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs.
      */
     base_uri: string|null;
 
     /**
+     *  URL to a JSON file with more info.
      */
     reference: string|null;
 
     /**
+     *  Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
      */
     reference_hash: string|null;
 
@@ -362,33 +391,41 @@ export interface MarketApproveMsg {
 export type TokenKey = [AccountId, TokenId];
 
 /**
+ *  Represents a token being sold in this marketplace.
  */
 export interface TokenForSale {
     /**
+     *  The contract account where this token has been minted.
      */
-    nft_id: AccountId;
+    nft_contract_id: AccountId;
 
     /**
+     *  The token id for this token.
      */
     token_id: TokenId;
 
     /**
+     *  Indicates the owner of this token within the `nft_contract_id`.
      */
     owner_id: AccountId;
 
     /**
+     *  Internal approval id according to NEP-178.
      */
     approval_id: U64;
 
     /**
+     *  Indicates the minimum price to which this token must being sold.
      */
     min_price: U128;
 
     /**
+     *  The `gate_id` to which this token belongs to, if any.
      */
     gate_id: GateId|null;
 
     /**
+     *  The `creator_id` of the collectible of this token, if any.
      */
     creator_id: AccountId|null;
 
@@ -466,6 +503,7 @@ export interface NonFungibleTokenApprovalsReceiver {
     nft_on_revoke(args: { token_id: TokenId }, gas?: any): Promise<void>;
 
     /**
+     *  Callback method to allow this contract to put multiple `Token`s into the marketplace.
      */
     batch_on_approve(args: { tokens: [TokenId, MarketApproveMsg][], owner_id: ValidAccountId }, gas?: any): Promise<void>;
 

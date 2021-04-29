@@ -54,16 +54,24 @@ impl Display for TokenKey {
     }
 }
 
+/// Represents a token being sold in this marketplace.
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(Debug, Deserialize))]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenForSale {
-    pub nft_id: AccountId,
+    /// The contract account where this token has been minted.
+    pub nft_contract_id: AccountId,
+    /// The token id for this token.
     pub token_id: TokenId,
+    /// Indicates the owner of this token within the `nft_contract_id`.
     pub owner_id: AccountId,
+    /// Internal approval id according to NEP-178.
     pub approval_id: U64,
+    /// Indicates the minimum price to which this token must being sold.
     pub min_price: U128,
+    /// The `gate_id` to which this token belongs to, if any.
     pub gate_id: Option<GateId>,
+    /// The `creator_id` of the collectible of this token, if any.
     pub creator_id: Option<AccountId>,
 }
 
@@ -258,13 +266,14 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         let token_key = TokenKey(nft_id, token_id);
 
         if let Some(token) = self.tokens_for_sale.get(&token_key) {
-            assert_eq!(token.nft_id, token_key.0);
+            assert_eq!(token.nft_contract_id, token_key.0);
             self.remove_token_id(&token_key, &token.owner_id, &token.gate_id, &token.creator_id);
         } else {
             Panics::TokenKeyNotFound { token_key }.panic();
         }
     }
 
+    /// Callback method to allow this contract to put multiple `Token`s into the marketplace.
     fn batch_on_approve(
         &mut self,
         tokens: Vec<(TokenId, MarketApproveMsg)>,
@@ -291,7 +300,7 @@ impl MarketContract {
         self.tokens_for_sale.insert(
             &token_key,
             &TokenForSale {
-                nft_id: nft_id.clone(),
+                nft_contract_id: nft_id.clone(),
                 token_id,
                 owner_id: owner_id.clone().into(),
                 approval_id,

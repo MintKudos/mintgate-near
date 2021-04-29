@@ -84,6 +84,7 @@ enum Keys {
     TokensByOwnerValue { owner_id_hash: CryptoHash },
 }
 
+/// The error variants thrown by *mg-nft*.
 #[derive(Serialize, Deserialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
 pub enum Panic {
@@ -131,6 +132,8 @@ pub enum Panic {
     Errors { panics: Panics },
 }
 
+/// Represents a list of errors when performing a batch update,
+/// identified by `TokenId`.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Panics(pub Vec<(TokenId, Panic)>);
@@ -370,7 +373,12 @@ impl NftContract {
         }
     }
 
-    /// Burns token
+    /// Burns (deletes) the `Token` identifed by `token_id`.
+    /// Only the `owner_id` can burn the token.
+    ///
+    /// After succefully delete the token,
+    /// a cross-contract call  is made to `nft_on_revoke` for each approval
+    /// to delist from their marketplaces.
     pub fn burn_token(&mut self, token_id: TokenId) {
         let token = self.get_token_or_panic(token_id);
         let gate_id = token.gate_id;
@@ -444,7 +452,8 @@ impl NftContract {
         }
     }
 
-    /// Gets
+    /// Returns the token given by `token_id`.
+    /// Otherwise returns `None`.
     pub fn get_token_by_id(&self, token_id: TokenId) -> Option<Token> {
         self.get_token(token_id)
     }
@@ -501,8 +510,81 @@ impl NftContract {
             }
         }
     }
+
+    /// Approves a batch of tokens, similar to `nft_approve`.
+    /// Each approval contains the `TokenId` to approve and the minimum price to sell the token for.
+    /// `account_id` indicates the market account contract where list these tokens.
+    pub fn batch_approve(
+        &mut self,
+        tokens: Vec<(TokenId, U128)>,
+        account_id: ValidAccountId,
+    ) -> Promise {
+        let owner_id = env::predecessor_account_id();
+        let mut oks = Vec::new();
+        let mut errs = Vec::new();
+        for (token_id, min_price) in tokens {
+            match self.approve_token(token_id, &owner_id, account_id.to_string(), min_price) {
+                Ok(msg) => oks.push((token_id, msg)),
+                Err(err) => errs.push((token_id, err)),
+            }
+        }
+        mg_core::market::batch_on_approve(
+            oks,
+            owner_id.try_into().unwrap(),
+            account_id.as_ref(),
+            NO_DEPOSIT,
+            // env::prepaid_gas() / 2,
+            GAS_FOR_ROYALTIES,
+        )
+        .then(self_callback::resolve_batch_approve(
+            errs,
+            &env::current_account_id(),
+            NO_DEPOSIT,
+            GAS_FOR_ROYALTIES,
+        ))
+    }
+
+    fn approve_token(
+        &mut self,
+        token_id: TokenId,
+        owner_id: &AccountId,
+        account_id: AccountId,
+        min_price: U128,
+    ) -> Result<MarketApproveMsg, Panic> {
+        let mut token = match self.tokens.get(&token_id) {
+            None => return Err(Panic::TokenIdNotFound { token_id }),
+            Some(token) => token,
+        };
+
+        if owner_id != &token.owner_id {
+            return Err(Panic::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() });
+        }
+        if token.approvals.len() > 0 {
+            return Err(Panic::OneApprovalAllowed);
+        }
+
+        token.approval_counter.0 = token.approval_counter.0 + 1;
+        token
+            .approvals
+            .insert(account_id, TokenApproval { approval_id: token.approval_counter, min_price });
+        self.tokens.insert(&token_id, &token);
+
+        match self.collectibles.get(&token.gate_id) {
+            None => Err(Panic::GateIdNotFound { gate_id: token.gate_id }),
+            Some(collectible) => Ok(MarketApproveMsg {
+                min_price,
+                gate_id: Some(token.gate_id.try_into().unwrap()),
+                creator_id: Some(collectible.creator_id),
+            }),
+        }
+    }
 }
 
+/// Non-Fungible Token (NEP-171) v1.0.0
+/// https://nomicon.io/Standards/NonFungibleToken/Core.html
+///
+/// Payouts is part of an ongoing (yet not settled) NEP spec:
+/// <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenCore for NftContract {
@@ -616,6 +698,9 @@ impl NonFungibleTokenCore for NftContract {
     }
 }
 
+/// Non-Fungible Token Metadata (NEP-177) v1.0.0
+///
+/// <https://nomicon.io/Standards/NonFungibleToken/Metadata.html>
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenMetadata for NftContract {
@@ -625,6 +710,9 @@ impl NonFungibleTokenMetadata for NftContract {
     }
 }
 
+/// Non-Fungible Token Approval Management (NEP-178) v1.0.0
+///
+/// <https://nomicon.io/Standards/NonFungibleToken/ApprovalManagement.html>
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalMgmt for NftContract {
@@ -716,6 +804,9 @@ impl NonFungibleTokenApprovalMgmt for NftContract {
     }
 }
 
+/// Non-Fungible Token Enumeration (NEP-181) v1.0.0
+///
+/// <https://nomicon.io/Standards/NonFungibleToken/Enumeration.html>
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenEnumeration for NftContract {
@@ -724,6 +815,11 @@ impl NonFungibleTokenEnumeration for NftContract {
         U64::from(self.tokens.len())
     }
 
+    /// Returns all or paginated `Token`s minted by this contract.
+    /// Pagination is given by:
+    ///
+    /// - `from_index` the index to start fetching tokens.
+    /// - `limit` indicates how many tokens will be at most returned.
     fn nft_tokens(&self, from_index: Option<U64>, limit: Option<u32>) -> Vec<Token> {
         let mut i = from_index.map_or(0, |s| s.0);
         let mut result = Vec::new();
@@ -739,6 +835,7 @@ impl NonFungibleTokenEnumeration for NftContract {
         result
     }
 
+    /// Returns how many `Token`s were minted by `account_id`.
     fn nft_supply_for_owner(&self, account_id: ValidAccountId) -> U64 {
         match self.tokens_by_owner.get(account_id.as_ref()) {
             None => 0.into(),
@@ -746,6 +843,11 @@ impl NonFungibleTokenEnumeration for NftContract {
         }
     }
 
+    /// Returns all or paginated `Token`s minted by `account_id`.
+    /// Pagination is given by:
+    ///
+    /// - `from_index` the index to start fetching tokens.
+    /// - `limit` indicates how many tokens will be at most returned.
     fn nft_tokens_for_owner(
         &self,
         account_id: ValidAccountId,
@@ -775,6 +877,9 @@ impl NonFungibleTokenEnumeration for NftContract {
         }
     }
 
+    /// Gets the URI for the given `token_id`.
+    /// The uri combines the `base_uri` from the contract metadata and
+    /// the `gate_id` from the token.
     fn nft_token_uri(&self, token_id: TokenId) -> Option<String> {
         self.metadata
             .base_uri
@@ -785,75 +890,6 @@ impl NonFungibleTokenEnumeration for NftContract {
 
 const GAS_FOR_ROYALTIES: Gas = 120_000_000_000_000;
 const NO_DEPOSIT: Balance = 0;
-
-#[near_log(skip_args, only_pub)]
-#[near_bindgen]
-impl NftContract {
-    pub fn batch_approve(
-        &mut self,
-        tokens: Vec<(TokenId, U128)>,
-        account_id: ValidAccountId,
-    ) -> Promise {
-        let owner_id = env::predecessor_account_id();
-        let mut oks = Vec::new();
-        let mut errs = Vec::new();
-        for (token_id, min_price) in tokens {
-            match self.approve_token(token_id, &owner_id, account_id.to_string(), min_price) {
-                Ok(msg) => oks.push((token_id, msg)),
-                Err(err) => errs.push((token_id, err)),
-            }
-        }
-        mg_core::market::batch_on_approve(
-            oks,
-            owner_id.try_into().unwrap(),
-            account_id.as_ref(),
-            NO_DEPOSIT,
-            // env::prepaid_gas() / 2,
-            GAS_FOR_ROYALTIES,
-        )
-        .then(self_callback::resolve_batch_approve(
-            errs,
-            &env::current_account_id(),
-            NO_DEPOSIT,
-            GAS_FOR_ROYALTIES,
-        ))
-    }
-
-    fn approve_token(
-        &mut self,
-        token_id: TokenId,
-        owner_id: &AccountId,
-        account_id: AccountId,
-        min_price: U128,
-    ) -> Result<MarketApproveMsg, Panic> {
-        let mut token = match self.tokens.get(&token_id) {
-            None => return Err(Panic::TokenIdNotFound { token_id }),
-            Some(token) => token,
-        };
-
-        if owner_id != &token.owner_id {
-            return Err(Panic::TokenIdNotOwnedBy { token_id, owner_id: owner_id.clone() });
-        }
-        if token.approvals.len() > 0 {
-            return Err(Panic::OneApprovalAllowed);
-        }
-
-        token.approval_counter.0 = token.approval_counter.0 + 1;
-        token
-            .approvals
-            .insert(account_id, TokenApproval { approval_id: token.approval_counter, min_price });
-        self.tokens.insert(&token_id, &token);
-
-        match self.collectibles.get(&token.gate_id) {
-            None => Err(Panic::GateIdNotFound { gate_id: token.gate_id }),
-            Some(collectible) => Ok(MarketApproveMsg {
-                min_price,
-                gate_id: Some(token.gate_id.try_into().unwrap()),
-                creator_id: Some(collectible.creator_id),
-            }),
-        }
-    }
-}
 
 #[near_ext]
 #[ext_contract(self_callback)]

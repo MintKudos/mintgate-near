@@ -1531,7 +1531,7 @@ dependencies = [
 
 [[package]]
 name = "mg-sim"
-version = "0.0.2"
+version = "0.1.0"
 dependencies = [
  "ansi_term 0.12.1",
  "lipsum",

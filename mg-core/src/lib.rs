@@ -15,7 +15,7 @@ use near_sdk::{
 };
 use std::collections::HashMap;
 
-/// The errors thrown by *mg-core*.
+/// The error variants thrown by *mg-core*.
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
 pub enum CorePanics {
@@ -289,10 +289,11 @@ pub struct Collectible {
     /// Indicates the royalty as percentage (in NEARs) to be paid to `creator_id`
     /// every time a minted token out of this `Collectible` is reselled.
     pub royalty: Fraction,
-    /// Additional info provided by NEP-177
+    /// Additional info provided by NEP-177.
     pub metadata: Metadata,
 }
 
+/// Represents a copy made out of a given collectible.
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug, Deserialize))]
 #[serde(crate = "near_sdk::serde")]
@@ -301,6 +302,7 @@ pub struct Token {
     /// Any two different tokens, will have different `token_id`s,
     /// even if they belong to different `gate_id`s.
     pub token_id: TokenId,
+    /// The collectible identifier for this `Token`.
     pub gate_id: GateId,
     /// The owner of this token.
     pub owner_id: AccountId,
@@ -317,27 +319,46 @@ pub struct Token {
     pub approval_counter: U64,
 
     #[borsh_skip]
+    /// Additional info defined by NEP-177.
+    /// This `metadata` effectively joins fields from its respective `gate_id`.
     pub metadata: Metadata,
 }
 
-/// Associated metadata with a `GateId` as defined by
-/// https://github.com/near/NEPs/discussions/177
+/// Associated metadata with a `GateId` as defined by NEP-177
+///
+/// Doc-comments for these fields were taken from:
+/// <https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface>
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default)]
 #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Metadata {
-    pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
-    pub description: Option<String>, // free-form description
-    pub media: Option<String>, // URL to associated media, preferably to decentralized, content-addressed storage
-    pub media_hash: Option<String>, // Base64-encoded sha256 hash of content referenced by the `media` field. Required if `media` is included.
-    pub copies: Option<u16>, // number of copies of this set of metadata in existence when token was minted.
-    pub issued_at: Option<Timestamp>, // ISO 8601 datetime when token was issued or minted
-    pub expires_at: Option<Timestamp>, // ISO 8601 datetime when token expires
-    pub starts_at: Option<Timestamp>, // ISO 8601 datetime when token starts being valid
-    pub updated_at: Option<Timestamp>, // ISO 8601 datetime when token was last updated
-    pub extra: Option<String>, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
-    pub reference: Option<String>, // URL to an off-chain JSON file with more info.
-    pub reference_hash: Option<String>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+    /// ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055".
+    pub title: Option<String>,
+    /// Free-form description.
+    pub description: Option<String>,
+    /// URL to associated media, preferably to decentralized, content-addressed storage.
+    pub media: Option<String>,
+    /// Base64-encoded sha256 hash of content referenced by the `media` field.
+    /// Required if `media` is included.
+    pub media_hash: Option<String>,
+    /// Number of copies of this set of metadata in existence when token was minted.
+    pub copies: Option<u16>,
+    /// ISO 8601 datetime when token was issued or minted.
+    pub issued_at: Option<Timestamp>,
+    /// ISO 8601 datetime when token expires.
+    pub expires_at: Option<Timestamp>,
+    /// ISO 8601 datetime when token starts being valid.
+    pub starts_at: Option<Timestamp>,
+    /// ISO 8601 datetime when token was last updated.
+    pub updated_at: Option<Timestamp>,
+    /// anything extra the NFT wants to store on-chain.
+    /// It can be stringified JSON.
+    pub extra: Option<String>,
+    /// URL to an off-chain JSON file with more info.
+    pub reference: Option<String>,
+    /// Base64-encoded sha256 hash of JSON from reference field.
+    /// Required if `reference` is included.
+    pub reference_hash: Option<String>,
 }
 
 /// Represents an individual approval by some marketplace account id.
@@ -397,6 +418,7 @@ pub mod nep171 {
 }
 
 /// Non-Fungible Token Metadata (NEP-177) v1.0.0
+///
 /// <https://nomicon.io/Standards/NonFungibleToken/Metadata.html>
 pub mod nep177 {
 
@@ -405,20 +427,28 @@ pub mod nep177 {
         serde::{Deserialize, Serialize},
     };
 
-    /// Associated metadata for the NFT contract as defined by
-    /// https://github.com/near/NEPs/discussions/177
-    /// https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface
+    /// Associated metadata for the NFT contract as defined by NEP-177
+    ///
+    /// Doc-comments for these fields were taken from:
+    /// <https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface>
     #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
     #[cfg_attr(not(target_arch = "wasm"), derive(PartialEq, Debug))]
     #[serde(crate = "near_sdk::serde", deny_unknown_fields)]
     pub struct NFTContractMetadata {
-        pub spec: String,              // required, essentially a version like "nft-1.0.0"
-        pub name: String, // required, ex. "Mochi Rising — Digital Edition" or "Metaverse 3"
-        pub symbol: String, // required, ex. "MOCHI"
-        pub icon: Option<String>, // Data URL
-        pub base_uri: Option<String>, // Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs
-        pub reference: Option<String>, // URL to a JSON file with more info
-        pub reference_hash: Option<String>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+        /// Required, essentially a version like "nft-1.0.0".
+        pub spec: String,
+        /// Required, ex. "Mochi Rising — Digital Edition" or "Metaverse 3".
+        pub name: String,
+        /// Required, ex. "MOCHI".
+        pub symbol: String,
+        /// Data URL.
+        pub icon: Option<String>,
+        /// Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs.
+        pub base_uri: Option<String>,
+        /// URL to a JSON file with more info.
+        pub reference: Option<String>,
+        /// Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+        pub reference_hash: Option<String>,
     }
 
     pub trait NonFungibleTokenMetadata {
@@ -427,6 +457,7 @@ pub mod nep177 {
 }
 
 /// Non-Fungible Token Approval Management (NEP-178) v1.0.0
+/// 
 /// <https://nomicon.io/Standards/NonFungibleToken/ApprovalManagement.html>
 pub mod nep178 {
 
@@ -448,6 +479,7 @@ pub mod nep178 {
 }
 
 /// Non-Fungible Token Enumeration (NEP-181) v1.0.0
+///
 /// <https://nomicon.io/Standards/NonFungibleToken/Enumeration.html>
 pub mod nep181 {
 

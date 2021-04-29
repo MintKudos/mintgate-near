@@ -1,7 +1,6 @@
-
 [package]
 name = "mg-sim"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["EPAM Inc <hello@epam.com>"]
 edition = "2018"
 

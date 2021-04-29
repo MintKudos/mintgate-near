@@ -9,7 +9,7 @@ export type AccountId = string;
 export type ValidAccountId = string;
 
 /**
- *  The errors thrown by *mg-core*.
+ *  The error variants thrown by *mg-core*.
  */
 export enum CorePanics {
     /**
@@ -155,13 +155,14 @@ export interface Collectible {
     royalty: Fraction;
 
     /**
-     *  Additional info provided by NEP-177
+     *  Additional info provided by NEP-177.
      */
     metadata: Metadata;
 
 }
 
 /**
+ *  Represents a copy made out of a given collectible.
  */
 export interface Token {
     /**
@@ -172,6 +173,7 @@ export interface Token {
     token_id: TokenId;
 
     /**
+     *  The collectible identifier for this `Token`.
      */
     gate_id: GateId;
 
@@ -204,61 +206,80 @@ export interface Token {
     approval_counter: U64;
 
     /**
+     *  Additional info defined by NEP-177.
+     *  This `metadata` effectively joins fields from its respective `gate_id`.
      */
     metadata: Metadata;
 
 }
 
 /**
- *  Associated metadata with a `GateId` as defined by
- *  https://github.com/near/NEPs/discussions/177
+ *  Associated metadata with a `GateId` as defined by NEP-177
+ * 
+ *  Doc-comments for these fields were taken from:
+ *  <https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface>
  */
 export interface Metadata {
     /**
+     *  ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055".
      */
     title: string|null;
 
     /**
+     *  Free-form description.
      */
     description: string|null;
 
     /**
+     *  URL to associated media, preferably to decentralized, content-addressed storage.
      */
     media: string|null;
 
     /**
+     *  Base64-encoded sha256 hash of content referenced by the `media` field.
+     *  Required if `media` is included.
      */
     media_hash: string|null;
 
     /**
+     *  Number of copies of this set of metadata in existence when token was minted.
      */
     copies: number|null;
 
     /**
+     *  ISO 8601 datetime when token was issued or minted.
      */
     issued_at: Timestamp|null;
 
     /**
+     *  ISO 8601 datetime when token expires.
      */
     expires_at: Timestamp|null;
 
     /**
+     *  ISO 8601 datetime when token starts being valid.
      */
     starts_at: Timestamp|null;
 
     /**
+     *  ISO 8601 datetime when token was last updated.
      */
     updated_at: Timestamp|null;
 
     /**
+     *  anything extra the NFT wants to store on-chain.
+     *  It can be stringified JSON.
      */
     extra: string|null;
 
     /**
+     *  URL to an off-chain JSON file with more info.
      */
     reference: string|null;
 
     /**
+     *  Base64-encoded sha256 hash of JSON from reference field.
+     *  Required if `reference` is included.
      */
     reference_hash: string|null;
 
@@ -281,36 +302,44 @@ export interface TokenApproval {
 }
 
 /**
- *  Associated metadata for the NFT contract as defined by
- *  https://github.com/near/NEPs/discussions/177
- *  https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface
+ *  Associated metadata for the NFT contract as defined by NEP-177
+ * 
+ *  Doc-comments for these fields were taken from:
+ *  <https://nomicon.io/Standards/NonFungibleToken/Metadata.html#interface>
  */
 export interface NFTContractMetadata {
     /**
+     *  Required, essentially a version like "nft-1.0.0".
      */
     spec: string;
 
     /**
+     *  Required, ex. "Mochi Rising — Digital Edition" or "Metaverse 3".
      */
     name: string;
 
     /**
+     *  Required, ex. "MOCHI".
      */
     symbol: string;
 
     /**
+     *  Data URL.
      */
     icon: string|null;
 
     /**
+     *  Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs.
      */
     base_uri: string|null;
 
     /**
+     *  URL to a JSON file with more info.
      */
     reference: string|null;
 
     /**
+     *  Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
      */
     reference_hash: string|null;
 
@@ -357,6 +386,7 @@ export interface MarketApproveMsg {
 }
 
 /**
+ *  The error variants thrown by *mg-nft*.
  */
 export enum Panic {
     /**
@@ -446,6 +476,8 @@ export enum Panic {
 }
 
 /**
+ *  Represents a list of errors when performing a batch update,
+ *  identified by `TokenId`.
  */
 export type Panics = [TokenId, Panic][];
 
@@ -514,7 +546,12 @@ export interface Self0 {
     claim_token(args: { gate_id: ValidGateId }, gas?: any): Promise<TokenId>;
 
     /**
-     *  Burns token
+     *  Burns (deletes) the `Token` identifed by `token_id`.
+     *  Only the `owner_id` can burn the token.
+     * 
+     *  After succefully delete the token,
+     *  a cross-contract call  is made to `nft_on_revoke` for each approval
+     *  to delist from their marketplaces.
      */
     burn_token(args: { token_id: TokenId }, gas?: any): Promise<void>;
 
@@ -531,13 +568,26 @@ export interface Self0 {
     get_tokens_by_owner_and_gate_id(args: { gate_id: ValidGateId, owner_id: ValidAccountId }): Promise<Token[]>;
 
     /**
-     *  Gets
+     *  Returns the token given by `token_id`.
+     *  Otherwise returns `None`.
      */
     get_token_by_id(args: { token_id: TokenId }): Promise<Token|null>;
+
+    /**
+     *  Approves a batch of tokens, similar to `nft_approve`.
+     *  Each approval contains the `TokenId` to approve and the minimum price to sell the token for.
+     *  `account_id` indicates the market account contract where list these tokens.
+     */
+    batch_approve(args: { tokens: [TokenId, U128][], account_id: ValidAccountId }, gas?: any): Promise<void>;
 
 }
 
 /**
+ *  Non-Fungible Token (NEP-171) v1.0.0
+ *  https://nomicon.io/Standards/NonFungibleToken/Core.html
+ * 
+ *  Payouts is part of an ongoing (yet not settled) NEP spec:
+ *  <https://github.com/thor314/NEPs/blob/patch-5/specs/Standards/NonFungibleToken/payouts.md>
  */
 export interface NonFungibleTokenCore {
     /**
@@ -588,6 +638,9 @@ export interface NonFungibleTokenCore {
 }
 
 /**
+ *  Non-Fungible Token Metadata (NEP-177) v1.0.0
+ * 
+ *  <https://nomicon.io/Standards/NonFungibleToken/Metadata.html>
  */
 export interface NonFungibleTokenMetadata {
     /**
@@ -598,6 +651,9 @@ export interface NonFungibleTokenMetadata {
 }
 
 /**
+ *  Non-Fungible Token Approval Management (NEP-178) v1.0.0
+ * 
+ *  <https://nomicon.io/Standards/NonFungibleToken/ApprovalManagement.html>
  */
 export interface NonFungibleTokenApprovalMgmt {
     /**
@@ -621,6 +677,9 @@ export interface NonFungibleTokenApprovalMgmt {
 }
 
 /**
+ *  Non-Fungible Token Enumeration (NEP-181) v1.0.0
+ * 
+ *  <https://nomicon.io/Standards/NonFungibleToken/Enumeration.html>
  */
 export interface NonFungibleTokenEnumeration {
     /**
@@ -629,33 +688,38 @@ export interface NonFungibleTokenEnumeration {
     nft_total_supply(): Promise<U64>;
 
     /**
+     *  Returns all or paginated `Token`s minted by this contract.
+     *  Pagination is given by:
+     * 
+     *  - `from_index` the index to start fetching tokens.
+     *  - `limit` indicates how many tokens will be at most returned.
      */
     nft_tokens(args: { from_index: U64|null, limit: number|null }): Promise<Token[]>;
 
     /**
+     *  Returns how many `Token`s were minted by `account_id`.
      */
     nft_supply_for_owner(args: { account_id: ValidAccountId }): Promise<U64>;
 
     /**
+     *  Returns all or paginated `Token`s minted by `account_id`.
+     *  Pagination is given by:
+     * 
+     *  - `from_index` the index to start fetching tokens.
+     *  - `limit` indicates how many tokens will be at most returned.
      */
     nft_tokens_for_owner(args: { account_id: ValidAccountId, from_index: U64|null, limit: number|null }): Promise<Token[]>;
 
     /**
+     *  Gets the URI for the given `token_id`.
+     *  The uri combines the `base_uri` from the contract metadata and
+     *  the `gate_id` from the token.
      */
     nft_token_uri(args: { token_id: TokenId }): Promise<string|null>;
 
 }
 
-/**
- */
-export interface Self1 {
-    /**
-     */
-    batch_approve(args: { tokens: [TokenId, U128][], account_id: ValidAccountId }, gas?: any): Promise<void>;
-
-}
-
-export type NftContract = Self0 & NonFungibleTokenCore & NonFungibleTokenMetadata & NonFungibleTokenApprovalMgmt & NonFungibleTokenEnumeration & Self1;
+export type NftContract = Self0 & NonFungibleTokenCore & NonFungibleTokenMetadata & NonFungibleTokenApprovalMgmt & NonFungibleTokenEnumeration;
 
 export const NftContractMethods = {
     viewMethods: [
@@ -678,11 +742,11 @@ export const NftContractMethods = {
         "delete_collectible",
         "claim_token",
         "burn_token",
+        "batch_approve",
         "nft_transfer",
         "nft_transfer_payout",
         "nft_approve",
         "nft_revoke",
         "nft_revoke_all",
-        "batch_approve",
     ],
 };
