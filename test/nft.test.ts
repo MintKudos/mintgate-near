@@ -1863,6 +1863,76 @@ describe('Nft contract', () => {
     });
   });
 
+  describe('nft_tokens', () => {
+    const numberOfTokensToClaim = 6;
+
+    let gateId: string;
+    let newTokensIds: string[];
+    let tokensBefore: Token[];
+    let tokensAfter: Token[];
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensBefore = await bob.contract.nft_tokens({ from_index: null, limit: null });
+      logger.data('Tokens before', tokensBefore.length);
+
+      newTokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToClaim }, async () => bob.contract.claim_token({ gate_id: gateId }))
+      );
+
+      tokensAfter = await bob.contract.nft_tokens({ from_index: null, limit: null });
+
+      logger.data('Tokens claimed', numberOfTokensToClaim);
+    });
+
+    it('should return all tokens', async () => {
+      logger.data('Total number of tokens after', tokensAfter.length);
+
+      expect(tokensAfter.length).toBe(tokensBefore.length + numberOfTokensToClaim);
+      expect(tokensAfter.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(newTokensIds));
+    });
+
+    describe('pagination', () => {
+      const numberOfTokensOnPage = 2;
+
+      it('should return correct tokens for the first page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({ from_index: '0', limit: numberOfTokensOnPage });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(0, numberOfTokensOnPage));
+      });
+
+      it('should return correct tokens for the second page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({
+          from_index: String(numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(numberOfTokensOnPage, numberOfTokensOnPage * 2));
+      });
+
+      it('should return correct tokens for the last page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({
+          from_index: String(tokensAfter.length - numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(-numberOfTokensOnPage));
+      });
+
+      it('should return an empty array if no tokens found for provided page', async () => {
+        const tokensOnPage = await bob.contract.nft_tokens({
+          from_index: String(tokensAfter.length),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual([]);
+      });
+    });
+  });
+
   describe('nft_token_uri', () => {
     it('should return URI for the provided token', async () => {
       const gateId = await generateId();
