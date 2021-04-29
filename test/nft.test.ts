@@ -1879,9 +1879,12 @@ describe('Nft contract', () => {
       tokensBefore = await bob.contract.nft_tokens({ from_index: null, limit: null });
       logger.data('Tokens before', tokensBefore.length);
 
+      const firstTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
       newTokensIds = await Promise.all(
-        Array.from({ length: numberOfTokensToClaim }, async () => bob.contract.claim_token({ gate_id: gateId }))
+        Array.from({ length: numberOfTokensToClaim - 1 }, async () => bob.contract.claim_token({ gate_id: gateId }))
       );
+      newTokensIds.push(firstTokenId);
 
       tokensAfter = await bob.contract.nft_tokens({ from_index: null, limit: null });
 
@@ -1969,6 +1972,98 @@ describe('Nft contract', () => {
       logger.data('Getting supply for nonexistent account', nonExistentAccountId);
 
       expect(await bob.contract.nft_supply_for_owner({ account_id: nonExistentAccountId })).toBe('0');
+    });
+  });
+
+  describe('nft_tokens_for_owner', () => {
+    const numberOfTokensToClaim = 6;
+
+    let gateId: string;
+    let newTokensIds: string[];
+    let tokensBefore: Token[];
+    let tokensAfter: Token[];
+
+    beforeAll(async () => {
+      gateId = await generateId();
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensBefore = await alice.contract.nft_tokens_for_owner({
+        account_id: bob.accountId,
+        from_index: null,
+        limit: null,
+      });
+      logger.data('Tokens before', tokensBefore.length);
+
+      const firstTokenId = await bob.contract.claim_token({ gate_id: gateId });
+
+      newTokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToClaim }, async () => bob.contract.claim_token({ gate_id: gateId }))
+      );
+      newTokensIds.push(firstTokenId);
+
+      tokensAfter = await alice.contract.nft_tokens_for_owner({
+        account_id: bob.accountId,
+        from_index: null,
+        limit: null,
+      });
+
+      logger.data('Tokens claimed', numberOfTokensToClaim);
+    });
+
+    it('should return all tokens of a specified user', async () => {
+      logger.data('Number of tokens after', tokensAfter.length);
+
+      expect(tokensAfter.length).toBe(tokensBefore.length + numberOfTokensToClaim);
+      expect(tokensAfter.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(newTokensIds));
+    });
+
+    it('should return tokens owned by only a specified user', async () => {
+      expect([...new Set(tokensAfter.map(({ owner_id }) => owner_id))]).toEqual([bob.accountId]);
+    });
+
+    describe('pagination', () => {
+      const numberOfTokensOnPage = 2;
+
+      it('should return correct tokens for the first page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: '0',
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(0, numberOfTokensOnPage));
+      });
+
+      it('should return correct tokens for the second page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: String(numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(numberOfTokensOnPage, numberOfTokensOnPage * 2));
+      });
+
+      it('should return correct tokens for the last page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: String(tokensAfter.length - numberOfTokensOnPage),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual(tokensAfter.slice(-numberOfTokensOnPage));
+      });
+
+      it('should return an empty array if no tokens found for provided page', async () => {
+        const tokensOnPage = await alice.contract.nft_tokens_for_owner({
+          account_id: bob.accountId,
+          from_index: String(tokensAfter.length),
+          limit: numberOfTokensOnPage,
+        });
+
+        expect(tokensOnPage).toEqual([]);
+      });
     });
   });
 
