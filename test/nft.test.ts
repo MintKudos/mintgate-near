@@ -1360,62 +1360,6 @@ describe('Nft contract', () => {
     });
   });
 
-  describe('nft_total_supply', () => {
-    it('should return the number of tokens minted for the contract', async () => {
-      const numberOfTokensToAdd = 6;
-
-      const gateId = await generateId();
-      await addTestCollectible(alice.contract, {
-        gate_id: gateId,
-      });
-
-      const totalSupplyBefore = await alice.contract.nft_total_supply();
-      logger.data('Total supply of tokens before', totalSupplyBefore);
-
-      const alicesTokens: string[] = [];
-      const bobsTokens: string[] = [];
-
-      for (let i = 0; i < numberOfTokensToAdd; i += 1) {
-        if (i % 2) {
-          alicesTokens.push(await alice.contract.claim_token({ gate_id: gateId }));
-        } else {
-          bobsTokens.push(await bob.contract.claim_token({ gate_id: gateId }));
-        }
-      }
-
-      await alice.contract.nft_transfer({
-        receiver_id: merchant.accountId,
-        token_id: alicesTokens[0],
-        enforce_approval_id: null,
-        memo: null,
-      });
-
-      await bob.contract.nft_approve(
-        {
-          token_id: bobsTokens[0],
-          account_id: merchant.contract.contractId,
-          msg: JSON.stringify({
-            min_price: '5',
-          }),
-        },
-        GAS
-      );
-      await merchant2.contract.buy_token(
-        {
-          nft_id: bob.contractAccount.accountId,
-          token_id: bobsTokens[0],
-        },
-        GAS,
-        new BN('5')
-      );
-
-      const totalSupplyAfter = await alice.contract.nft_total_supply();
-      logger.data('Total supply of tokens minted after', totalSupplyAfter);
-
-      expect(+totalSupplyAfter).toBe(+totalSupplyBefore + numberOfTokensToAdd);
-    });
-  });
-
   describe('nft_token', () => {
     it("should find and return a token by its' id", async () => {
       const gateId = await generateId();
@@ -1860,6 +1804,62 @@ describe('Nft contract', () => {
           panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
         })
       );
+    });
+  });
+
+  describe('nft_total_supply', () => {
+    it('should return the number of tokens minted for the contract', async () => {
+      const numberOfTokensToAdd = 6;
+
+      const gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+      });
+
+      const totalSupplyBefore = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens before', totalSupplyBefore);
+
+      const alicesTokens: string[] = [];
+      const bobsTokens: string[] = [];
+
+      for (let i = 0; i < numberOfTokensToAdd; i += 1) {
+        if (i % 2) {
+          alicesTokens.push(await alice.contract.claim_token({ gate_id: gateId }));
+        } else {
+          bobsTokens.push(await bob.contract.claim_token({ gate_id: gateId }));
+        }
+      }
+
+      await alice.contract.nft_transfer({
+        receiver_id: merchant.accountId,
+        token_id: alicesTokens[0],
+        enforce_approval_id: null,
+        memo: null,
+      });
+
+      await bob.contract.nft_approve(
+        {
+          token_id: bobsTokens[0],
+          account_id: merchant.contract.contractId,
+          msg: JSON.stringify({
+            min_price: '5',
+          }),
+        },
+        GAS
+      );
+      await merchant2.contract.buy_token(
+        {
+          nft_id: bob.contractAccount.accountId,
+          token_id: bobsTokens[0],
+        },
+        GAS,
+        new BN('5')
+      );
+
+      const totalSupplyAfter = await alice.contract.nft_total_supply();
+      logger.data('Total supply of tokens minted after', totalSupplyAfter);
+
+      expect(+totalSupplyAfter).toBe(+totalSupplyBefore + numberOfTokensToAdd);
     });
   });
 
