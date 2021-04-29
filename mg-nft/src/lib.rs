@@ -418,7 +418,7 @@ impl NftContract {
             Some(list) => list
                 .iter()
                 .map(|token_id| {
-                    let token = self.tokens.get(&token_id).expect("Token not found");
+                    let token = self.get_token_by_id(token_id).expect("Token not found");
                     assert!(token.token_id == token_id);
                     assert!(&token.owner_id == owner_id.as_ref());
                     token
@@ -442,7 +442,7 @@ impl NftContract {
             Some(list) => list
                 .iter()
                 .map(|token_id| {
-                    let token = self.tokens.get(&token_id).expect("Token not found");
+                    let token = self.get_token_by_id(token_id).expect("Token not found");
                     assert!(token.token_id == token_id);
                     assert!(&token.owner_id == owner_id.as_ref());
                     token
@@ -824,7 +824,9 @@ impl NonFungibleTokenEnumeration for NftContract {
         let mut i = from_index.map_or(0, |s| s.0);
         let mut result = Vec::new();
         while result.len() < limit.unwrap_or(u32::MAX) as usize {
-            if let Some(token) = self.tokens.values_as_vector().get(i) {
+            if let Some(mut token) = self.tokens.values_as_vector().get(i) {
+                let collectible = self.collectibles.get(&token.gate_id).expect("Gate id not found");
+                token.metadata = collectible.metadata;
                 result.push(token);
                 i += 1
             } else {
@@ -861,7 +863,7 @@ impl NonFungibleTokenEnumeration for NftContract {
                 let mut result = Vec::new();
                 while result.len() < limit.unwrap_or(u32::MAX) as usize {
                     if let Some(token_id) = list.as_vector().get(i) {
-                        let token = self.tokens.get(&token_id).expect("Token not found");
+                        let token = self.get_token_by_id(token_id).expect("Token not found");
                         assert!(token.token_id == token_id);
                         assert!(&token.owner_id == account_id.as_ref());
                         result.push(token);
