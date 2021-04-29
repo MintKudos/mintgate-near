@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "9e8609cd-eb34-479b-ad1a-e672875cb4a7",
+		"_postman_id": "2c8d4e31-288d-460e-9f96-a44f29c16bfe",
 		"name": "Mintgate",
 		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. install all dependencies:\n```\nyarn\n```\n3. to start api server run in the terminal from mintgate project's root dir:\n```\nyarn near-api-server\n```\n4. import postman collection from `./test/mintgatePostmanCollection.json` file;\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `gateId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR accounts are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -463,6 +463,58 @@
 					"response": []
 				},
 				{
+					"name": "batch_approve",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const r = pm.response.json();\r",
+									"\r",
+									"if (r.error) {\r",
+									"    console.log(JSON.parse(r.error));\r",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n\t\"account_id\": \"{{bob}}\",\r\n    \"private_key\": \"{{bobPrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"batch_approve\",\r\n\t\"params\": {\r\n\t\t\"tokens\": {{recentlyMinted3TokensWithPrice}},\r\n        \"account_id\": \"{{market}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{serverHost}}:{{serverPort}}/call",
+							"protocol": "http",
+							"host": [
+								"{{serverHost}}"
+							],
+							"port": "{{serverPort}}",
+							"path": [
+								"call"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "nft_metadata",
 					"request": {
 						"method": "POST",
@@ -616,7 +668,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{bob}}\",\r\n    \"private_key\": \"{{bobPrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"nft_transfer_payout\",\r\n\t\"params\": {\r\n\t\t\"token_id\": \"{{tokenId}}\",\r\n        \"receiver_id\": \"{{alice}}\",\r\n        \"balance\": \"{{tokenPrice}}\",\r\n        \"approval_id\": null,\r\n        \"memo\": null\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"nft_transfer_payout\",\r\n\t\"params\": {\r\n\t\t\"token_id\": \"{{tokenId}}\",\r\n        \"receiver_id\": \"{{bob}}\",\r\n        \"balance\": \"{{tokenPrice}}\",\r\n        \"approval_id\": null,\r\n        \"memo\": null\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -632,54 +684,6 @@
 							"port": "{{serverPort}}",
 							"path": [
 								"call"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "nft_total_supply",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									""
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_total_supply\",\r\n    \"params\": {}\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "http://{{serverHost}}:{{serverPort}}/view",
-							"protocol": "http",
-							"host": [
-								"{{serverHost}}"
-							],
-							"port": "{{serverPort}}",
-							"path": [
-								"view"
 							]
 						}
 					},
@@ -858,7 +862,7 @@
 					"response": []
 				},
 				{
-					"name": "batch_approve",
+					"name": "nft_total_supply",
 					"event": [
 						{
 							"listen": "prerequest",
@@ -873,11 +877,7 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"const r = pm.response.json();\r",
-									"\r",
-									"if (r.error) {\r",
-									"    console.log(JSON.parse(r.error));\r",
-									"}"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -888,7 +888,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{bob}}\",\r\n    \"private_key\": \"{{bobPrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"batch_approve\",\r\n\t\"params\": {\r\n\t\t\"tokens\": {{recentlyMinted3TokensWithPrice}},\r\n        \"account_id\": \"{{market}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_total_supply\",\r\n    \"params\": {}\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -896,14 +896,206 @@
 							}
 						},
 						"url": {
-							"raw": "http://{{serverHost}}:{{serverPort}}/call",
+							"raw": "http://{{serverHost}}:{{serverPort}}/view",
 							"protocol": "http",
 							"host": [
 								"{{serverHost}}"
 							],
 							"port": "{{serverPort}}",
 							"path": [
-								"call"
+								"view"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "nft_tokens",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_tokens\",\r\n    \"params\": {\r\n        \"from_index\": 15, \r\n        \"limit\": 3\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{serverHost}}:{{serverPort}}/view",
+							"protocol": "http",
+							"host": [
+								"{{serverHost}}"
+							],
+							"port": "{{serverPort}}",
+							"path": [
+								"view"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "nft_supply_for_owner",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_supply_for_owner\",\r\n    \"params\": {\r\n        \"account_id\": \"{{alice}}\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{serverHost}}:{{serverPort}}/view",
+							"protocol": "http",
+							"host": [
+								"{{serverHost}}"
+							],
+							"port": "{{serverPort}}",
+							"path": [
+								"view"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "nft_tokens_for_owner",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_tokens_for_owner\",\r\n    \"params\": {\r\n        \"account_id\": \"{{alice}}\",\r\n        \"from_index\": \"10\",\r\n        \"limit\": 3\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{serverHost}}:{{serverPort}}/view",
+							"protocol": "http",
+							"host": [
+								"{{serverHost}}"
+							],
+							"port": "{{serverPort}}",
+							"path": [
+								"view"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "nft_token_uri",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_token_uri\",\r\n    \"params\": {\r\n        \"token_id\": \"{{tokenId}}\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{serverHost}}:{{serverPort}}/view",
+							"protocol": "http",
+							"host": [
+								"{{serverHost}}"
+							],
+							"port": "{{serverPort}}",
+							"path": [
+								"view"
 							]
 						}
 					},
@@ -1483,67 +1675,67 @@
 	"variable": [
 		{
 			"key": "nft",
-			"value": "nft-1619520946028-205891"
+			"value": "nft-1619703182382-874970"
 		},
 		{
 			"key": "nftPrivateKey",
-			"value": "ed25519:2eEFq9hSEq76PX5Zbm1xkdx3dj4P2AAkWQutcA3RZxY3G5jmnBV6KSWCPYyVptMvSpzKLoC7y24my2qNwqLonT71"
+			"value": "ed25519:2ti1mnmc7x1KhX2vL6j3VNPrEHfCUffKTAC3o9zfBmvBQoCnspdJ9NQvPgVDvNFpd7JJt3pmDkbMtMdXY1p2ps48"
 		},
 		{
 			"key": "market",
-			"value": "market-1619520959285-550022"
+			"value": "market-1619703203734-573356"
 		},
 		{
 			"key": "marketPrivateKey",
-			"value": "ed25519:J2xknC3EnA9FdMwURq6RyYNe4c6p9c9yiYtJk1r4xggpHXuTjxKzAWhWhCtBj48RpLxMWavcopDJGidFXHXkE41"
+			"value": "ed25519:2E9yRnhzBJJQy4K3TapPrBWaoU6CUSxtyqLuALkrJQiCZmEsXPRPVq2V2yBjXyvmobc4BRxhLAMZsxgXVZEWAMrC"
 		},
 		{
 			"key": "alice",
-			"value": "alice-1619520981298-423830"
+			"value": "alice-1619703216141-879679"
 		},
 		{
 			"key": "alicePrivateKey",
-			"value": "ed25519:4HuuZXjkwFEbTspEnUkf1T3scvoRfUiPQajUv5VeEcfgthnZrNo7fVjFnDfsnQoe68BxomidMUAtEwnUp2zo2c7G"
+			"value": "ed25519:29KhLwRoBFcDQKjnQ9ZuzRhtVHJJs8uH5bUthUnAjw447tFE8Nb1kYa7neg2rdd5SUMtYjC3YbvnAPSAaVjgjfgg"
 		},
 		{
 			"key": "bob",
-			"value": "bob-1619520988771-673043"
+			"value": "bob-1619703221997-955276"
 		},
 		{
 			"key": "bobPrivateKey",
-			"value": "ed25519:5vsdrRJz8EZfWZwSi7sqUxayx6UV9duZSYB6bYfHSPFiHUFgdVCknQghDGwYA3oe6NCSVZTJUGVnK7VhXAkNY4JZ"
+			"value": "ed25519:1eXJSRB8sB4o6jvAJRWyQyNE5KJr85gnjfBnsHToa5hzUxe5UGt3yYj7iacK5JirzZnkB2VoBPDXjyx7WAzD9S6"
 		},
 		{
 			"key": "merchant-1",
-			"value": "merchant-1-1619520992162-118902"
+			"value": "merchant-1-1619703234044-201888"
 		},
 		{
 			"key": "merchant-1PrivateKey",
-			"value": "ed25519:3AvCFeoVjZrfsqfTyRMhDhp44chB3afkUHojyLnCctTUh5RYvi5z9GwwwHgoyXGC6vDAKVtQ25pb6XRqfaCqky7V"
+			"value": "ed25519:5M6ij2rxkMQipvBvCEAFLftxsf9uAN1UZ6oyQ2RKpksusau6zTNeAGd4UK2wZBtzBYvXE4HcnvnNGegt5CTsfP8B"
 		},
 		{
 			"key": "merchant-2",
-			"value": "merchant-2-1619520998090-986012"
+			"value": "merchant-2-1619703238339-896420"
 		},
 		{
 			"key": "merchant-2PrivateKey",
-			"value": "ed25519:2QPnMUVgFiPdEbv4UZ59VXJb7FXKVVcCN7FtqEokQ6BerQqVFX3FzgzoxT46TwCThUJwa9GR937ZFNRvb9go5Pi2"
+			"value": "ed25519:4E51yo6cgfyN4tx9Vuj4k47CN1kkjvgwFtHCW7xfKUhyt35HxwcaLwbDGQMSGb2VXzz8xHm9XW1fwEbmU1ZUqRdy"
 		},
 		{
 			"key": "mintgate-fee",
-			"value": "mintgate-fee-1619521001967-97261"
+			"value": "mintgate-fee-1619703243509-601661"
 		},
 		{
 			"key": "mintgate-feePrivateKey",
-			"value": "ed25519:suHFdf9WnAqu1fCFytuBPJa1kagnUDLYu9vsMYKvX68mr68E6hZUTs7JiMxKkDMirnXETiZ5dhgkWCJWvTSdeUE"
+			"value": "ed25519:kQZnKU9dW5gERsyCyzhM2cA3EFxJWd8rddQqogzFyLucK5xthE5o2hvHLjwT3XB5UxLRJcyGesurcwFXVDeoweW"
 		},
 		{
 			"key": "admin",
-			"value": "admin-1619521356677-279509"
+			"value": "admin-1619703249500-906084"
 		},
 		{
 			"key": "adminPrivateKey",
-			"value": "ed25519:5BxgJWH9daPFwTDjQknLV3KQKktz6k9doDWCvBHafHiWLiWR38kWZGWCCwEjrxZ4LavFSoqR4jVQv5UjzT6peshr"
+			"value": "ed25519:2Fjc5fvux2zzm8sWh7qRe11QeMXDhrLWzSt2zAxgFkc8dzCYeSGazTYaaaSDSNbqdxVry47u9w5ZjegzgJi5s1G8"
 		},
 		{
 			"key": "tokenPrice",
