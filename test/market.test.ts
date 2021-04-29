@@ -1040,4 +1040,83 @@ describe('Market contract', () => {
       });
     });
   });
+
+  describe('batch_on_approve', () => {
+    const minPrice = '5';
+
+    let tokensIds: string[];
+    let gateId: string;
+
+    let tokensForSale: TokenForSale[];
+    let tokensByGateId: TokenForSale[];
+    let tokensByOwnerId: TokenForSale[];
+    let tokensByCreatorId: TokenForSale[];
+
+    beforeAll(async () => {
+      const numberOfTokensToAdd = 5;
+
+      gateId = await generateId();
+      const message: MarketApproveMsg = {
+        min_price: minPrice,
+        gate_id: gateId,
+        creator_id: alice.accountId,
+      };
+
+      await addTestCollectible(bob.contract, { gate_id: gateId });
+
+      tokensIds = await Promise.all(
+        Array.from({ length: numberOfTokensToAdd }, () => bob.contract.claim_token({ gate_id: gateId }))
+      );
+
+      await alice.contractAccount.functionCall(
+        merchant.contract.contractId,
+        'batch_on_approve',
+        {
+          tokens: tokensIds.map((tokenId) => [tokenId, message]),
+          owner_id: bob.accountId,
+        },
+        GAS
+      );
+
+      [tokensForSale, tokensByGateId, tokensByOwnerId, tokensByCreatorId] = await Promise.all([
+        merchant.contract.get_tokens_for_sale(),
+        merchant.contract.get_tokens_by_gate_id({ gate_id: gateId }),
+        merchant.contract.get_tokens_by_owner_id({ owner_id: bob.accountId }),
+        merchant.contract.get_tokens_by_creator_id({ creator_id: alice.accountId }),
+      ]);
+    });
+
+    test('that market lists tokens as for sale', async () => {
+      expect(tokensForSale.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that market lists tokens as for sale by gate id', async () => {
+      expect(tokensByGateId.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that market lists tokens as for sale by creator id', async () => {
+      expect(tokensByCreatorId.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that market lists tokens as for sale by owner id', async () => {
+      expect(tokensByOwnerId.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(tokensIds));
+    });
+
+    test('that token for sale gets correct data', async () => {
+      const token = tokensForSale[tokensForSale.length - 1];
+
+      logger.data('', token);
+
+      expect(token).toEqual(
+        expect.objectContaining({
+          nft_contract_id: bob.contractAccount.accountId,
+          owner_id: bob.accountId,
+          approval_id: '0',
+          min_price: minPrice,
+          gate_id: gateId,
+          creator_id: alice.accountId,
+        })
+      );
+    });
+  });
 });
