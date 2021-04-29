@@ -772,6 +772,35 @@ describe('Nft contract', () => {
     });
   });
 
+  describe('get_token_by_id', () => {
+    it("should find and return a token by its' id", async () => {
+      const gateId = await generateId();
+      await addTestCollectible(alice.contract, {
+        gate_id: gateId,
+      });
+
+      const tokenId = await bob.contract.claim_token({ gate_id: gateId });
+      logger.data('Claimed token with id', tokenId);
+
+      const tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
+
+      const [tokenFromAllTokens] = tokensOfBob.filter(({ token_id }) => token_id === tokenId);
+      logger.data('Token found using `get_tokens_by_owner`', tokenFromAllTokens);
+
+      const tokenById = await bob.contract.get_token_by_id({ token_id: tokenId });
+      logger.data('Token found using `get_token_by_id`', tokenById);
+
+      expect(tokenFromAllTokens).toEqual(tokenById);
+    });
+
+    it('should return null if no token found', async () => {
+      const nonExistentId = '99999';
+      const nonExistentCollectible = await bob.contract.get_token_by_id({ token_id: nonExistentId });
+
+      expect(nonExistentCollectible).toBeNull();
+    });
+  });
+
   describe('nft_metadata', () => {
     it("should return contract's metadata", async () => {
       logger.data('Contract created with metadata', contractMetadata);
