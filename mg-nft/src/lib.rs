@@ -694,7 +694,7 @@ impl NonFungibleTokenCore for NftContract {
     ///
     /// See <https://github.com/epam/mintgate/issues/17>.
     fn nft_token(&self, token_id: TokenId) -> Option<Token> {
-        self.tokens.get(&token_id)
+        self.get_token_by_id(token_id)
     }
 }
 
