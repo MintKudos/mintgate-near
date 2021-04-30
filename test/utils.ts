@@ -17,6 +17,10 @@ const collectibleDefaultData = {
     num: 3,
     den: 10,
   },
+  media: 'M'.repeat(1024),
+  media_hash: 'MH'.repeat(1024 / 2),
+  reference: 'R'.repeat(1024),
+  reference_hash: 'RH'.repeat(1024 / 2),
 };
 
 export const addTestCollectible = async (
@@ -27,6 +31,10 @@ export const addTestCollectible = async (
     description?: string;
     supply?: number;
     royalty?: Fraction;
+    media?: string;
+    media_hash?: string;
+    reference?: string;
+    reference_hash?: string;
   } = {}
 ): Promise<void> => {
   let { gate_id } = collectibleData;
