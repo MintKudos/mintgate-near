@@ -3,7 +3,7 @@ import { utils } from 'near-api-js';
 
 import type { Account } from 'near-api-js';
 
-import { addTestCollectible, generateId, getShare, formatNsToMs, logger } from './utils';
+import { addTestCollectible, generateGateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
 
 import type { AccountContract, NftContract, MarketContract, Token, Fraction } from '../src';
@@ -45,7 +45,7 @@ describe('Market contract', () => {
       const message: NftApproveMsg = { min_price: '5' };
       const newTokensIds: string[] = [];
 
-      const gateId = await generateId();
+      const gateId = await generateGateId();
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
       for (let i = 0; i < numberOfTokensToAdd; i += 1) {
@@ -79,7 +79,7 @@ describe('Market contract', () => {
     const newTokensIds: string[] = [];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
@@ -151,7 +151,7 @@ describe('Market contract', () => {
     let token: Token;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(bob.contract, {
         gate_id: gateId,
         royalty,
@@ -337,7 +337,7 @@ describe('Market contract', () => {
       let buyerBalanceAfter2: string;
 
       beforeAll(async () => {
-        gateId2 = await generateId();
+        gateId2 = await generateGateId();
         await addTestCollectible(bob.contract, {
           gate_id: gateId2,
           royalty,
@@ -428,7 +428,7 @@ describe('Market contract', () => {
         const seller = bob;
         const buyer = alice;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await addTestCollectible(creator.contract, {
           gate_id: gateId2,
@@ -498,7 +498,7 @@ describe('Market contract', () => {
         const seller = alice;
         const buyer = merchant2;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await creator.functionCall(bob.contractAccount.accountId, 'create_collectible', {
           gate_id: gateId2,
@@ -578,7 +578,7 @@ describe('Market contract', () => {
         const seller = merchant.contractAccount;
         const buyer = merchant2;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await addTestCollectible(creator.contract, {
           gate_id: gateId2,
@@ -666,7 +666,7 @@ describe('Market contract', () => {
         const seller = alice;
         const buyer = merchant.contractAccount;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await addTestCollectible(creator.contract, {
           gate_id: gateId2,
@@ -946,7 +946,7 @@ describe('Market contract', () => {
     let tokensByCreatorId: TokenForSale[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       const message: MarketApproveMsg = {
         min_price: minPrice,
         gate_id: gateId,
@@ -1015,7 +1015,7 @@ describe('Market contract', () => {
     let tokenId: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(bob.contract, {
         gate_id: gateId,
       });
@@ -1091,7 +1091,7 @@ describe('Market contract', () => {
     beforeAll(async () => {
       const numberOfTokensToAdd = 5;
 
-      gateId = await generateId();
+      gateId = await generateGateId();
       const message: MarketApproveMsg = {
         min_price: minPrice,
         gate_id: gateId,

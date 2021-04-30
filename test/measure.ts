@@ -9,7 +9,7 @@ import type { Account } from 'near-api-js';
 
 import setup from './setup';
 import { createProfilers, getAccountFor, getContract, getUsers, getState } from './deploy';
-import { addTestCollectible, generateId, logger } from './utils';
+import { addTestCollectible, generateGateId, logger } from './utils';
 
 import { MarketContractMethods, NftContractMethods } from '../src';
 import { contractMetadata, MINTGATE_FEE, prefixes, royalty } from './initialData';
@@ -100,7 +100,7 @@ const measure = async () => {
 
     await Promise.all(
       Array.from({ length: collectiblesToAddNow }, async () =>
-        addTestCollectible(alice.contract, { gate_id: await generateId() })
+        addTestCollectible(alice.contract, { gate_id: await generateGateId() })
       )
     );
 

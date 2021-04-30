@@ -5,7 +5,7 @@ import type { Account } from 'near-api-js';
 
 import {
   addTestCollectible,
-  generateId,
+  generateGateId,
   isWithinLastMs,
   formatNsToMs,
   logger,
@@ -60,7 +60,7 @@ describe('Nft contract', () => {
     let collectible: Collectible | null;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       title = 'Test title';
       description = 'Test description';
@@ -149,7 +149,7 @@ describe('Nft contract', () => {
 
         logger.data('Attempting to create collectible with supply', supplyInvalid);
 
-        const gateIdNew = await generateId();
+        const gateIdNew = await generateGateId();
 
         await expect(
           addTestCollectible(alice.contract, {
@@ -170,7 +170,7 @@ describe('Nft contract', () => {
 
         await expect(
           addTestCollectible(alice.contract, {
-            gate_id: await generateId(),
+            gate_id: await generateGateId(),
             supply: supplyInvalid,
           })
         ).rejects.toThrow(`invalid value: integer &#x60;${supplyInvalid}&#x60;, expected u16`);
@@ -179,7 +179,7 @@ describe('Nft contract', () => {
       it('should throw if royalty is less than minimum', async () => {
         const num = royaltySetting.min_royalty.num - 1;
         const { den } = royaltySetting.min_royalty;
-        const gateIdNew = await generateId();
+        const gateIdNew = await generateGateId();
 
         logger.data('Attempting to create collectible with `royalty`', {
           num,
@@ -205,7 +205,7 @@ describe('Nft contract', () => {
       it('should throw if royalty is greater than maximum', async () => {
         const num = royaltySetting.max_royalty.num + 1;
         const { den } = royaltySetting.max_royalty;
-        const gateIdNew = await generateId();
+        const gateIdNew = await generateGateId();
 
         logger.data('Attempting to create collectible with `royalty`', {
           num,
@@ -286,7 +286,7 @@ describe('Nft contract', () => {
       });
 
       it('should throw if provided with title longer than 140 symbols', async () => {
-        const gateIdNew = await generateId();
+        const gateIdNew = await generateGateId();
         const titleInvalid =
           "Acceptance doesn't beautifully realize any self — but the power is what preaches. Our magical definition for fear is to visualize others lie.";
         expect(titleInvalid.length).toBeGreaterThan(140);
@@ -308,7 +308,7 @@ describe('Nft contract', () => {
 
   describe('get_collectible_by_gate_id', () => {
     it('should return collectible', async () => {
-      const gateId = await generateId();
+      const gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       const collectible = await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
@@ -319,7 +319,7 @@ describe('Nft contract', () => {
     });
 
     it('should return null if no collectible found', async () => {
-      const nonExistentId = await generateId();
+      const nonExistentId = await generateGateId();
       const nonExistentCollectible = await alice.contract.get_collectible_by_gate_id({ gate_id: nonExistentId });
 
       expect(nonExistentCollectible).toBeNull();
@@ -334,7 +334,7 @@ describe('Nft contract', () => {
     let collectibles: Collectible[];
 
     beforeAll(async () => {
-      const gateId = await generateId();
+      const gateId = await generateGateId();
 
       newGateIds = Array.from(new Array(numberOfCollectiblesToAdd), (el, i) => `${gateId}${i}`);
 
@@ -377,7 +377,7 @@ describe('Nft contract', () => {
 
   describe('delete_collectible', () => {
     it('should delete a collectible if called by creator', async () => {
-      const gateId = await generateId();
+      const gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
@@ -393,7 +393,7 @@ describe('Nft contract', () => {
     });
 
     it('should delete a collectible if called by admin', async () => {
-      const gateId = await generateId();
+      const gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
@@ -420,7 +420,7 @@ describe('Nft contract', () => {
       });
 
       it('should throw if tokens were minted for the collectible', async () => {
-        const gateId = await generateId();
+        const gateId = await generateGateId();
 
         await addTestCollectible(alice.contract, { gate_id: gateId });
         await alice.contract.claim_token({ gate_id: gateId });
@@ -434,7 +434,7 @@ describe('Nft contract', () => {
       });
 
       it('should throw if caller is not authorized to delete (neither creator nor admin)', async () => {
-        const gateId = await generateId();
+        const gateId = await generateGateId();
 
         await addTestCollectible(alice.contract, { gate_id: gateId });
 
@@ -455,7 +455,7 @@ describe('Nft contract', () => {
     let initialTokensOfBob: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
         supply: initialSupply,
@@ -543,7 +543,7 @@ describe('Nft contract', () => {
       });
 
       it('should throw an error if all tokens have been claimed', async () => {
-        const gateIdNoSupply = await generateId();
+        const gateIdNoSupply = await generateGateId();
 
         await addTestCollectible(alice.contract, {
           gate_id: gateIdNoSupply,
@@ -572,7 +572,7 @@ describe('Nft contract', () => {
     let collectible: Collectible;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId, supply: initialSupply });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
@@ -655,7 +655,7 @@ describe('Nft contract', () => {
     let tokensOfAliceAfter: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
@@ -715,8 +715,8 @@ describe('Nft contract', () => {
     let tokensOfAliceGate1: Token[];
 
     beforeAll(async () => {
-      gateId1 = await generateId();
-      gateId2 = await generateId();
+      gateId1 = await generateGateId();
+      gateId2 = await generateGateId();
 
       await Promise.all([
         addTestCollectible(alice.contract, { gate_id: gateId1 }),
@@ -759,7 +759,7 @@ describe('Nft contract', () => {
     });
 
     it('should return an empty array if an owner has no tokens of a specific collectible', async () => {
-      const gateId3 = await generateId();
+      const gateId3 = await generateGateId();
 
       const tokensOfAliceGate3 = await alice.contract.get_tokens_by_owner_and_gate_id({
         gate_id: gateId3,
@@ -782,7 +782,7 @@ describe('Nft contract', () => {
     beforeAll(async () => {
       const numberOfTokensToApprove = 5;
 
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokensIds = await Promise.all(
@@ -945,7 +945,7 @@ describe('Nft contract', () => {
     beforeAll(async () => {
       const initialSupply = 2000;
 
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
         supply: initialSupply,
@@ -1166,7 +1166,7 @@ describe('Nft contract', () => {
     let gateId: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(bob.contract, {
         gate_id: gateId,
         royalty,
@@ -1257,7 +1257,7 @@ describe('Nft contract', () => {
     };
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
         royalty,
@@ -1333,7 +1333,7 @@ describe('Nft contract', () => {
 
   describe('nft_token', () => {
     it("should find and return a token by its' id", async () => {
-      const gateId = await generateId();
+      const gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
       });
@@ -1370,7 +1370,7 @@ describe('Nft contract', () => {
     };
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
@@ -1541,7 +1541,7 @@ describe('Nft contract', () => {
     let token: Token | null;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
@@ -1659,7 +1659,7 @@ describe('Nft contract', () => {
     let tokenId: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
@@ -1782,7 +1782,7 @@ describe('Nft contract', () => {
     it('should return the number of tokens minted for the contract', async () => {
       const numberOfTokensToAdd = 6;
 
-      const gateId = await generateId();
+      const gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
       });
@@ -1843,7 +1843,7 @@ describe('Nft contract', () => {
     let tokensAfter: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
@@ -1915,7 +1915,7 @@ describe('Nft contract', () => {
     let tokensAmtOwnedAfter: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
@@ -1955,7 +1955,7 @@ describe('Nft contract', () => {
     let tokensAfter: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
@@ -2040,7 +2040,7 @@ describe('Nft contract', () => {
 
   describe('nft_token_uri', () => {
     it('should return URI for the provided token', async () => {
-      const gateId = await generateId();
+      const gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 

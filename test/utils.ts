@@ -5,9 +5,9 @@ import chalk from 'chalk';
 
 import type { Fraction, NftContract } from '../src';
 
-const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
+const gateIdNanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
 
-export const generateId = async (): Promise<string> => nanoid();
+export const generateGateId = async (): Promise<string> => gateIdNanoid();
 
 const collectibleDefaultData = {
   title: 'Test title',
@@ -32,7 +32,7 @@ export const addTestCollectible = async (
   let { gate_id } = collectibleData;
 
   if (gate_id === undefined) {
-    gate_id = await generateId();
+    gate_id = await generateGateId();
   }
 
   return contract.create_collectible({
