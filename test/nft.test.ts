@@ -2046,7 +2046,9 @@ describe('Nft contract', () => {
 
       const tokenId = await bob.contract.claim_token({ gate_id: gateId });
 
-      expect(await bob.contract.nft_token_uri({ token_id: tokenId })).toBe(`${contractMetadata.base_uri}/${gateId}`);
+      expect(await bob.contract.nft_token_uri({ token_id: tokenId })).toBe(
+        `${contractMetadata.base_uri}${contractMetadata.base_uri!.endsWith('/') ? '' : '/'}${gateId}`
+      );
     });
 
     it('should return `null` if token not found', async () => {
