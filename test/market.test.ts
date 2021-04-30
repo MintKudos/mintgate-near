@@ -3,7 +3,7 @@ import { utils } from 'near-api-js';
 
 import type { Account } from 'near-api-js';
 
-import { addTestCollectible, generateGateId, getShare, formatNsToMs, logger } from './utils';
+import { MAX_GAS_ALLOWED, addTestCollectible, generateGateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
 import { Panics } from '../src/mg-market';
 
@@ -25,8 +25,6 @@ declare global {
 const {
   format: { parseNearAmount, formatNearAmount },
 } = utils;
-
-const GAS = new BN(300000000000000);
 
 jest.retryTimes(2);
 
@@ -61,7 +59,7 @@ describe('Market contract', () => {
               account_id: merchant.contract.contractId,
               msg: JSON.stringify(message),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         )
       );
@@ -96,7 +94,7 @@ describe('Market contract', () => {
               account_id: merchant.contract.contractId,
               msg: JSON.stringify({ min_price: '5' }),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         )
       );
@@ -165,7 +163,7 @@ describe('Market contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify(message),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
       token = (await bob.contract.nft_token({ token_id: tokenId }))!;
       expect(token.approvals).not.toEqual({});
@@ -187,7 +185,7 @@ describe('Market contract', () => {
           nft_contract_id: bob.contractAccount.accountId,
           token_id: tokenId,
         },
-        GAS,
+        MAX_GAS_ALLOWED,
         new BN(priceInternalNear!)
       );
 
@@ -351,7 +349,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         buyerBalanceBefore2 = (await merchant2.account.getAccountBalance()).total;
@@ -370,7 +368,7 @@ describe('Market contract', () => {
             nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -444,7 +442,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -464,7 +462,7 @@ describe('Market contract', () => {
             token_id: tokenId2,
             nft_contract_id: bob.contractAccount.accountId,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -518,7 +516,7 @@ describe('Market contract', () => {
             account_id: creator.accountId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -538,7 +536,7 @@ describe('Market contract', () => {
             nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -606,7 +604,7 @@ describe('Market contract', () => {
             account_id: seller.accountId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -626,7 +624,7 @@ describe('Market contract', () => {
             nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -681,7 +679,7 @@ describe('Market contract', () => {
             account_id: buyer.accountId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -703,7 +701,7 @@ describe('Market contract', () => {
             token_id: tokenId2,
             nft_contract_id: bob.contractAccount.accountId,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -758,7 +756,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify({ min_price: priceInternalNearSmall! }),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         [
@@ -778,7 +776,7 @@ describe('Market contract', () => {
             nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(depositInternalNearLarge!)
         );
 
@@ -860,7 +858,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(approveMessage),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         await expect(
@@ -871,7 +869,7 @@ describe('Market contract', () => {
               nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId2,
             },
-            GAS,
+            MAX_GAS_ALLOWED,
             new BN(priceInternalNear!)
           )
         ).rejects.toThrow(
@@ -894,7 +892,7 @@ describe('Market contract', () => {
               nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId3,
             },
-            GAS,
+            MAX_GAS_ALLOWED,
             new BN(priceInternalNear!)
           )
         ).rejects.toThrow(
@@ -919,7 +917,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         await expect(
@@ -928,7 +926,7 @@ describe('Market contract', () => {
               nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId4,
             },
-            GAS,
+            MAX_GAS_ALLOWED,
             notEnoughDeposit
           )
         ).rejects.toThrow(
@@ -1038,7 +1036,7 @@ describe('Market contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify({ min_price: '5' }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       await alice.contractAccount.functionCall(merchant.contract.contractId, 'nft_on_revoke', { token_id: tokenId });
@@ -1126,7 +1124,7 @@ describe('Market contract', () => {
           tokens: tokensIds.map((tokenId) => [tokenId, message]),
           owner_id: bob.accountId,
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       [tokensForSale, tokensByGateId, tokensByOwnerId, tokensByCreatorId] = await Promise.all([

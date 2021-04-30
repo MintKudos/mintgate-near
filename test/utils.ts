@@ -1,5 +1,6 @@
 import util from 'util';
 
+import BN from 'bn.js';
 import { customAlphabet } from 'nanoid/async';
 import chalk from 'chalk';
 
@@ -123,3 +124,5 @@ export const logger = {
 export const getShare = (totalAmount: number, { num, den }: Fraction): number => (totalAmount * num) / den;
 
 export const validGateIdRegEx = /^[a-z\d_-]{1,32}$/gi;
+
+export const MAX_GAS_ALLOWED = new BN(300000000000000);

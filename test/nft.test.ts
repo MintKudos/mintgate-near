@@ -4,6 +4,7 @@ import BN from 'bn.js';
 import type { Account } from 'near-api-js';
 
 import {
+  MAX_GAS_ALLOWED,
   addTestCollectible,
   generateGateId,
   isWithinLastMs,
@@ -12,8 +13,8 @@ import {
   getShare,
   validGateIdRegEx,
 } from './utils';
-import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
 import { CorePanics, Panic } from '../src/mg-nft';
+import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
 
 import type { NftApproveMsg, Payout } from '../src/mg-nft';
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
@@ -29,8 +30,6 @@ declare global {
     }
   }
 }
-
-const GAS = new BN(300000000000000);
 
 jest.retryTimes(2);
 
@@ -696,10 +695,10 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify({ min_price: '5' }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
-      await alice.contract.burn_token({ token_id: tokenId }, GAS);
+      await alice.contract.burn_token({ token_id: tokenId }, MAX_GAS_ALLOWED);
 
       collectible = <Collectible>await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
     });
@@ -739,7 +738,7 @@ describe('Nft contract', () => {
       it('should throw if the initiator does not own the token', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
 
-        await expect(bob.contract.burn_token({ token_id: tokenId2 }, GAS)).rejects.toThrow(
+        await expect(bob.contract.burn_token({ token_id: tokenId2 }, MAX_GAS_ALLOWED)).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: JSON.stringify({
@@ -755,7 +754,7 @@ describe('Nft contract', () => {
       it('should throw if provided with nonexistent `token_id`', async () => {
         const nonexistentTokenId = '11212112';
 
-        await expect(bob.contract.burn_token({ token_id: nonexistentTokenId }, GAS)).rejects.toThrow(
+        await expect(bob.contract.burn_token({ token_id: nonexistentTokenId }, MAX_GAS_ALLOWED)).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
             panic_msg: JSON.stringify({
@@ -916,7 +915,7 @@ describe('Nft contract', () => {
           tokens: tokensIds.map((id) => [id, randomMinPrice]),
           account_id: merchant.contract.contractId,
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       tokens = await Promise.all(tokensIds.map((id) => bob.contract.nft_token({ token_id: id })));
@@ -986,7 +985,7 @@ describe('Nft contract', () => {
               ],
               account_id: merchant.contract.contractId,
             },
-            GAS
+            MAX_GAS_ALLOWED
           );
         } catch (e) {
           error = e;
@@ -1080,7 +1079,7 @@ describe('Nft contract', () => {
               tokens: tokensIdsNew.map((id) => [id, randomMinPrice]),
               account_id: merchant.contract.contractId,
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         ).rejects.toThrow(
           expect.objectContaining({
@@ -1196,7 +1195,7 @@ describe('Nft contract', () => {
               min_price: '5',
             }),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
         logger.data("Token's sender is approved", merchant.contract.contractId);
 
@@ -1222,7 +1221,7 @@ describe('Nft contract', () => {
               min_price: '5',
             }),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
         logger.data("Token's sender is approved", merchant.contract.contractId);
 
@@ -1562,7 +1561,7 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify(message),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       token = await bob.contract.nft_token({ token_id: tokenId });
@@ -1614,7 +1613,7 @@ describe('Nft contract', () => {
               account_id: merchant.contract.contractId,
               msg,
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         ).rejects.toThrow(
           expect.objectContaining({
@@ -1661,7 +1660,7 @@ describe('Nft contract', () => {
               account_id: merchant.contract.contractId,
               msg: JSON.stringify(message),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         ).rejects.toThrow(
           expect.objectContaining({
@@ -1685,7 +1684,7 @@ describe('Nft contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const token2 = await alice.contract.nft_token({ token_id: tokenId2 });
@@ -1752,7 +1751,7 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify(msg),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       token = await bob.contract.nft_token({ token_id: tokenId });
@@ -1765,7 +1764,7 @@ describe('Nft contract', () => {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
     });
 
@@ -1877,7 +1876,7 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify({ min_price: '5' }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
       expect(await merchant.contract.get_tokens_for_sale()).toContainEqual(
         expect.objectContaining({ token_id: tokenId })
@@ -1888,7 +1887,7 @@ describe('Nft contract', () => {
 
       logger.data('Approvals before', tokenBefore.approvals);
 
-      await bob.contract.nft_revoke_all({ token_id: tokenId }, GAS);
+      await bob.contract.nft_revoke_all({ token_id: tokenId }, MAX_GAS_ALLOWED);
     });
 
     it('should remove an approval for one unspecified market', async () => {
@@ -1929,7 +1928,7 @@ describe('Nft contract', () => {
               account_id: contractId,
               msg: JSON.stringify(msg),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         );
       });
@@ -2032,14 +2031,14 @@ describe('Nft contract', () => {
             min_price: '5',
           }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
       await merchant2.contract.buy_token(
         {
           nft_contract_id: bob.contractAccount.accountId,
           token_id: bobsTokens[0],
         },
-        GAS,
+        MAX_GAS_ALLOWED,
         new BN('5')
       );
 

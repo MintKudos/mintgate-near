@@ -11,6 +11,7 @@ import { getConfig } from './config';
 import { createAccount } from './setup';
 import { AccountContract, MarketContract, NftContract } from '../src';
 import { CorePanics, Panic } from '../src/mg-nft';
+import { MAX_GAS_ALLOWED } from './utils';
 
 import type { ConfigLocal, ConfigNet } from '../lib';
 import type { Fraction } from '../src';
@@ -24,8 +25,6 @@ declare global {
     }
   }
 }
-
-const GAS = new BN(300000000000000);
 
 const getAccountFor = async (
   prefix: string,
@@ -58,7 +57,7 @@ const callNftInit = async (
       max_royalty,
       mintgate_fee,
     },
-    GAS,
+    MAX_GAS_ALLOWED,
     new BN(0)
   );
 };
