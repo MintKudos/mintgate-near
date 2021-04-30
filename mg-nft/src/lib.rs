@@ -128,6 +128,8 @@ pub enum Panic {
     MsgFormatMinPriceMissing { reason: String },
     #[panic_msg = "Could not revoke approval for `{}`"]
     RevokeApprovalFailed { account_id: AccountId },
+    #[panic_msg = "At most 10 tokens are allowed to approve in batch"]
+    ExceedTokensToBatchApprove,
     #[panic_msg = "{} error(s) detected, see `panics` fields for a full list of errors"]
     Errors { panics: Panics },
 }
@@ -554,6 +556,10 @@ impl NftContract {
         tokens: Vec<(TokenId, U128)>,
         account_id: ValidAccountId,
     ) -> Promise {
+        if tokens.len() > 10 {
+            Panic::ExceedTokensToBatchApprove.panic();
+        }
+
         let owner_id = env::predecessor_account_id();
         let mut oks = Vec::new();
         let mut errs = Vec::new();

@@ -131,7 +131,13 @@ fn batch_approve_a_few_tokens() {
     let Sim { nft, markets, alice, bob, charlie, .. } = &init(2, "1/1000", "30/100", "25/1000");
     let users = [alice, bob, charlie];
 
-    let n = 5;
+    let mut tokens = Vec::new();
+    for u in 1..=11 {
+        tokens.push((u.into(), U128(u as u128 * 1000)));
+    }
+    batch_approve(nft, &markets[0], alice, tokens).failure(Panic::ExceedTokensToBatchApprove.msg());
+
+    let n = 3;
     for u in 1..=(users.len() * n) {
         create_collectible(nft, users[(u - 1) % users.len()], gate_id(u as u16), 10, "10/100")
             .unwrap();

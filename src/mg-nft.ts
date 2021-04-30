@@ -471,6 +471,10 @@ export enum Panic {
 
     /**
      */
+    ExceedTokensToBatchApprove,
+
+    /**
+     */
     Errors,
 
 }
