@@ -183,7 +183,7 @@ describe('Market contract', () => {
 
       await merchant2.contract.buy_token(
         {
-          nft_id: bob.contractAccount.accountId,
+          nft_contract_id: bob.contractAccount.accountId,
           token_id: tokenId,
         },
         GAS,
@@ -366,7 +366,7 @@ describe('Market contract', () => {
 
         await merchant2.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
           GAS,
@@ -461,7 +461,7 @@ describe('Market contract', () => {
           'buy_token',
           {
             token_id: tokenId2,
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
           },
           GAS,
           new BN(priceInternalNear!)
@@ -534,7 +534,7 @@ describe('Market contract', () => {
 
         await buyer.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
           GAS,
@@ -622,7 +622,7 @@ describe('Market contract', () => {
 
         await buyer.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
           GAS,
@@ -700,7 +700,7 @@ describe('Market contract', () => {
           'buy_token',
           {
             token_id: tokenId2,
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
           },
           GAS,
           new BN(priceInternalNear!)
@@ -774,7 +774,7 @@ describe('Market contract', () => {
 
         await merchant2.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
           GAS,
@@ -867,7 +867,7 @@ describe('Market contract', () => {
             merchant.contract.contractId,
             'buy_token',
             {
-              nft_id: bob.contractAccount.accountId,
+              nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId2,
             },
             GAS,
@@ -887,7 +887,7 @@ describe('Market contract', () => {
         await expect(
           merchant2.contract.buy_token(
             {
-              nft_id: bob.contractAccount.accountId,
+              nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId3,
             },
             GAS,
@@ -917,7 +917,7 @@ describe('Market contract', () => {
         await expect(
           merchant2.contract.buy_token(
             {
-              nft_id: bob.contractAccount.accountId,
+              nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId4,
             },
             GAS,

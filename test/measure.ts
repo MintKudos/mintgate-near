@@ -273,7 +273,7 @@ const measure = async () => {
       Array.from({ length: tokensToBuyNow }, async (_, index) => {
         return merchant2.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokens[i + index].token_id,
           },
           GAS,

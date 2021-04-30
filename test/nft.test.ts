@@ -1820,7 +1820,7 @@ describe('Nft contract', () => {
       );
       await merchant2.contract.buy_token(
         {
-          nft_id: bob.contractAccount.accountId,
+          nft_contract_id: bob.contractAccount.accountId,
           token_id: bobsTokens[0],
         },
         GAS,
