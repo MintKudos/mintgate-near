@@ -64,7 +64,7 @@ describe('Nft contract', () => {
 
       title = 'Test title';
       description = 'Test description';
-      supply = 100;
+      supply = 65535;
       royalty = {
         num: 25,
         den: 100,
@@ -162,6 +162,20 @@ describe('Nft contract', () => {
             panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateIdNew}","msg":"Gate ID \`${gateIdNew}\` must have a positive supply"}`,
           })
         );
+      });
+
+      it("should throw if supply exceeds maximum of rust's u16", async () => {
+        const supplyInvalid = 65536;
+        const gateIdNew = await generateGateId();
+
+        logger.data('Attempting to create collectible with supply', supplyInvalid);
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            supply: supplyInvalid,
+          })
+        ).rejects.toThrow(`invalid value: integer &#x60;${supplyInvalid}&#x60;, expected u16`);
       });
 
       it('should throw if supply is negative number', async () => {
