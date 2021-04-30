@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "2c8d4e31-288d-460e-9f96-a44f29c16bfe",
+		"_postman_id": "26f53a12-2425-4d37-ab10-daec39b7cc03",
 		"name": "Mintgate",
 		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. install all dependencies:\n```\nyarn\n```\n3. to start api server run in the terminal from mintgate project's root dir:\n```\nyarn near-api-server\n```\n4. import postman collection from `./test/mintgatePostmanCollection.json` file;\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `gateId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR accounts are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -127,8 +127,14 @@
 							"listen": "prerequest",
 							"script": {
 								"exec": [
-									"const { v4: uuidv4 } = require('uuid');\r",
-									"pm.collectionVariables.set(\"gateId\", uuidv4().slice(4));\r",
+									"const { random } = require('lodash'); \r",
+									"\r",
+									"const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';\r",
+									"\r",
+									"const generateGateId = () => \r",
+									"    Array.from({ length: 12 }, () => alphabet[random(alphabet.length - 1)]).join('');\r",
+									"\r",
+									"pm.collectionVariables.set(\"gateId\", generateGateId());\r",
 									""
 								],
 								"type": "text/javascript"
@@ -149,7 +155,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": \"100\",\r\n        \"gate_url\": \"{{$randomUrl}}\",\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        }\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": 100,\r\n        \"gate_url\": \"{{$randomUrl}}\",\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        }\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
