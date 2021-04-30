@@ -1,4 +1,4 @@
-// TypeScript bindings generated with near-ts v0.2.16 https://github.com/epam/near-syn
+// TypeScript bindings generated with near-syn v0.3.0 https://github.com/epam/near-syn
 
 // Exports common NEAR Rust SDK types
 export type U64 = string;
