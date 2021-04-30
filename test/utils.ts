@@ -10,8 +10,8 @@ const gateIdNanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
 export const generateGateId = async (): Promise<string> => gateIdNanoid();
 
 const collectibleDefaultData = {
-  title: 'Test title',
-  description: 'Test description',
+  title: 'A'.repeat(140),
+  description: 'D'.repeat(1024),
   supply: 100,
   royalty: {
     num: 3,
