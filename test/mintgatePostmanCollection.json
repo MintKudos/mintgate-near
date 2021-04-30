@@ -155,7 +155,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": 100,\r\n        \"gate_url\": \"{{$randomUrl}}\",\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        }\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": 100,\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        },\r\n        \"media\": \"{{$randomImageUrl}}\",\r\n        \"media_hash\": \"MmJlMzViYzY3MWRjOTEyZTdmNTQwZjBlNWEyZTkxNWVmNmE0YTRkYmQyYWRhNWJhOWMxZDJiMTE3YmZjOTA3Yw==\",\r\n        \"reference\": \"{{$randomUrl}}/token.json\",\r\n        \"reference_hash\": \"YzAwMzE1NTE3NzUxNTcxYzVhN2I1MGMyZTVmZWUzYzNmZmI3MzdlNmNiNjQ1YWE0MGZlZWNkZjdmNDJhODNkMw==\"\r\n\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
