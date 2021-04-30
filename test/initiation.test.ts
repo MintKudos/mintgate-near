@@ -9,10 +9,11 @@ import type { Account } from 'near-api-js';
 import { contractMetadata } from './initialData';
 import { getConfig } from './config';
 import { createAccount } from './setup';
+import { AccountContract, MarketContract, NftContract } from '../src';
+import { CorePanics, Panic } from '../src/mg-nft';
 
 import type { ConfigLocal, ConfigNet } from '../lib';
 import type { Fraction } from '../src';
-import { AccountContract, MarketContract, NftContract } from '../src';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -121,11 +122,12 @@ describe('Initiation of contracts', () => {
       await expect(callNftInit(contractAccount, min_royalty, max_royalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"MaxRoyaltyLessThanMinRoyalty","min_royalty":${JSON.stringify(
-            min_royalty
-          )},"max_royalty":${JSON.stringify(
-            max_royalty
-          )},"msg":"Min royalty \`${minNum}/${den}\` must be less or equal to max royalty \`${maxNum}/${den}\`"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.MaxRoyaltyLessThanMinRoyalty],
+            min_royalty,
+            max_royalty,
+            msg: `Min royalty \`${minNum}/${den}\` must be less or equal to max royalty \`${maxNum}/${den}\``,
+          }),
         })
       );
     });
@@ -139,7 +141,10 @@ describe('Initiation of contracts', () => {
       await expect(callNftInit(contractAccount, min_royalty, defaultMaxRoyalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+          panic_msg: JSON.stringify({
+            err: CorePanics[CorePanics.ZeroDenominatorFraction],
+            msg: 'Denominator must be a positive number, but was 0',
+          }),
         })
       );
     });
@@ -153,7 +158,10 @@ describe('Initiation of contracts', () => {
       await expect(callNftInit(contractAccount, defaultMinRoyalty, max_royalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+          panic_msg: JSON.stringify({
+            err: CorePanics[CorePanics.ZeroDenominatorFraction],
+            msg: 'Denominator must be a positive number, but was 0',
+          }),
         })
       );
     });
@@ -167,7 +175,10 @@ describe('Initiation of contracts', () => {
       await expect(callNftInit(contractAccount, min_royalty, defaultMaxRoyalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"FractionGreaterThanOne","msg":"The fraction must be less or equal to 1"}`,
+          panic_msg: JSON.stringify({
+            err: CorePanics[CorePanics.FractionGreaterThanOne],
+            msg: 'The fraction must be less or equal to 1',
+          }),
         })
       );
     });
@@ -181,7 +192,10 @@ describe('Initiation of contracts', () => {
       await expect(callNftInit(contractAccount, defaultMinRoyalty, max_royalty, defaultMintgateFee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"FractionGreaterThanOne","msg":"The fraction must be less or equal to 1"}`,
+          panic_msg: JSON.stringify({
+            err: CorePanics[CorePanics.FractionGreaterThanOne],
+            msg: 'The fraction must be less or equal to 1',
+          }),
         })
       );
     });
@@ -195,7 +209,10 @@ describe('Initiation of contracts', () => {
       await expect(callNftInit(contractAccount, defaultMinRoyalty, defaultMaxRoyalty, mintgate_fee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+          panic_msg: JSON.stringify({
+            err: CorePanics[CorePanics.ZeroDenominatorFraction],
+            msg: 'Denominator must be a positive number, but was 0',
+          }),
         })
       );
     });
@@ -209,7 +226,10 @@ describe('Initiation of contracts', () => {
       await expect(callNftInit(contractAccount, defaultMinRoyalty, defaultMaxRoyalty, mintgate_fee)).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"FractionGreaterThanOne","msg":"The fraction must be less or equal to 1"}`,
+          panic_msg: JSON.stringify({
+            err: CorePanics[CorePanics.FractionGreaterThanOne],
+            msg: 'The fraction must be less or equal to 1',
+          }),
         })
       );
     });

@@ -5,6 +5,7 @@ import type { Account } from 'near-api-js';
 
 import { addTestCollectible, generateGateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
+import { Panics } from '../src/mg-market';
 
 import type { AccountContract, NftContract, MarketContract, Token, Fraction } from '../src';
 import type { MarketApproveMsg, NftApproveMsg, TokenForSale } from '../src/mg-market';
@@ -876,7 +877,10 @@ describe('Market contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"BuyOwnTokenNotAllowed","msg":"Buyer cannot buy own token"}',
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.BuyOwnTokenNotAllowed],
+              msg: 'Buyer cannot buy own token',
+            }),
           })
         );
       });
@@ -896,7 +900,11 @@ describe('Market contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenKeyNotFound","token_key":["${bob.contractAccount.accountId}","${tokenId3}"],"msg":"Token Key \`${bob.contractAccount.accountId}:U64(${tokenId3})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.TokenKeyNotFound],
+              token_key: [bob.contractAccount.accountId, tokenId3],
+              msg: `Token Key \`${bob.contractAccount.accountId}:U64(${tokenId3})\` was not found`,
+            }),
           })
         );
       });
@@ -926,7 +934,10 @@ describe('Market contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"NotEnoughDepositToBuyToken","msg":"Not enough deposit to cover token minimum price"}',
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.NotEnoughDepositToBuyToken],
+              msg: 'Not enough deposit to cover token minimum price',
+            }),
           })
         );
       });
@@ -1070,7 +1081,11 @@ describe('Market contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenKeyNotFound","token_key":["${bob.contractAccount.accountId}","${tokenId2}"],"msg":"Token Key \`${bob.contractAccount.accountId}:U64(${tokenId2})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.TokenKeyNotFound],
+              token_key: [bob.contractAccount.accountId, tokenId2],
+              msg: `Token Key \`${bob.contractAccount.accountId}:U64(${tokenId2})\` was not found`,
+            }),
           })
         );
       });

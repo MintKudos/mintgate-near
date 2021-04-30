@@ -13,6 +13,7 @@ import {
   validGateIdRegEx,
 } from './utils';
 import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
+import { CorePanics, Panic } from '../src/mg-nft';
 
 import type { NftApproveMsg, Payout } from '../src/mg-nft';
 import type { AccountContract, Collectible, Token, Fraction, NftContract, MarketContract } from '../src';
@@ -139,7 +140,11 @@ describe('Nft contract', () => {
         await expect(addTestCollectible(alice.contract, { gate_id: gateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdAlreadyExists","gate_id":"${gateId}","msg":"Gate ID \`${gateId}\` already exists"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdAlreadyExists],
+              gate_id: gateId,
+              msg: `Gate ID \`${gateId}\` already exists`,
+            }),
           })
         );
       });
@@ -159,7 +164,11 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateIdNew}","msg":"Gate ID \`${gateIdNew}\` must have a positive supply"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.ZeroSupplyNotAllowed],
+              gate_id: gateIdNew,
+              msg: `Gate ID \`${gateIdNew}\` must have a positive supply`,
+            }),
           })
         );
       });
@@ -210,8 +219,16 @@ describe('Nft contract', () => {
           })
         ).rejects.toThrow(
           expect.objectContaining({
-            panic_msg: `{"err":"RoyaltyMinThanAllowed","royalty":{"num":${num},"den":${den}},"gate_id":"${gateIdNew}","msg":"Royalty \`${num}/${den}\` of \`${gateIdNew}\` is less than min"}`,
             type: 'GuestPanic',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.RoyaltyMinThanAllowed],
+              royalty: {
+                num,
+                den,
+              },
+              gate_id: gateIdNew,
+              msg: `Royalty \`${num}/${den}\` of \`${gateIdNew}\` is less than min`,
+            }),
           })
         );
       });
@@ -236,8 +253,16 @@ describe('Nft contract', () => {
           })
         ).rejects.toThrow(
           expect.objectContaining({
-            panic_msg: `{"err":"RoyaltyMaxThanAllowed","royalty":{"num":${num},"den":${den}},"gate_id":"${gateIdNew}","msg":"Royalty \`${num}/${den}\` of \`${gateIdNew}\` is greater than max"}`,
             type: 'GuestPanic',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.RoyaltyMaxThanAllowed],
+              royalty: {
+                num,
+                den,
+              },
+              gate_id: gateIdNew,
+              msg: `Royalty \`${num}/${den}\` of \`${gateIdNew}\` is greater than max`,
+            }),
           })
         );
       });
@@ -254,7 +279,10 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+            panic_msg: JSON.stringify({
+              err: CorePanics[CorePanics.ZeroDenominatorFraction],
+              msg: 'Denominator must be a positive number, but was 0',
+            }),
           })
         );
       });
@@ -273,7 +301,15 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"RoyaltyTooLarge","royalty":{"num":${num},"den":${MINTGATE_FEE.den}},"mintgate_fee":{"num":${MINTGATE_FEE.num},"den":${MINTGATE_FEE.den}},"msg":"Royalty \`${num}/${MINTGATE_FEE.den}\` is too large for the given NFT fee \`${MINTGATE_FEE.num}/${MINTGATE_FEE.den}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.RoyaltyTooLarge],
+              royalty: {
+                num,
+                den: MINTGATE_FEE.den,
+              },
+              mintgate_fee: MINTGATE_FEE,
+              msg: `Royalty \`${num}/${MINTGATE_FEE.den}\` is too large for the given NFT fee \`${MINTGATE_FEE.num}/${MINTGATE_FEE.den}\``,
+            }),
           })
         );
       });
@@ -312,7 +348,13 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"Title exceeds ${maxCharacters} chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds ${maxCharacters} chars"}`,
+            // 2
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.InvalidArgument],
+              gate_id: gateIdNew,
+              reason: `Title exceeds ${maxCharacters} chars`,
+              msg: `Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds ${maxCharacters} chars`,
+            }),
           })
         );
       });
@@ -345,9 +387,12 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: expect.stringContaining(
-              `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"\`${field}\` exceeds ${maxCharacters} chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: \`${field}\` exceeds ${maxCharacters} chars"}`
-            ),
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.InvalidArgument],
+              gate_id: gateIdNew,
+              reason: `\`${field}\` exceeds ${maxCharacters} chars`,
+              msg: `Invalid argument for gate ID \`${gateIdNew}\`: \`${field}\` exceeds ${maxCharacters} chars`,
+            }),
           })
         );
       });
@@ -462,7 +507,11 @@ describe('Nft contract', () => {
         await expect(bob.contract.delete_collectible({ gate_id: nonExistentGateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentGateId}","msg":"Gate ID \`${nonExistentGateId}\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdNotFound],
+              gate_id: nonExistentGateId,
+              msg: `Gate ID \`${nonExistentGateId}\` was not found`,
+            }),
           })
         );
       });
@@ -476,7 +525,11 @@ describe('Nft contract', () => {
         await expect(alice.contract.delete_collectible({ gate_id: gateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdHasTokens","gate_id":"${gateId}","msg":"Gate ID \`${gateId}\` has already some claimed tokens"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdHasTokens],
+              gate_id: gateId,
+              msg: `Gate ID \`${gateId}\` has already some claimed tokens`,
+            }),
           })
         );
       });
@@ -489,7 +542,11 @@ describe('Nft contract', () => {
         await expect(bob.contract.delete_collectible({ gate_id: gateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"NotAuthorized","gate_id":"${gateId}","msg":"Unable to delete gate ID \`${gateId}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.NotAuthorized],
+              gate_id: gateId,
+              msg: `Unable to delete gate ID \`${gateId}\``,
+            }),
           })
         );
       });
@@ -585,7 +642,11 @@ describe('Nft contract', () => {
         await expect(alice.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentId}","msg":"Gate ID \`${nonExistentId}\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdNotFound],
+              gate_id: nonExistentId,
+              msg: `Gate ID \`${nonExistentId}\` was not found`,
+            }),
           })
         );
       });
@@ -605,7 +666,11 @@ describe('Nft contract', () => {
         await expect(alice.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdExhausted","gate_id":"${gateIdNoSupply}","msg":"Tokens for gate id \`${gateIdNoSupply}\` have already been claimed"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdExhausted],
+              gate_id: gateIdNoSupply,
+              msg: `Tokens for gate id \`${gateIdNoSupply}\` have already been claimed`,
+            }),
           })
         );
       });
@@ -677,7 +742,12 @@ describe('Nft contract', () => {
         await expect(bob.contract.burn_token({ token_id: tokenId2 }, GAS)).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${bob.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${bob.accountId}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotOwnedBy],
+              token_id: tokenId2,
+              owner_id: bob.accountId,
+              msg: `Token ID \`U64(${tokenId2})\` does not belong to account \`${bob.accountId}\``,
+            }),
           })
         );
       });
@@ -688,7 +758,11 @@ describe('Nft contract', () => {
         await expect(bob.contract.burn_token({ token_id: nonexistentTokenId }, GAS)).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}","msg":"Token ID \`U64(${nonexistentTokenId})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotFound],
+              token_id: nonexistentTokenId,
+              msg: `Token ID \`U64(${nonexistentTokenId})\` was not found`,
+            }),
           })
         );
       });
@@ -943,7 +1017,22 @@ describe('Nft contract', () => {
         expect(error).toEqual(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"Errors","panics":[["${nonexistentTokenId}",{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}"}],["${alreadyApprovedTokenId}",{"err":"OneApprovalAllowed"}],["${foreignTokenId}",{"err":"TokenIdNotOwnedBy","token_id":"${foreignTokenId}","owner_id":"${alice.accountId}"}]],"msg":"3 error(s) detected, see \`panics\` fields for a full list of errors"}`,
+            panic_msg: JSON.stringify({
+              err: 'Errors',
+              panics: [
+                [nonexistentTokenId, { err: Panic[Panic.TokenIdNotFound], token_id: nonexistentTokenId }],
+                [alreadyApprovedTokenId, { err: Panic[Panic.OneApprovalAllowed] }],
+                [
+                  foreignTokenId,
+                  {
+                    err: Panic[Panic.TokenIdNotOwnedBy],
+                    token_id: foreignTokenId,
+                    owner_id: alice.accountId,
+                  },
+                ],
+              ],
+              msg: `3 error(s) detected, see \`panics\` fields for a full list of errors`,
+            }),
           })
         );
       });
@@ -996,7 +1085,10 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"ExceedTokensToBatchApprove","msg":"At most 10 tokens are allowed to approve in batch"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.ExceedTokensToBatchApprove],
+              msg: 'At most 10 tokens are allowed to approve in batch',
+            }),
           })
         );
       });
@@ -1179,7 +1271,11 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotFound],
+              token_id: nonExistentId,
+              msg: `Token ID \`U64(${nonExistentId})\` was not found`,
+            }),
           })
         );
       });
@@ -1200,7 +1296,10 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"ReceiverIsOwner","msg":"The token owner and the receiver should be different"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.ReceiverIsOwner],
+              msg: 'The token owner and the receiver should be different',
+            }),
           })
         );
       });
@@ -1218,7 +1317,11 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"SenderNotAuthToTransfer","sender_id":"${bob.accountId}","msg":"Sender \`${bob.accountId}\` is not authorized to make transfer"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.SenderNotAuthToTransfer],
+              sender_id: bob.accountId,
+              msg: `Sender \`${bob.accountId}\` is not authorized to make transfer`,
+            }),
           })
         );
       });
@@ -1516,8 +1619,11 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg:
-              '{"err":"MsgFormatMinPriceMissing","reason":"missing field `min_price` at line 1 column 2","msg":"Could not find min_price in msg: missing field `min_price` at line 1 column 2"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.MsgFormatMinPriceMissing],
+              reason: 'missing field `min_price` at line 1 column 2',
+              msg: `Could not find min_price in msg: missing field \`min_price\` at line 1 column 2`,
+            }),
           })
         );
       });
@@ -1534,7 +1640,10 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"MsgFormatNotRecognized","msg":"The msg argument must contain the minimum price"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.MsgFormatNotRecognized],
+              msg: 'The msg argument must contain the minimum price',
+            }),
           })
         );
       });
@@ -1557,7 +1666,12 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${alice.accountId}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotOwnedBy],
+              token_id: tokenId2,
+              owner_id: alice.accountId,
+              msg: `Token ID \`U64(${tokenId2})\` does not belong to account \`${alice.accountId}\``,
+            }),
           })
         );
       });
@@ -1586,7 +1700,10 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"OneApprovalAllowed","msg":"At most one approval is allowed per Token"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.OneApprovalAllowed],
+              msg: 'At most one approval is allowed per Token',
+            }),
           })
         );
       });
@@ -1603,7 +1720,11 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentTokenId}","msg":"Token ID \`U64(${nonExistentTokenId})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotFound],
+              token_id: nonExistentTokenId,
+              msg: `Token ID \`U64(${nonExistentTokenId})\` was not found`,
+            }),
           })
         );
       });
@@ -1684,9 +1805,12 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${
-            alice.accountId
-          }","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotOwnedBy],
+            token_id: token!.token_id,
+            owner_id: alice.accountId,
+            msg: `Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\``,
+          }),
         })
       );
     });
@@ -1705,7 +1829,11 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"RevokeApprovalFailed","account_id":"${merchant.contract.contractId}","msg":"Could not revoke approval for \`${merchant.contract.contractId}\`"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.RevokeApprovalFailed],
+            account_id: merchant.contract.contractId,
+            msg: `Could not revoke approval for \`${merchant.contract.contractId}\``,
+          }),
         })
       );
     });
@@ -1723,7 +1851,11 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotFound],
+            token_id: nonExistentId,
+            msg: `Token ID \`U64(${nonExistentId})\` was not found`,
+          }),
         })
       );
     });
@@ -1830,7 +1962,12 @@ describe('Nft contract', () => {
       await expect(alice.contract.nft_revoke_all({ token_id: token.token_id })).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotOwnedBy],
+            token_id: token.token_id,
+            owner_id: alice.accountId,
+            msg: `Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\``,
+          }),
         })
       );
     });
@@ -1847,7 +1984,11 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotFound],
+            token_id: nonExistentId,
+            msg: `Token ID \`U64(${nonExistentId})\` was not found`,
+          }),
         })
       );
     });
