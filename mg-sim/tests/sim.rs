@@ -158,7 +158,11 @@ pub fn create_collectible(
             title.to_string(),
             description.to_string(),
             supply,
-            royalty.parse().unwrap()
+            royalty.parse().unwrap(),
+            None,
+            None,
+            None,
+            None
         ),
         0,
         DEFAULT_GAS

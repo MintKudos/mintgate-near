@@ -9,7 +9,8 @@ use std::{
 use mg_core::{
     crypto_hash,
     gate::{GateId, ValidGateId},
-    MarketApproveMsg, NonFungibleTokenApprovalsReceiver, Payout, TokenId,
+    nep178::NonFungibleTokenApprovalsReceiver,
+    MarketApproveMsg, Payout, TokenId,
 };
 use near_env::{near_ext, near_log, PanicMessage};
 use near_sdk::{
@@ -88,19 +89,26 @@ enum Keys {
     TokensByCreatorIdValue(CryptoHash),
 }
 
+/// The error variants thrown by *mg-market*.
 #[derive(Serialize, PanicMessage)]
 #[serde(crate = "near_sdk::serde", tag = "err")]
 pub enum Panics {
+    /// Thrown when `nft_on_approve` does not find `min_price`.
     #[panic_msg = "Could not find min_price in msg: {}"]
     MsgFormatMinPriceMissing { reason: String },
+    /// Thrown when the `token_key` was not found.
     #[panic_msg = "Token Key `{}` was not found"]
     TokenKeyNotFound { token_key: TokenKey },
+    /// Thrown when buyer attempts to buy own token.
     #[panic_msg = "Buyer cannot buy own token"]
     BuyOwnTokenNotAllowed,
+    /// Thrown when deposit is not enough to buy a token.
     #[panic_msg = "Not enough deposit to cover token minimum price"]
     NotEnoughDepositToBuyToken,
 }
 
+/// Methods for the Marketplace contract.
+/// Methods belonging to a `trait` are implemented in their own interfaces.
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl MarketContract {
@@ -141,13 +149,16 @@ impl MarketContract {
         get_tokens_by(&self.tokens_for_sale, &self.tokens_by_creator_id, creator_id.as_ref())
     }
 
-    /// Buys the token.
-    // accountId -> marketplace accountminAmount -> sell price
-    // Selling price: 5NMarktplace fee: 10%, 0.5N = 4.5NRoyalty: 10%, 0.45N = 4.05N
-    // Selling price: 5NMarketplace adds royalty: 10%: 5.5NMarketplace adds fee: 10%: 6.05NSelling price: 6.05N
+    /// Indicates that `predecessor_account_id` wants to buy the token `nft_contract_id:token_id`.
+    ///
+    /// The caller must attach at least `min_price` NEARs in order to pay for the given token.
+    /// Moreover, the owner cannot buy his/her own tokens.
+    ///
+    /// When the token is sold,
+    /// royalties are paid by this marketplace according to `nft_contract_id::nft_transfer_payout`.
     #[payable]
-    pub fn buy_token(&mut self, nft_id: ValidAccountId, token_id: TokenId) {
-        let token_key = TokenKey(nft_id.to_string(), token_id);
+    pub fn buy_token(&mut self, nft_contract_id: ValidAccountId, token_id: TokenId) {
+        let token_key = TokenKey(nft_contract_id.to_string(), token_id);
         if let Some(TokenForSale { owner_id, min_price, gate_id, creator_id, .. }) =
             self.tokens_for_sale.get(&token_key)
         {
@@ -170,7 +181,7 @@ impl MarketContract {
                 None,
                 None,
                 Some(U128(deposit)),
-                &nft_id,
+                &nft_contract_id,
                 0,
                 env::prepaid_gas() / 3,
             )
@@ -235,6 +246,8 @@ impl SelfCallback for MarketContract {
     }
 }
 
+/// This interface defines methods to be called
+/// when approval or removal happened in a NFT contract.
 #[near_log(skip_args, only_pub)]
 #[near_bindgen]
 impl NonFungibleTokenApprovalsReceiver for MarketContract {
@@ -249,9 +262,9 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
     ) {
         match serde_json::from_str::<MarketApproveMsg>(&msg) {
             Ok(approve_msg) => {
-                let nft_id = env::predecessor_account_id();
+                let nft_contract_id = env::predecessor_account_id();
                 let owner_id = owner_id.to_string();
-                self.add_token(&owner_id, &nft_id, token_id, approve_msg, approval_id);
+                self.add_token(&owner_id, &nft_contract_id, token_id, approve_msg, approval_id);
             }
             Err(err) => {
                 let reason = err.to_string();
@@ -262,8 +275,8 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
 
     /// Callback method to remove this `Token` from the marketplace.
     fn nft_on_revoke(&mut self, token_id: TokenId) {
-        let nft_id = env::predecessor_account_id();
-        let token_key = TokenKey(nft_id, token_id);
+        let nft_contract_id = env::predecessor_account_id();
+        let token_key = TokenKey(nft_contract_id, token_id);
 
         if let Some(token) = self.tokens_for_sale.get(&token_key) {
             assert_eq!(token.nft_contract_id, token_key.0);
@@ -279,10 +292,10 @@ impl NonFungibleTokenApprovalsReceiver for MarketContract {
         tokens: Vec<(TokenId, MarketApproveMsg)>,
         owner_id: ValidAccountId,
     ) {
-        let nft_id = env::predecessor_account_id();
+        let nft_contract_id = env::predecessor_account_id();
         let owner_id = owner_id.to_string();
         for (token_id, approve_msg) in tokens {
-            self.add_token(&owner_id, &nft_id, token_id, approve_msg, U64(0));
+            self.add_token(&owner_id, &nft_contract_id, token_id, approve_msg, U64(0));
         }
     }
 }
@@ -291,16 +304,16 @@ impl MarketContract {
     fn add_token(
         &mut self,
         owner_id: &AccountId,
-        nft_id: &String,
+        nft_contract_id: &String,
         token_id: TokenId,
         approve_msg: MarketApproveMsg,
         approval_id: U64,
     ) {
-        let token_key = TokenKey(nft_id.clone(), token_id);
+        let token_key = TokenKey(nft_contract_id.clone(), token_id);
         self.tokens_for_sale.insert(
             &token_key,
             &TokenForSale {
-                nft_contract_id: nft_id.clone(),
+                nft_contract_id: nft_contract_id.clone(),
                 token_id,
                 owner_id: owner_id.clone().into(),
                 approval_id,
@@ -312,7 +325,7 @@ impl MarketContract {
 
         insert_token_id_to(
             &mut self.tokens_by_nft_id,
-            &nft_id,
+            &nft_contract_id,
             &token_id,
             Keys::TokensByNftIdValue,
         );

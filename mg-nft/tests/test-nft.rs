@@ -56,6 +56,10 @@ impl MockedContext<NftContractChecker> {
             "NFT description".to_string(),
             supply,
             royalty,
+            Some("media".to_string()),
+            Some("123".to_string()),
+            Some("ref".to_string()),
+            Some("456".to_string()),
         );
 
         let collectible = self.contract.get_collectible_by_gate_id(gate_id.clone()).unwrap();
@@ -64,6 +68,10 @@ impl MockedContext<NftContractChecker> {
         assert_eq!(collectible.current_supply, supply);
         assert_eq!(collectible.minted_tokens.len(), 0);
         assert_eq!(collectible.royalty, royalty);
+        assert_eq!(collectible.metadata.media, Some("media".to_string()));
+        assert_eq!(collectible.metadata.media_hash, Some("123".to_string()));
+        assert_eq!(collectible.metadata.reference, Some("ref".to_string()));
+        assert_eq!(collectible.metadata.reference_hash, Some("456".to_string()));
 
         assert_eq!(
             self.get_collectibles_by_creator(self.pred_id()).len(),
@@ -305,6 +313,126 @@ mod create_collectible {
     fn create_a_collectible_with_full_royalty_should_panic() {
         init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
             contract.create_royalty_collectible(gate_id(1), 10, "1/1");
+        });
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: Title exceeds 140 chars"
+    )]
+    fn create_a_collectible_with_invalid_title_should_panic() {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+            contract.contract.create_collectible(
+                gate_id(1),
+                String::from_utf8(vec![b'X'; 141]).unwrap(),
+                "desc".to_string(),
+                10,
+                "1/100".parse().unwrap(),
+                Some(String::from_utf8(vec![b'X'; 1024]).unwrap()),
+                None,
+                None,
+                None,
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: `description` exceeds 1024 chars"
+    )]
+    fn create_a_collectible_with_invalid_desc_should_panic() {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+            contract.contract.create_collectible(
+                gate_id(1),
+                "title".to_string(),
+                String::from_utf8(vec![b'X'; 1025]).unwrap(),
+                10,
+                "1/100".parse().unwrap(),
+                Some(String::from_utf8(vec![b'X'; 1024]).unwrap()),
+                None,
+                None,
+                None,
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: `media` exceeds 1024 chars"
+    )]
+    fn create_a_collectible_with_invalid_media_should_panic() {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+            contract.contract.create_collectible(
+                gate_id(1),
+                "title".to_string(),
+                "desc".to_string(),
+                10,
+                "1/100".parse().unwrap(),
+                Some(String::from_utf8(vec![b'X'; 1025]).unwrap()),
+                None,
+                None,
+                None,
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: `media_hash` exceeds 1024 chars"
+    )]
+    fn create_a_collectible_with_invalid_media_hash_should_panic() {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+            contract.contract.create_collectible(
+                gate_id(1),
+                "title".to_string(),
+                "desc".to_string(),
+                10,
+                "1/100".parse().unwrap(),
+                None,
+                Some(String::from_utf8(vec![b'X'; 1025]).unwrap()),
+                None,
+                None,
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: `reference` exceeds 1024 chars"
+    )]
+    fn create_a_collectible_with_invalid_reference_should_panic() {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+            contract.contract.create_collectible(
+                gate_id(1),
+                "title".to_string(),
+                "desc".to_string(),
+                10,
+                "1/100".parse().unwrap(),
+                None,
+                None,
+                Some(String::from_utf8(vec![b'X'; 1025]).unwrap()),
+                None,
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: `reference_hash` exceeds 1024 chars"
+    )]
+    fn create_a_collectible_with_invalid_reference_hash_should_panic() {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+            contract.contract.create_collectible(
+                gate_id(1),
+                "title".to_string(),
+                "desc".to_string(),
+                10,
+                "1/100".parse().unwrap(),
+                None,
+                None,
+                None,
+                Some(String::from_utf8(vec![b'X'; 1025]).unwrap()),
+            );
         });
     }
 
