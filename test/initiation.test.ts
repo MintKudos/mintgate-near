@@ -103,7 +103,7 @@ describe('Initiation of contracts', () => {
       await contractAccount.deployContract(wasmData);
     });
 
-    it('should throw if max royalty is less than min royalty', async () => {
+    it('throws if max royalty is less than min royalty', async () => {
       const minNum = 10;
       const maxNum = 9;
       const den = 100;
@@ -131,7 +131,7 @@ describe('Initiation of contracts', () => {
       );
     });
 
-    it('should throw if denominator of min royalty is `0`', async () => {
+    it('throws if denominator of min royalty is `0`', async () => {
       const min_royalty = {
         num: 10,
         den: 0,
@@ -148,7 +148,7 @@ describe('Initiation of contracts', () => {
       );
     });
 
-    it('should throw if denominator of max royalty is `0`', async () => {
+    it('throws if denominator of max royalty is `0`', async () => {
       const max_royalty = {
         num: 15,
         den: 0,
@@ -165,7 +165,7 @@ describe('Initiation of contracts', () => {
       );
     });
 
-    it('should throw if fraction of min royalty is greater than `1`', async () => {
+    it('throws if fraction of min royalty is greater than `1`', async () => {
       const min_royalty = {
         num: 101,
         den: 100,
@@ -182,7 +182,7 @@ describe('Initiation of contracts', () => {
       );
     });
 
-    it('should throw if fraction of max royalty is greater than `1`', async () => {
+    it('throws if fraction of max royalty is greater than `1`', async () => {
       const max_royalty = {
         num: 101,
         den: 100,
@@ -199,7 +199,7 @@ describe('Initiation of contracts', () => {
       );
     });
 
-    it('should throw if denominator of market fee fraction is `0`', async () => {
+    it('throws if denominator of market fee fraction is `0`', async () => {
       const mintgate_fee = {
         num: 10,
         den: 0,
@@ -216,7 +216,7 @@ describe('Initiation of contracts', () => {
       );
     });
 
-    it('should throw if fraction of mintgate fee is greater than `1`', async () => {
+    it('throws if fraction of mintgate fee is greater than `1`', async () => {
       const mintgate_fee = {
         num: 10,
         den: 9,
