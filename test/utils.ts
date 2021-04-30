@@ -11,17 +11,18 @@ const gateIdNanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
 export const generateGateId = async (): Promise<string> => gateIdNanoid();
 
 const collectibleDefaultData = {
-  title: 'A'.repeat(140),
-  description: 'D'.repeat(1024),
+  title: 'My super cool token',
+  description:
+    'Where is the unrelated c-beam? Experiment, scotty. Reliable, distant cosmonauts bravely teleport a solid, evasive c-beam. Red alert, quirky tragedy! The species is more transporter now than captain. modern and virtually quirky. Planets experiment from lifes like seismic stars.',
   supply: 100,
   royalty: {
     num: 3,
     den: 10,
   },
-  media: 'M'.repeat(1024),
-  media_hash: 'MH'.repeat(1024 / 2),
-  reference: 'R'.repeat(1024),
-  reference_hash: 'RH'.repeat(1024 / 2),
+  media: 'https://d3vug8yke8vwo8.cloudfront.net/JAKE_5am6.png',
+  media_hash: 'NjA0OGNmMzM2MGU0MzM1NjE2MTBjZDQwNWExODc5MjM0MGQxOGNhN2Y1YzAyMjc3MDY1NjQ0ZmI0NGViODhlYQo=',
+  reference: 'https://www.mintgate.app/collectible/5G0RWSSZ35BF/token.json',
+  reference_hash: 'NWU4ODg4MGNkM2ExOTU1NmZmNDMyMmQ2OTdkZjM1NzExMGRhZmJhMjQ2MmJmNWFkOGY5YjAwZjhlODk5ODVmZA==',
 };
 
 export const addTestCollectible = async (
