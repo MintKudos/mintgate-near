@@ -52,6 +52,10 @@ describe('Nft contract', () => {
     let description: string;
     let supply: number;
     let royalty: Fraction;
+    let media: string;
+    let media_hash: string;
+    let reference: string;
+    let reference_hash: string;
 
     let collectible: Collectible | null;
 
@@ -65,6 +69,10 @@ describe('Nft contract', () => {
         num: 25,
         den: 100,
       };
+      media = 'Test media';
+      media_hash = 'Test media hash';
+      reference = 'Test reference';
+      reference_hash = 'Test reference hash';
 
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
@@ -72,6 +80,10 @@ describe('Nft contract', () => {
         description,
         supply,
         royalty,
+        media,
+        media_hash,
+        reference,
+        reference_hash,
       });
 
       collectible = await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
@@ -99,6 +111,10 @@ describe('Nft contract', () => {
         title,
         description,
         copies: supply,
+        media,
+        media_hash,
+        reference,
+        reference_hash,
       };
 
       logger.data('Metadata provided', providedMetadata);
