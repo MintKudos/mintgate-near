@@ -300,10 +300,9 @@ describe('Nft contract', () => {
       });
 
       it('should throw if provided with title longer than 140 symbols', async () => {
+        const maxCharacters = 140;
         const gateIdNew = await generateGateId();
-        const titleInvalid =
-          "Acceptance doesn't beautifully realize any self — but the power is what preaches. Our magical definition for fear is to visualize others lie.";
-        expect(titleInvalid.length).toBeGreaterThan(140);
+        const titleInvalid = 't'.repeat(maxCharacters + 1);
 
         await expect(
           addTestCollectible(alice.contract, {
@@ -313,7 +312,42 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"Title exceeds 140 chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds 140 chars"}`,
+            panic_msg: `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"Title exceeds ${maxCharacters} chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds ${maxCharacters} chars"}`,
+          })
+        );
+      });
+
+      it.each`
+        field               | maxCharacters
+        ${'description'}    | ${1024}
+        ${'media'}          | ${1024}
+        ${'media_hash'}     | ${1024}
+        ${'reference'}      | ${1024}
+        ${'reference_hash'} | ${1024}
+      `('should throw if $field is longer than $maxCharacters', async ({ field, maxCharacters }) => {
+        const invalidString = 'a'.repeat(maxCharacters + 1);
+        const gateIdNew = await generateGateId();
+
+        try {
+          await addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            [field]: invalidString,
+          });
+        } catch (e) {
+          logger.data('', e);
+        }
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            [field]: invalidString,
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: expect.stringContaining(
+              `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"\`${field}\` exceeds ${maxCharacters} chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: \`${field}\` exceeds ${maxCharacters} chars"}`
+            ),
           })
         );
       });
