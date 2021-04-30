@@ -46,10 +46,6 @@ describe('Nft contract', () => {
     logger.title(`${expect.getState().currentTestName}`);
   });
 
-  test('that test accounts are different', async () => {
-    expect(alice.accountId).not.toBe(bob.accountId);
-  });
-
   describe('create_collectible', () => {
     let gateId: string;
     let title: string;
