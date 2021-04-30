@@ -973,6 +973,33 @@ describe('Nft contract', () => {
         expect(tokensIdsForSale).not.toContain(nonexistentTokenId);
         expect(tokensIdsForSale).not.toContain(foreignTokenId);
       });
+
+      it('throws if number of tokens to approve exceeds 10', async () => {
+        const numberOfTokensToApprove = 11;
+
+        const tokenId = await alice.contract.claim_token({ gate_id: gateId });
+        const tokensIdsNew = await Promise.all(
+          Array.from({ length: numberOfTokensToApprove - 1 }, () => alice.contract.claim_token({ gate_id: gateId }))
+        );
+
+        tokensIdsNew.push(tokenId);
+        expect(tokensIdsNew.length).toBe(numberOfTokensToApprove);
+
+        await expect(
+          alice.contract.batch_approve(
+            {
+              tokens: tokensIdsNew.map((id) => [id, randomMinPrice]),
+              account_id: merchant.contract.contractId,
+            },
+            GAS
+          )
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: '{"err":"ExceedTokensToBatchApprove","msg":"At most 10 tokens are allowed to approve in batch"}',
+          })
+        );
+      });
     });
   });
 
