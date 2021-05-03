@@ -44,13 +44,20 @@ impl DerefMut for NftContractChecker {
 }
 
 impl MockedContext<NftContractChecker> {
-    fn create_collectible(&mut self, gate_id: ValidGateId, supply: u16, royalty: &str) {
-        let collectibles_by_owner = self.get_collectibles_by_creator(self.pred_id());
+    fn create_collectible(
+        &mut self,
+        creator_id: ValidAccountId,
+        gate_id: ValidGateId,
+        supply: u16,
+        royalty: &str,
+    ) {
+        let collectibles_by_owner = self.get_collectibles_by_creator(creator_id.clone());
 
         println!("Creating Collectible `{}` with supply {}", gate_id, supply);
 
         let royalty = royalty.parse().unwrap();
         self.contract.create_collectible(
+            creator_id.clone(),
             gate_id.clone(),
             "My collectible".to_string(),
             "NFT description".to_string(),
@@ -63,8 +70,8 @@ impl MockedContext<NftContractChecker> {
         );
 
         let collectible = self.contract.get_collectible_by_gate_id(gate_id.clone()).unwrap();
+        assert_eq!(collectible.creator_id, creator_id.to_string());
         assert_eq!(&collectible.gate_id, gate_id.as_ref());
-        assert_eq!(collectible.creator_id, self.pred_id().to_string());
         assert_eq!(collectible.current_supply, supply);
         assert_eq!(collectible.minted_tokens.len(), 0);
         assert_eq!(collectible.royalty, royalty);
@@ -74,17 +81,28 @@ impl MockedContext<NftContractChecker> {
         assert_eq!(collectible.metadata.reference_hash, Some("456".to_string()));
 
         assert_eq!(
-            self.get_collectibles_by_creator(self.pred_id()).len(),
+            self.get_collectibles_by_creator(creator_id).len(),
             collectibles_by_owner.len() + 1
         );
     }
 
-    fn create_test_collectible(&mut self, gate_id: ValidGateId, supply: u16) {
-        self.create_collectible(gate_id, supply, "5/100");
+    fn create_test_collectible(
+        &mut self,
+        creator_id: ValidAccountId,
+        gate_id: ValidGateId,
+        supply: u16,
+    ) {
+        self.create_collectible(creator_id, gate_id, supply, "5/100");
     }
 
-    fn create_royalty_collectible(&mut self, gate_id: ValidGateId, supply: u16, royalty: &str) {
-        self.create_collectible(gate_id, supply, royalty);
+    fn create_royalty_collectible(
+        &mut self,
+        creator_id: ValidAccountId,
+        gate_id: ValidGateId,
+        supply: u16,
+        royalty: &str,
+    ) {
+        self.create_collectible(creator_id, gate_id, supply, royalty);
     }
 
     fn claim_token(&mut self, gate_id: ValidGateId) -> TokenId {
@@ -255,64 +273,64 @@ mod create_collectible {
     #[test]
     #[should_panic(expected = "Denominator must be a positive number, but was 0")]
     fn create_a_collectible_with_zero_den_royalty_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_collectible(gate_id(1), 10, "1/0");
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_collectible(alice(), gate_id(1), 10, "1/0");
         });
     }
 
     #[test]
     #[should_panic(expected = "The fraction must be less or equal to 1")]
     fn create_a_collectible_with_invalid_royalty_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_collectible(gate_id(1), 10, "2/1");
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_collectible(alice(), gate_id(1), 10, "2/1");
         });
     }
 
     #[test]
     #[should_panic(expected = "Royalty `0/100` of `GPZkspuVGaZxwWoP6bJoWU` is less than min")]
     fn create_a_collectible_with_no_royalty_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_collectible(gate_id(1), 10, "0/100");
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_collectible(alice(), gate_id(1), 10, "0/100");
         });
     }
 
     #[test]
     #[should_panic(expected = "Royalty `2/100` of `GPZkspuVGaZxwWoP6bJoWU` is less than min")]
     fn create_a_collectible_with_less_than_min_royalty_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_collectible(gate_id(1), 10, "2/100");
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_collectible(alice(), gate_id(1), 10, "2/100");
         });
     }
 
     #[test]
     #[should_panic(expected = "Royalty `5/10` of `GPZkspuVGaZxwWoP6bJoWU` is greater than max")]
     fn create_a_collectible_with_greater_than_max_royalty_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_collectible(gate_id(1), 10, "5/10");
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_collectible(alice(), gate_id(1), 10, "5/10");
         });
     }
 
     #[test]
     #[should_panic(expected = "Royalty `1/1` of `GPZkspuVGaZxwWoP6bJoWU` is greater than max")]
     fn create_a_collectible_with_all_royalty_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_collectible(gate_id(1), 10, "1/1");
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_collectible(alice(), gate_id(1), 10, "1/1");
         });
     }
 
     #[test]
     #[should_panic(expected = "Gate ID `GPZkspuVGaZxwWoP6bJoWU` must have a positive supply")]
     fn create_a_collectible_with_no_supply_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 0);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 0);
         });
     }
 
     #[test]
     #[should_panic(expected = "Royalty `1/1` is too large for the given NFT fee `25/1000`")]
     fn create_a_collectible_with_full_royalty_should_panic() {
-        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
-            contract.create_royalty_collectible(gate_id(1), 10, "1/1");
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(mintgate_admin(), |contract| {
+            contract.create_royalty_collectible(alice(), gate_id(1), 10, "1/1");
         });
     }
 
@@ -321,8 +339,9 @@ mod create_collectible {
         expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: Title exceeds 140 chars"
     )]
     fn create_a_collectible_with_invalid_title_should_panic() {
-        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(mintgate_admin(), |contract| {
             contract.contract.create_collectible(
+                alice(),
                 gate_id(1),
                 String::from_utf8(vec![b'X'; 141]).unwrap(),
                 "desc".to_string(),
@@ -341,8 +360,9 @@ mod create_collectible {
         expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: `description` exceeds 1024 chars"
     )]
     fn create_a_collectible_with_invalid_desc_should_panic() {
-        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(mintgate_admin(), |contract| {
             contract.contract.create_collectible(
+                alice(),
                 gate_id(1),
                 "title".to_string(),
                 String::from_utf8(vec![b'X'; 1025]).unwrap(),
@@ -361,8 +381,9 @@ mod create_collectible {
         expected = "Invalid argument for gate ID `GPZkspuVGaZxwWoP6bJoWU`: `media` exceeds 1024 chars"
     )]
     fn create_a_collectible_with_invalid_media_should_panic() {
-        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(mintgate_admin(), |contract| {
             contract.contract.create_collectible(
+                alice(),
                 gate_id(1),
                 "title".to_string(),
                 "desc".to_string(),
@@ -383,6 +404,7 @@ mod create_collectible {
     fn create_a_collectible_with_invalid_media_hash_should_panic() {
         init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
             contract.contract.create_collectible(
+                mintgate_admin(),
                 gate_id(1),
                 "title".to_string(),
                 "desc".to_string(),
@@ -403,6 +425,7 @@ mod create_collectible {
     fn create_a_collectible_with_invalid_reference_should_panic() {
         init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
             contract.contract.create_collectible(
+                mintgate_admin(),
                 gate_id(1),
                 "title".to_string(),
                 "desc".to_string(),
@@ -423,6 +446,7 @@ mod create_collectible {
     fn create_a_collectible_with_invalid_reference_hash_should_panic() {
         init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
             contract.contract.create_collectible(
+                mintgate_admin(),
                 gate_id(1),
                 "title".to_string(),
                 "desc".to_string(),
@@ -437,24 +461,43 @@ mod create_collectible {
     }
 
     #[test]
+    #[should_panic(expected = "Operation is allowed only for admin")]
+    fn create_a_collectible_by_no_admin_should_panic() {
+        init_contract("0/10", "30/30", metadata(base_uri())).run_as(alice(), |contract| {
+            contract.contract.create_collectible(
+                alice(),
+                gate_id(1),
+                "title".to_string(),
+                "desc".to_string(),
+                10,
+                "1/100".parse().unwrap(),
+                None,
+                None,
+                None,
+                None,
+            );
+        });
+    }
+
+    #[test]
     fn create_a_collectible() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 10);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 10);
         });
     }
 
     #[test]
     fn create_a_few_collectibles() {
         init()
-            .run_as(alice(), |contract| {
+            .run_as(mintgate_admin(), |contract| {
                 for i in 0..10 {
-                    contract.create_test_collectible(gate_id(i), i + 1);
+                    contract.create_test_collectible(alice(), gate_id(i), i + 1);
                 }
                 assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 10);
             })
-            .run_as(bob(), |contract| {
+            .run_as(mintgate_admin(), |contract| {
                 for i in 10..25 {
-                    contract.create_test_collectible(gate_id(i), i + 1);
+                    contract.create_test_collectible(bob(), gate_id(i), i + 1);
                 }
                 assert_eq!(contract.get_collectibles_by_creator(bob()).len(), 15);
             });
@@ -463,9 +506,9 @@ mod create_collectible {
     #[test]
     #[should_panic(expected = "Gate ID `GPZkspuVGaZxwWoP6bJoWU` already exists")]
     fn create_collectible_with_same_gate_id_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 10);
-            contract.create_test_collectible(gate_id(1), 20);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 10);
+            contract.create_test_collectible(alice(), gate_id(1), 20);
         });
     }
 }
@@ -485,8 +528,8 @@ mod delete_collectible {
     #[test]
     #[should_panic(expected = "Gate ID `GPZkspuVGaZxwWoP6bJoWU` has already some claimed tokens")]
     fn delete_a_claimed_gate_id_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 10);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 10);
             contract.claim_token(gate_id(1));
             contract.delete_collectible(gate_id(1));
         });
@@ -496,8 +539,8 @@ mod delete_collectible {
     #[should_panic(expected = "Unable to delete gate ID `GPZkspuVGaZxwWoP6bJoWU`")]
     fn delete_a_collectible_from_non_creator_should_panic() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
             })
             .run_as(bob(), |contract| {
                 contract.delete_collectible(gate_id(1));
@@ -506,8 +549,8 @@ mod delete_collectible {
 
     #[test]
     fn delete_a_collectible_from_creator() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 10);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 10);
             assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_some());
 
             contract.delete_collectible(gate_id(1));
@@ -519,8 +562,8 @@ mod delete_collectible {
     #[test]
     fn delete_a_collectible_from_admin() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
                 assert!(contract.get_collectible_by_gate_id(gate_id(1)).is_some());
             })
             .run_as(mintgate_admin(), |contract| {
@@ -538,8 +581,8 @@ mod claim_token {
     #[test]
     fn claim_a_token() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
                 assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 1);
             })
             .run_as(bob(), |contract| {
@@ -561,12 +604,12 @@ mod claim_token {
     #[test]
     fn claim_a_few_tokens() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
                 assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 1);
             })
-            .run_as(bob(), |contract| {
-                contract.create_test_collectible(gate_id(2), 15);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(bob(), gate_id(2), 15);
                 assert_eq!(contract.get_collectibles_by_creator(bob()).len(), 1);
                 contract.claim_token(gate_id(2));
             });
@@ -586,8 +629,8 @@ mod claim_token {
     )]
     fn claim_a_token_with_no_supply_should_panic() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 1);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 1);
                 contract.claim_token(gate_id(1));
             })
             .run_as(bob(), |contract| {
@@ -598,8 +641,10 @@ mod claim_token {
     #[test]
     fn claim_and_get_a_few_tokens() {
         init()
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 100);
+            })
             .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 100);
                 assert_eq!(contract.get_collectibles_by_creator(alice()).len(), 1);
 
                 assert_eq!(contract.nft_tokens(None, Some(0)).len(), 0);
@@ -610,8 +655,10 @@ mod claim_token {
                     contract.claim_token(gate_id(1));
                 }
             })
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(bob(), gate_id(2), 15);
+            })
             .run_as(bob(), |contract| {
-                contract.create_test_collectible(gate_id(2), 15);
                 assert_eq!(contract.get_collectibles_by_creator(bob()).len(), 1);
 
                 for _i in 0..10 {
@@ -642,24 +689,27 @@ mod nft_token_uri {
 
     #[test]
     fn get_token_uri_with_base_uri() {
-        init_contract("5/100", "30/100", metadata(base_uri())).run_as(alice(), |contract| {
-            assert_eq!(contract.nft_token_uri(U64(0)), None);
+        init_contract("5/100", "30/100", metadata(base_uri())).run_as(
+            mintgate_admin(),
+            |contract| {
+                assert_eq!(contract.nft_token_uri(U64(0)), None);
 
-            contract.create_test_collectible(gate_id(1), 10);
-            let uri = format!("{}{}", base_uri().unwrap(), gate_id(1));
-            let token_id = contract.claim_token(gate_id(1));
-            assert_eq!(contract.nft_token_uri(token_id).unwrap(), uri);
-        });
+                contract.create_test_collectible(alice(), gate_id(1), 10);
+                let uri = format!("{}{}", base_uri().unwrap(), gate_id(1));
+                let token_id = contract.claim_token(gate_id(1));
+                assert_eq!(contract.nft_token_uri(token_id).unwrap(), uri);
+            },
+        );
     }
 
     #[test]
     fn get_token_uri_with_no_slash_base_uri() {
         init_contract("5/100", "30/100", metadata(Some("https://mintgate/t".to_string()))).run_as(
-            alice(),
+            mintgate_admin(),
             |contract| {
                 assert_eq!(contract.nft_token_uri(U64(0)), None);
 
-                contract.create_test_collectible(gate_id(1), 10);
+                contract.create_test_collectible(alice(), gate_id(1), 10);
                 let uri = format!("{}/{}", "https://mintgate/t", gate_id(1));
                 let token_id = contract.claim_token(gate_id(1));
                 assert_eq!(contract.nft_token_uri(token_id).unwrap(), uri);
@@ -669,10 +719,10 @@ mod nft_token_uri {
 
     #[test]
     fn get_token_uri_with_none_base_uri() {
-        init_contract("5/100", "30/100", metadata(None)).run_as(alice(), |contract| {
+        init_contract("5/100", "30/100", metadata(None)).run_as(mintgate_admin(), |contract| {
             assert_eq!(contract.nft_token_uri(U64(0)), None);
 
-            contract.create_test_collectible(gate_id(1), 10);
+            contract.create_test_collectible(alice(), gate_id(1), 10);
             let token_id = contract.claim_token(gate_id(1));
             assert_eq!(contract.nft_token_uri(token_id), None);
         });
@@ -692,8 +742,8 @@ mod burn_token {
 
     #[test]
     fn burn_a_few_tokens() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 10);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 10);
             let token_id = contract.claim_token(gate_id(1));
             contract.burn_token(token_id);
             let collectible = contract.get_collectible_by_gate_id(gate_id(1)).unwrap();
@@ -711,8 +761,8 @@ mod burn_token {
     #[should_panic(expected = "Token ID `U64(0)` does not belong to account `bob`")]
     fn transfer_a_non_approved_token_should_panic() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
                 contract.claim_token(gate_id(1));
             })
             .run_as(bob(), |contract| {
@@ -729,8 +779,8 @@ mod nft_transfer {
     #[test]
     fn transfer_a_token() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
@@ -753,8 +803,8 @@ mod nft_transfer {
     #[should_panic(expected = "Sender `bob` is not authorized to make transfer")]
     fn transfer_a_non_approved_token_should_panic() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
                 contract.claim_token(gate_id(1));
             })
             .run_as(bob(), |contract| {
@@ -794,8 +844,8 @@ mod nft_approve {
 
     #[test]
     fn nft_approve_a_token() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 10);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 10);
             let token_id = contract.claim_token(gate_id(1));
             contract.nft_approve(token_id, bob(), approve_msg(10));
 
@@ -809,8 +859,8 @@ mod nft_approve {
     #[test]
     #[should_panic(expected = "At most one approval is allowed per Token")]
     fn nft_approve_a_token_twice_should_panic() {
-        init().run_as(alice(), |contract| {
-            contract.create_test_collectible(gate_id(1), 10);
+        init().run_as(mintgate_admin(), |contract| {
+            contract.create_test_collectible(alice(), gate_id(1), 10);
             let token_id = contract.claim_token(gate_id(1));
             contract.nft_approve(token_id, bob(), approve_msg(10));
             contract.nft_approve(token_id, charlie(), approve_msg(15));
@@ -820,8 +870,8 @@ mod nft_approve {
     #[test]
     fn nft_approve_before_transfer_a_token() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
@@ -858,8 +908,8 @@ mod nft_revoke_all {
     #[should_panic(expected = "Token ID `U64(0)` does not belong to account `bob")]
     fn nft_revoke_all_for_non_owned_token_should_panic() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_test_collectible(gate_id(1), 10);
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_test_collectible(alice(), gate_id(1), 10);
                 contract.claim_token(gate_id(1));
             })
             .run_as(bob(), |contract| {
@@ -884,8 +934,8 @@ mod nft_payout {
     #[test]
     fn nft_get_payout_no_royalty() {
         init_contract("0/10", "30/100", metadata(base_uri()))
-            .run_as(alice(), |contract| {
-                contract.create_royalty_collectible(gate_id(1), 10, "0/1");
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(alice(), gate_id(1), 10, "0/1");
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
@@ -900,8 +950,8 @@ mod nft_payout {
     #[test]
     fn nft_get_payout() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_royalty_collectible(gate_id(1), 10, "15/100");
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(alice(), gate_id(1), 10, "15/100");
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
@@ -916,8 +966,8 @@ mod nft_payout {
     #[test]
     fn nft_get_example_payout() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_royalty_collectible(gate_id(1), 10, "30/100");
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(alice(), gate_id(1), 10, "30/100");
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
@@ -932,8 +982,8 @@ mod nft_payout {
     #[test]
     fn nft_get_payout_periodic_royalty_fraction() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_royalty_collectible(gate_id(1), 10, "1/6");
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(alice(), gate_id(1), 10, "1/6");
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
@@ -948,8 +998,8 @@ mod nft_payout {
     #[test]
     fn nft_get_payout_infinite_royalty_fraction() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_royalty_collectible(gate_id(1), 10, "1/7");
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(alice(), gate_id(1), 10, "1/7");
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));
@@ -963,26 +1013,32 @@ mod nft_payout {
 
     #[test]
     fn nft_get_payout_when_creator_and_owner_are_the_same() {
-        init().run_as(bob(), |contract| {
-            contract.create_royalty_collectible(gate_id(1), 10, "1/7");
-            let token_id = contract.claim_token(gate_id(1));
-            let payout = contract.nft_payout(token_id, 2000.into());
-            assert_eq!(payout.len(), 2);
-            assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
-            assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1950);
-        });
+        init()
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(bob(), gate_id(1), 10, "1/7");
+            })
+            .run_as(bob(), |contract| {
+                let token_id = contract.claim_token(gate_id(1));
+                let payout = contract.nft_payout(token_id, 2000.into());
+                assert_eq!(payout.len(), 2);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1950);
+            });
     }
 
     #[test]
     fn nft_get_payout_when_creator_and_owner_are_the_same_with_no_royalty() {
-        init_contract("0/1", "1/1", metadata(base_uri())).run_as(bob(), |contract| {
-            contract.create_royalty_collectible(gate_id(1), 10, "0/7");
-            let token_id = contract.claim_token(gate_id(1));
-            let payout = contract.nft_payout(token_id, 2000.into());
-            assert_eq!(payout.len(), 2);
-            assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
-            assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1950);
-        });
+        init_contract("0/1", "1/1", metadata(base_uri()))
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(bob(), gate_id(1), 10, "0/7");
+            })
+            .run_as(bob(), |contract| {
+                let token_id = contract.claim_token(gate_id(1));
+                let payout = contract.nft_payout(token_id, 2000.into());
+                assert_eq!(payout.len(), 2);
+                assert_eq!(payout.get(mintgate_fee_account_id().as_ref()).unwrap().0, 50);
+                assert_eq!(payout.get(bob().as_ref()).unwrap().0, 1950);
+            });
     }
 }
 
@@ -993,8 +1049,8 @@ mod nft_transfer_payout {
     #[test]
     fn nft_get_transfer_payout() {
         init()
-            .run_as(alice(), |contract| {
-                contract.create_royalty_collectible(gate_id(1), 10, "15/100");
+            .run_as(mintgate_admin(), |contract| {
+                contract.create_royalty_collectible(alice(), gate_id(1), 10, "15/100");
             })
             .run_as(bob(), |contract| {
                 let token_id = contract.claim_token(gate_id(1));

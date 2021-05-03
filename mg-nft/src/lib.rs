@@ -102,6 +102,8 @@ pub enum Panic {
     ZeroSupplyNotAllowed { gate_id: GateId },
     #[panic_msg = "Invalid argument for gate ID `{}`: {}"]
     InvalidArgument { gate_id: GateId, reason: String },
+    #[panic_msg = "Operation is allowed only for admin"]
+    AdminRestrictedOperation,
     #[panic_msg = "Gate ID `{}` was not found"]
     GateIdNotFound { gate_id: GateId },
     #[panic_msg = "Tokens for gate id `{}` have already been claimed"]
@@ -202,6 +204,7 @@ impl NftContract {
     /// See <https://github.com/epam/mintgate/issues/3>.
     pub fn create_collectible(
         &mut self,
+        creator_id: ValidAccountId,
         gate_id: ValidGateId,
         title: String,
         description: String,
@@ -264,7 +267,11 @@ impl NftContract {
         check!(reference);
         check!(reference_hash);
 
-        let creator_id = env::predecessor_account_id();
+        if env::predecessor_account_id() != self.admin_id {
+            Panic::AdminRestrictedOperation.panic();
+        }
+
+        let creator_id = AccountId::from(creator_id);
         let now = env::block_timestamp() / 1_000_000;
 
         let collectible = Collectible {

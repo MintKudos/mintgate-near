@@ -419,6 +419,10 @@ export enum Panic {
 
     /**
      */
+    AdminRestrictedOperation,
+
+    /**
+     */
     GateIdNotFound,
 
     /**
@@ -514,7 +518,7 @@ export interface NftContract {
      * 
      *  See <https://github.com/epam/mintgate/issues/3>.
      */
-    create_collectible(args: { gate_id: ValidGateId, title: string, description: string, supply: number, royalty: Fraction, media: string|null, media_hash: string|null, reference: string|null, reference_hash: string|null }, gas?: any): Promise<void>;
+    create_collectible(args: { creator_id: ValidAccountId, gate_id: ValidGateId, title: string, description: string, supply: number, royalty: Fraction, media: string|null, media_hash: string|null, reference: string|null, reference_hash: string|null }, gas?: any): Promise<void>;
 
     /**
      *  Returns the `Collectible` with the given `gate_id`.

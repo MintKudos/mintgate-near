@@ -136,6 +136,7 @@ fn metadata() -> mg_core::nep177::NFTContractMetadata {
 pub fn create_collectible(
     nft: &ContractAccount<NftContract>,
     user: &UserAccount,
+    creator_id: &UserAccount,
     gate_id: ValidGateId,
     supply: u16,
     royalty: &str,
@@ -154,6 +155,7 @@ pub fn create_collectible(
     match tx(call!(
         user,
         nft.create_collectible(
+            creator_id.valid_account_id(),
             gate_id.clone(),
             title.to_string(),
             description.to_string(),
