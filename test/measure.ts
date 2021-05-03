@@ -9,7 +9,7 @@ import type { Account } from 'near-api-js';
 
 import setup from './setup';
 import { createProfilers, getAccountFor, getContract, getUsers, getState } from './deploy';
-import { addTestCollectible, generateId, logger } from './utils';
+import { MAX_GAS_ALLOWED, addTestCollectible, generateGateId, logger } from './utils';
 
 import { MarketContractMethods, NftContractMethods } from '../src';
 import { contractMetadata, MINTGATE_FEE, prefixes, royalty } from './initialData';
@@ -21,8 +21,6 @@ interface DataEntry {
   nftStaked: string;
   marketStaked: string;
 }
-
-const GAS = new BN(300000000000000);
 
 const collectiblesToAdd = Number(argv.find((arg, i) => argv[i - 1] === '--collectibles') || 20);
 const tokensToAdd = Number(argv.find((arg, i) => argv[i - 1] === '--tokens') || 40);
@@ -100,7 +98,7 @@ const measure = async () => {
 
     await Promise.all(
       Array.from({ length: collectiblesToAddNow }, async () =>
-        addTestCollectible(alice.contract, { gate_id: await generateId() })
+        addTestCollectible(alice.contract, { gate_id: await generateGateId() })
       )
     );
 
@@ -204,7 +202,7 @@ const measure = async () => {
             account_id: merchant1.contract.contractId,
             msg: JSON.stringify({ min_price: priceInternalNear }),
           },
-          GAS
+          MAX_GAS_ALLOWED
         )
       )
     );
@@ -228,7 +226,7 @@ const measure = async () => {
             token_id: tokens[i + index].token_id,
             account_id: merchant1.contract.contractId,
           },
-          GAS
+          MAX_GAS_ALLOWED
         )
       )
     );
@@ -250,7 +248,7 @@ const measure = async () => {
         tokens: tokens.slice(i, i + approvalsConcurrently).map(({ token_id }) => [token_id, priceInternalNear]),
         account_id: merchant1.contract.contractId,
       },
-      GAS
+      MAX_GAS_ALLOWED
     );
 
     data.push(
@@ -273,10 +271,10 @@ const measure = async () => {
       Array.from({ length: tokensToBuyNow }, async (_, index) => {
         return merchant2.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokens[i + index].token_id,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           new BN(priceInternalNear!)
         );

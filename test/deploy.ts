@@ -12,12 +12,10 @@ import type { AccountBalance, AccountState } from 'near-api-js/lib/account';
 
 import type { Account } from 'near-api-js';
 
-import { logger } from './utils';
+import { MAX_GAS_ALLOWED, logger } from './utils';
 import { getConfig } from './config';
 
 import type { AccountContract, MarketContract, Methods, NftContract } from '../src';
-
-const GAS = new BN(300000000000000);
 
 const keyDir = `${homedir()}/.near-credentials`;
 const keyStore = new keyStores.UnencryptedFileSystemKeyStore(keyDir);
@@ -94,7 +92,7 @@ export const getContract = async <T, S extends keyof T & string>(
     await contractAccount.deployContract(wasmData);
 
     if (init) {
-      await contractAccount.functionCall(contractAccount.accountId, init.func, init.args, GAS, new BN(0));
+      await contractAccount.functionCall(contractAccount.accountId, init.func, init.args, MAX_GAS_ALLOWED, new BN(0));
     }
 
     logger.done();

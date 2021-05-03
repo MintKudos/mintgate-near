@@ -3,8 +3,9 @@ import { utils } from 'near-api-js';
 
 import type { Account } from 'near-api-js';
 
-import { addTestCollectible, generateId, getShare, formatNsToMs, logger } from './utils';
+import { MAX_GAS_ALLOWED, addTestCollectible, generateGateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
+import { Panics } from '../src/mg-market';
 
 import type { AccountContract, NftContract, MarketContract, Token, Fraction } from '../src';
 import type { MarketApproveMsg, NftApproveMsg, TokenForSale } from '../src/mg-market';
@@ -25,8 +26,6 @@ const {
   format: { parseNearAmount, formatNearAmount },
 } = utils;
 
-const GAS = new BN(300000000000000);
-
 jest.retryTimes(2);
 
 describe('Market contract', () => {
@@ -45,7 +44,7 @@ describe('Market contract', () => {
       const message: NftApproveMsg = { min_price: '5' };
       const newTokensIds: string[] = [];
 
-      const gateId = await generateId();
+      const gateId = await generateGateId();
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
       for (let i = 0; i < numberOfTokensToAdd; i += 1) {
@@ -60,7 +59,7 @@ describe('Market contract', () => {
               account_id: merchant.contract.contractId,
               msg: JSON.stringify(message),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         )
       );
@@ -79,7 +78,7 @@ describe('Market contract', () => {
     const newTokensIds: string[] = [];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
@@ -95,7 +94,7 @@ describe('Market contract', () => {
               account_id: merchant.contract.contractId,
               msg: JSON.stringify({ min_price: '5' }),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         )
       );
@@ -107,14 +106,14 @@ describe('Market contract', () => {
       };
     });
 
-    it(`should return a list of tokens for sale by ${by}`, async () => {
+    it(`returns a list of tokens for sale by ${by}`, async () => {
       const tokensForSale = <(TokenForSale & { [key: string]: string })[]>await merchant.contract.get_tokens_for_sale();
       const tokensForSaleBy = await merchant.contract[`get_tokens_by_${by}`]({ [by]: bys[by] });
 
       expect(tokensForSale.filter((token) => token[by] === bys[by])).toEqual(tokensForSaleBy);
     });
 
-    it('should return an empty array if no tokens found', async () => {
+    it('returns an empty array if no tokens found', async () => {
       const nonExistentId = 'non_existent_id';
 
       expect(await merchant.contract[`get_tokens_by_${by}`]({ [by]: nonExistentId })).toEqual([]);
@@ -151,7 +150,7 @@ describe('Market contract', () => {
     let token: Token;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(bob.contract, {
         gate_id: gateId,
         royalty,
@@ -164,7 +163,7 @@ describe('Market contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify(message),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
       token = (await bob.contract.nft_token({ token_id: tokenId }))!;
       expect(token.approvals).not.toEqual({});
@@ -183,10 +182,10 @@ describe('Market contract', () => {
 
       await merchant2.contract.buy_token(
         {
-          nft_id: bob.contractAccount.accountId,
+          nft_contract_id: bob.contractAccount.accountId,
           token_id: tokenId,
         },
-        GAS,
+        MAX_GAS_ALLOWED,
         new BN(priceInternalNear!)
       );
 
@@ -207,7 +206,7 @@ describe('Market contract', () => {
       );
     });
 
-    it("should transfer mintgate's fee to its' wallet", async () => {
+    it("transfers mintgate's fee to its' wallet", async () => {
       const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore);
       const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter);
 
@@ -219,7 +218,7 @@ describe('Market contract', () => {
       expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 5);
     });
 
-    it("should transfer royalty to the creator's wallet", async () => {
+    it("transfers royalty to the creator's wallet", async () => {
       const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore);
       const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter);
 
@@ -231,7 +230,7 @@ describe('Market contract', () => {
       expect(+creatorBalanceBeforeHr + creatorShare).toBeCloseTo(+creatorBalanceAfterHr, 2);
     });
 
-    it("should transfer the remaining amount to the seller's wallet", async () => {
+    it("transfer seller's share to its' wallet", async () => {
       const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore);
       const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter);
 
@@ -243,7 +242,7 @@ describe('Market contract', () => {
       expect(+sellerBalanceBeforeHr + sellerShare).toBeCloseTo(+sellerBalanceAfterHr, 2);
     });
 
-    it("should deduct token's price from buyer's wallet", async () => {
+    it("deducts token's price from buyer's wallet", async () => {
       const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore);
       const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter);
 
@@ -256,11 +255,11 @@ describe('Market contract', () => {
     });
 
     describe('token transfer', () => {
-      it("should associate token with it's new owner", () => {
+      it("associates token with it's new owner", () => {
         expect(token).not.toBeUndefined();
       });
 
-      it('should disassociate token from its previous owner', async () => {
+      it('disassociates token from its previous owner', async () => {
         const [soldToken] = (await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId })).filter(
           ({ token_id }) => token_id === tokenId
         );
@@ -268,20 +267,20 @@ describe('Market contract', () => {
         expect(soldToken).toBeUndefined();
       });
 
-      it("should set token's new owner", async () => {
+      it("sets token's new owner", async () => {
         expect(token.owner_id).toBe(merchant2.accountId);
       });
 
-      it("should update token's modified_at property", async () => {
+      it("updates token's `modified_at` property", async () => {
         expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
 
-      it("should clear token's approvals", () => {
+      it("clears token's approvals", () => {
         expect(token.approvals).toEqual({});
       });
     });
 
-    describe('delist token from the market', () => {
+    describe('delists token from the market', () => {
       let tokensForSale: TokenForSale[];
       let tokensByGateId: TokenForSale[];
       let tokensByPreviousOwnerId: TokenForSale[];
@@ -337,7 +336,7 @@ describe('Market contract', () => {
       let buyerBalanceAfter2: string;
 
       beforeAll(async () => {
-        gateId2 = await generateId();
+        gateId2 = await generateGateId();
         await addTestCollectible(bob.contract, {
           gate_id: gateId2,
           royalty,
@@ -350,7 +349,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         buyerBalanceBefore2 = (await merchant2.account.getAccountBalance()).total;
@@ -366,10 +365,10 @@ describe('Market contract', () => {
 
         await merchant2.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -384,7 +383,7 @@ describe('Market contract', () => {
         ]);
       });
 
-      it("should transfer mintgate's fee to its' wallet", async () => {
+      it("transfers mintgate's fee to its' wallet", async () => {
         const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore2);
         const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter2);
 
@@ -396,7 +395,7 @@ describe('Market contract', () => {
         expect(+mintgateBalanceBeforeHr + mintgateShare).toBeCloseTo(+mintgateBalanceAfterHr, 5);
       });
 
-      it("should transfer money to the seller's (=== creator's) wallet", async () => {
+      it("transfers money to the seller's (=== creator's) wallet", async () => {
         const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore2);
         const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter2);
 
@@ -409,7 +408,7 @@ describe('Market contract', () => {
         expect(+creatorBalanceBeforeHr + creatorShare + sellerShare).toBeCloseTo(+creatorBalanceAfterHr, 5);
       });
 
-      it("should deduct token's price from buyer's wallet", async () => {
+      it("deducts token's price from buyer's wallet", async () => {
         const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore2);
         const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter2);
 
@@ -428,7 +427,7 @@ describe('Market contract', () => {
         const seller = bob;
         const buyer = alice;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await addTestCollectible(creator.contract, {
           gate_id: gateId2,
@@ -443,7 +442,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -461,9 +460,9 @@ describe('Market contract', () => {
           'buy_token',
           {
             token_id: tokenId2,
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -498,7 +497,7 @@ describe('Market contract', () => {
         const seller = alice;
         const buyer = merchant2;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await creator.functionCall(bob.contractAccount.accountId, 'create_collectible', {
           gate_id: gateId2,
@@ -517,7 +516,7 @@ describe('Market contract', () => {
             account_id: creator.accountId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -534,10 +533,10 @@ describe('Market contract', () => {
 
         await buyer.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -578,7 +577,7 @@ describe('Market contract', () => {
         const seller = merchant.contractAccount;
         const buyer = merchant2;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await addTestCollectible(creator.contract, {
           gate_id: gateId2,
@@ -605,7 +604,7 @@ describe('Market contract', () => {
             account_id: seller.accountId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -622,10 +621,10 @@ describe('Market contract', () => {
 
         await buyer.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -666,7 +665,7 @@ describe('Market contract', () => {
         const seller = alice;
         const buyer = merchant.contractAccount;
 
-        const gateId2 = await generateId();
+        const gateId2 = await generateGateId();
 
         await addTestCollectible(creator.contract, {
           gate_id: gateId2,
@@ -680,7 +679,7 @@ describe('Market contract', () => {
             account_id: buyer.accountId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const [
@@ -700,9 +699,9 @@ describe('Market contract', () => {
           'buy_token',
           {
             token_id: tokenId2,
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(priceInternalNear!)
         );
 
@@ -757,7 +756,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify({ min_price: priceInternalNearSmall! }),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         [
@@ -774,10 +773,10 @@ describe('Market contract', () => {
 
         await merchant2.contract.buy_token(
           {
-            nft_id: bob.contractAccount.accountId,
+            nft_contract_id: bob.contractAccount.accountId,
             token_id: tokenId2,
           },
-          GAS,
+          MAX_GAS_ALLOWED,
           new BN(depositInternalNearLarge!)
         );
 
@@ -794,7 +793,7 @@ describe('Market contract', () => {
         ]);
       });
 
-      it("should transfer mintgate's fee to its' wallet", async () => {
+      it("transfers mintgate's fee to its' wallet", async () => {
         const mintgateBalanceBeforeHr = formatNearAmount(mintgateBalanceBefore);
         const mintgateBalanceAfterHr = formatNearAmount(mintgateBalanceAfter);
 
@@ -806,7 +805,7 @@ describe('Market contract', () => {
         expect(+mintgateBalanceBeforeHr + mintgateShare2).toBeCloseTo(+mintgateBalanceAfterHr, 5);
       });
 
-      it("should transfer royalty to the creator's wallet", async () => {
+      it("transfers royalty to the creator's wallet", async () => {
         const creatorBalanceBeforeHr = formatNearAmount(creatorBalanceBefore);
         const creatorBalanceAfterHr = formatNearAmount(creatorBalanceAfter);
 
@@ -818,7 +817,7 @@ describe('Market contract', () => {
         expect(+creatorBalanceBeforeHr + creatorShare2).toBeCloseTo(+creatorBalanceAfterHr, 2);
       });
 
-      it("should transfer the remaining amount to the seller's wallet", async () => {
+      it("transfers seller's share to its' wallet", async () => {
         const sellerBalanceBeforeHr = formatNearAmount(sellerBalanceBefore);
         const sellerBalanceAfterHr = formatNearAmount(sellerBalanceAfter);
 
@@ -830,7 +829,7 @@ describe('Market contract', () => {
         expect(+sellerBalanceBeforeHr + sellerShare2).toBeCloseTo(+sellerBalanceAfterHr, 2);
       });
 
-      it("should deduct deposit from buyer's wallet", async () => {
+      it("deducts deposit from buyer's wallet", async () => {
         const buyerBalanceBeforeHr = formatNearAmount(buyerBalanceBefore);
         const buyerBalanceAfterHr = formatNearAmount(buyerBalanceAfter);
 
@@ -845,7 +844,7 @@ describe('Market contract', () => {
     });
 
     describe('errors', () => {
-      it('should throw when the buyer and the seller are the same person', async () => {
+      it('throws if buyer and seller are the same person', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
         const approveMessage: MarketApproveMsg = {
           min_price: '5',
@@ -859,7 +858,7 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(approveMessage),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         await expect(
@@ -867,41 +866,48 @@ describe('Market contract', () => {
             merchant.contract.contractId,
             'buy_token',
             {
-              nft_id: bob.contractAccount.accountId,
+              nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId2,
             },
-            GAS,
+            MAX_GAS_ALLOWED,
             new BN(priceInternalNear!)
           )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"BuyOwnTokenNotAllowed","msg":"Buyer cannot buy own token"}',
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.BuyOwnTokenNotAllowed],
+              msg: 'Buyer cannot buy own token',
+            }),
           })
         );
       });
 
-      it('should throw on buying not approved token', async () => {
+      it('throws on buying not approved token', async () => {
         const tokenId3 = await alice.contract.claim_token({ gate_id: gateId });
 
         await expect(
           merchant2.contract.buy_token(
             {
-              nft_id: bob.contractAccount.accountId,
+              nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId3,
             },
-            GAS,
+            MAX_GAS_ALLOWED,
             new BN(priceInternalNear!)
           )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenKeyNotFound","token_key":["${bob.contractAccount.accountId}","${tokenId3}"],"msg":"Token Key \`${bob.contractAccount.accountId}:U64(${tokenId3})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.TokenKeyNotFound],
+              token_key: [bob.contractAccount.accountId, tokenId3],
+              msg: `Token Key \`${bob.contractAccount.accountId}:U64(${tokenId3})\` was not found`,
+            }),
           })
         );
       });
 
-      it('should throw when not enough deposit provided', async () => {
+      it('throws if not enough deposit provided', async () => {
         const tokenId4 = await alice.contract.claim_token({ gate_id: gateId });
         const notEnoughDeposit = new BN(priceInternalNear!).sub(new BN(1));
 
@@ -911,22 +917,25 @@ describe('Market contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         await expect(
           merchant2.contract.buy_token(
             {
-              nft_id: bob.contractAccount.accountId,
+              nft_contract_id: bob.contractAccount.accountId,
               token_id: tokenId4,
             },
-            GAS,
+            MAX_GAS_ALLOWED,
             notEnoughDeposit
           )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"NotEnoughDepositToBuyToken","msg":"Not enough deposit to cover token minimum price"}',
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.NotEnoughDepositToBuyToken],
+              msg: 'Not enough deposit to cover token minimum price',
+            }),
           })
         );
       });
@@ -946,7 +955,7 @@ describe('Market contract', () => {
     let tokensByCreatorId: TokenForSale[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       const message: MarketApproveMsg = {
         min_price: minPrice,
         gate_id: gateId,
@@ -972,19 +981,19 @@ describe('Market contract', () => {
       ]);
     });
 
-    test('that market lists the token as for sale', async () => {
+    test('that market lists token as for sale', async () => {
       expect(tokensForSale).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
 
-    test('that market lists the token as for sale by gate id', async () => {
+    test('that market lists token as for sale by gate id', async () => {
       expect(tokensByGateId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
 
-    test('that market lists the token as for sale by owner id', async () => {
+    test('that market lists token as for sale by owner id', async () => {
       expect(tokensByOwnerId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
 
-    test('that market lists the token as for sale by creator id', async () => {
+    test('that market lists token as for sale by creator id', async () => {
       expect(tokensByCreatorId).toContainEqual(expect.objectContaining({ token_id: tokenId }));
     });
 
@@ -1015,7 +1024,7 @@ describe('Market contract', () => {
     let tokenId: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(bob.contract, {
         gate_id: gateId,
       });
@@ -1027,7 +1036,7 @@ describe('Market contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify({ min_price: '5' }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       await alice.contractAccount.functionCall(merchant.contract.contractId, 'nft_on_revoke', { token_id: tokenId });
@@ -1062,7 +1071,7 @@ describe('Market contract', () => {
     });
 
     describe('errors', () => {
-      it('should throw when revoking not approved token', async () => {
+      it('throws when revoking not approved token', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
 
         await expect(
@@ -1070,7 +1079,11 @@ describe('Market contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenKeyNotFound","token_key":["${bob.contractAccount.accountId}","${tokenId2}"],"msg":"Token Key \`${bob.contractAccount.accountId}:U64(${tokenId2})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panics[Panics.TokenKeyNotFound],
+              token_key: [bob.contractAccount.accountId, tokenId2],
+              msg: `Token Key \`${bob.contractAccount.accountId}:U64(${tokenId2})\` was not found`,
+            }),
           })
         );
       });
@@ -1091,7 +1104,7 @@ describe('Market contract', () => {
     beforeAll(async () => {
       const numberOfTokensToAdd = 5;
 
-      gateId = await generateId();
+      gateId = await generateGateId();
       const message: MarketApproveMsg = {
         min_price: minPrice,
         gate_id: gateId,
@@ -1111,7 +1124,7 @@ describe('Market contract', () => {
           tokens: tokensIds.map((tokenId) => [tokenId, message]),
           owner_id: bob.accountId,
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       [tokensForSale, tokensByGateId, tokensByOwnerId, tokensByCreatorId] = await Promise.all([

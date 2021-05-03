@@ -4,14 +4,16 @@ import BN from 'bn.js';
 import type { Account } from 'near-api-js';
 
 import {
+  MAX_GAS_ALLOWED,
   addTestCollectible,
-  generateId,
+  generateGateId,
   isWithinLastMs,
   formatNsToMs,
   logger,
   getShare,
   validGateIdRegEx,
 } from './utils';
+import { CorePanics, Panic } from '../src/mg-nft';
 import { contractMetadata, MINTGATE_FEE, royalty as royaltySetting } from './initialData';
 
 import type { NftApproveMsg, Payout } from '../src/mg-nft';
@@ -29,8 +31,6 @@ declare global {
   }
 }
 
-const GAS = new BN(300000000000000);
-
 jest.retryTimes(2);
 
 describe('Nft contract', () => {
@@ -46,29 +46,33 @@ describe('Nft contract', () => {
     logger.title(`${expect.getState().currentTestName}`);
   });
 
-  test('that test accounts are different', async () => {
-    expect(alice.accountId).not.toBe(bob.accountId);
-  });
-
   describe('create_collectible', () => {
     let gateId: string;
     let title: string;
     let description: string;
     let supply: number;
     let royalty: Fraction;
+    let media: string;
+    let media_hash: string;
+    let reference: string;
+    let reference_hash: string;
 
     let collectible: Collectible | null;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       title = 'Test title';
       description = 'Test description';
-      supply = 100;
+      supply = 65535;
       royalty = {
         num: 25,
         den: 100,
       };
+      media = 'Test media';
+      media_hash = 'Test media hash';
+      reference = 'Test reference';
+      reference_hash = 'Test reference hash';
 
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
@@ -76,18 +80,22 @@ describe('Nft contract', () => {
         description,
         supply,
         royalty,
+        media,
+        media_hash,
+        reference,
+        reference_hash,
       });
 
       collectible = await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
     });
 
-    it("should make a new collectible available through it's id", () => {
+    it("makes a new collectible available through it's id", () => {
       logger.data('Created collectible', collectible);
 
       expect(collectible).not.toBeUndefined();
     });
 
-    it('should create collectible with provided data', async () => {
+    it('creates collectible with provided data', async () => {
       const providedData = {
         current_supply: supply,
         royalty,
@@ -98,11 +106,15 @@ describe('Nft contract', () => {
       expect(collectible).toMatchObject(providedData);
     });
 
-    it("should set token's metadata for the created collectible", async () => {
+    it("sets token's metadata for the created collectible", async () => {
       const providedMetadata = {
         title,
         description,
         copies: supply,
+        media,
+        media_hash,
+        reference,
+        reference_hash,
       };
 
       logger.data('Metadata provided', providedMetadata);
@@ -110,7 +122,7 @@ describe('Nft contract', () => {
       expect(collectible!.metadata).toMatchObject(providedMetadata);
     });
 
-    it("should associate a new collectible with it's creator", async () => {
+    it("associates a new collectible with it's creator", async () => {
       const collectiblesOfAlice = await alice.contract.get_collectibles_by_creator({ creator_id: alice.accountId });
 
       const newCollectibles = collectiblesOfAlice.filter(({ gate_id }) => gate_id === gateId);
@@ -120,36 +132,40 @@ describe('Nft contract', () => {
       expect(newCollectibles.length).toBe(1);
     });
 
-    it("should set a correct creator's id", async () => {
+    it("sets a correct creator's id", async () => {
       logger.data("Creator's id of the new collectible.", collectible!.creator_id);
 
       expect(collectible!.creator_id).toBe(alice.accountId);
     });
 
-    it('should set minted tokens for a new collectible to an empty array', async () => {
+    it('sets minted tokens for a new collectible to an empty array', async () => {
       logger.data('Minted tokens of the new collectible.', collectible!.minted_tokens);
 
       expect(collectible!.minted_tokens).toEqual([]);
     });
 
     describe('errors', () => {
-      it('should throw if provided gate id already exists', async () => {
+      it('throws if gate id already exists', async () => {
         logger.data('Attempting to create collectible with `gateId`', gateId);
 
         await expect(addTestCollectible(alice.contract, { gate_id: gateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdAlreadyExists","gate_id":"${gateId}","msg":"Gate ID \`${gateId}\` already exists"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdAlreadyExists],
+              gate_id: gateId,
+              msg: `Gate ID \`${gateId}\` already exists`,
+            }),
           })
         );
       });
 
-      it('should throw if supply is zero', async () => {
+      it('throws if supply is zero', async () => {
         const supplyInvalid = 0;
 
         logger.data('Attempting to create collectible with supply', supplyInvalid);
 
-        const gateIdNew = await generateId();
+        const gateIdNew = await generateGateId();
 
         await expect(
           addTestCollectible(alice.contract, {
@@ -159,27 +175,45 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"ZeroSupplyNotAllowed","gate_id":"${gateIdNew}","msg":"Gate ID \`${gateIdNew}\` must have a positive supply"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.ZeroSupplyNotAllowed],
+              gate_id: gateIdNew,
+              msg: `Gate ID \`${gateIdNew}\` must have a positive supply`,
+            }),
           })
         );
       });
 
-      it('should throw if supply is negative number', async () => {
-        const supplyInvalid = -1;
+      it("throws if supply exceeds maximum of rust's u16", async () => {
+        const supplyInvalid = 65536;
+        const gateIdNew = await generateGateId();
+
         logger.data('Attempting to create collectible with supply', supplyInvalid);
 
         await expect(
           addTestCollectible(alice.contract, {
-            gate_id: await generateId(),
+            gate_id: gateIdNew,
             supply: supplyInvalid,
           })
         ).rejects.toThrow(`invalid value: integer &#x60;${supplyInvalid}&#x60;, expected u16`);
       });
 
-      it('should throw if royalty is less than minimum', async () => {
+      it('throws if supply is negative number', async () => {
+        const supplyInvalid = -1;
+        logger.data('Attempting to create collectible with supply', supplyInvalid);
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: await generateGateId(),
+            supply: supplyInvalid,
+          })
+        ).rejects.toThrow(`invalid value: integer &#x60;${supplyInvalid}&#x60;, expected u16`);
+      });
+
+      it('throws if royalty is less than minimum', async () => {
         const num = royaltySetting.min_royalty.num - 1;
         const { den } = royaltySetting.min_royalty;
-        const gateIdNew = await generateId();
+        const gateIdNew = await generateGateId();
 
         logger.data('Attempting to create collectible with `royalty`', {
           num,
@@ -196,16 +230,24 @@ describe('Nft contract', () => {
           })
         ).rejects.toThrow(
           expect.objectContaining({
-            panic_msg: `{"err":"RoyaltyMinThanAllowed","royalty":{"num":${num},"den":${den}},"gate_id":"${gateIdNew}","msg":"Royalty \`${num}/${den}\` of \`${gateIdNew}\` is less than min"}`,
             type: 'GuestPanic',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.RoyaltyMinThanAllowed],
+              royalty: {
+                num,
+                den,
+              },
+              gate_id: gateIdNew,
+              msg: `Royalty \`${num}/${den}\` of \`${gateIdNew}\` is less than min`,
+            }),
           })
         );
       });
 
-      it('should throw if royalty is greater than maximum', async () => {
+      it('throws if royalty is greater than maximum', async () => {
         const num = royaltySetting.max_royalty.num + 1;
         const { den } = royaltySetting.max_royalty;
-        const gateIdNew = await generateId();
+        const gateIdNew = await generateGateId();
 
         logger.data('Attempting to create collectible with `royalty`', {
           num,
@@ -222,13 +264,21 @@ describe('Nft contract', () => {
           })
         ).rejects.toThrow(
           expect.objectContaining({
-            panic_msg: `{"err":"RoyaltyMaxThanAllowed","royalty":{"num":${num},"den":${den}},"gate_id":"${gateIdNew}","msg":"Royalty \`${num}/${den}\` of \`${gateIdNew}\` is greater than max"}`,
             type: 'GuestPanic',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.RoyaltyMaxThanAllowed],
+              royalty: {
+                num,
+                den,
+              },
+              gate_id: gateIdNew,
+              msg: `Royalty \`${num}/${den}\` of \`${gateIdNew}\` is greater than max`,
+            }),
           })
         );
       });
 
-      it('should throw if provided with royalty with zero denominator', async () => {
+      it('throws if royalty has zero denominator', async () => {
         await expect(
           addTestCollectible(alice.contract, {
             gate_id: gateId,
@@ -240,12 +290,15 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"ZeroDenominatorFraction","msg":"Denominator must be a positive number, but was 0"}`,
+            panic_msg: JSON.stringify({
+              err: CorePanics[CorePanics.ZeroDenominatorFraction],
+              msg: 'Denominator must be a positive number, but was 0',
+            }),
           })
         );
       });
 
-      it('should throw if provided with too large royalty', async () => {
+      it('throws if royalty is too large', async () => {
         const num = MINTGATE_FEE.den - MINTGATE_FEE.num + 1;
 
         await expect(
@@ -259,7 +312,15 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"RoyaltyTooLarge","royalty":{"num":${num},"den":${MINTGATE_FEE.den}},"mintgate_fee":{"num":${MINTGATE_FEE.num},"den":${MINTGATE_FEE.den}},"msg":"Royalty \`${num}/${MINTGATE_FEE.den}\` is too large for the given NFT fee \`${MINTGATE_FEE.num}/${MINTGATE_FEE.den}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.RoyaltyTooLarge],
+              royalty: {
+                num,
+                den: MINTGATE_FEE.den,
+              },
+              mintgate_fee: MINTGATE_FEE,
+              msg: `Royalty \`${num}/${MINTGATE_FEE.den}\` is too large for the given NFT fee \`${MINTGATE_FEE.num}/${MINTGATE_FEE.den}\``,
+            }),
           })
         );
       });
@@ -273,7 +334,7 @@ describe('Nft contract', () => {
         ${'Ж'}                                 | ${'contains non latin chars'}
         ${'abcdefghijklmnopqrstuvwxyzABCDEFG'} | ${'is longer than 32 chars'}
         ${''}                                  | ${'is an empty string'}
-      `('should throw if `gate_id` $description (invalid)', async ({ invalidGateId }) => {
+      `('throws if `gate_id` is invalid ($description)', async ({ invalidGateId }) => {
         expect(invalidGateId.match(validGateIdRegEx)).toBeNull();
         await expect(addTestCollectible(alice.contract, { gate_id: invalidGateId })).rejects.toThrow(
           expect.objectContaining({
@@ -285,11 +346,10 @@ describe('Nft contract', () => {
         );
       });
 
-      it('should throw if provided with title longer than 140 symbols', async () => {
-        const gateIdNew = await generateId();
-        const titleInvalid =
-          "Acceptance doesn't beautifully realize any self — but the power is what preaches. Our magical definition for fear is to visualize others lie.";
-        expect(titleInvalid.length).toBeGreaterThan(140);
+      it('throws if title is longer than 140 symbols', async () => {
+        const maxCharacters = 140;
+        const gateIdNew = await generateGateId();
+        const titleInvalid = 't'.repeat(maxCharacters + 1);
 
         await expect(
           addTestCollectible(alice.contract, {
@@ -299,7 +359,51 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"InvalidArgument","gate_id":"${gateIdNew}","reason":"Title exceeds 140 chars","msg":"Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds 140 chars"}`,
+            // 2
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.InvalidArgument],
+              gate_id: gateIdNew,
+              reason: `Title exceeds ${maxCharacters} chars`,
+              msg: `Invalid argument for gate ID \`${gateIdNew}\`: Title exceeds ${maxCharacters} chars`,
+            }),
+          })
+        );
+      });
+
+      it.each`
+        field               | maxCharacters
+        ${'description'}    | ${1024}
+        ${'media'}          | ${1024}
+        ${'media_hash'}     | ${1024}
+        ${'reference'}      | ${1024}
+        ${'reference_hash'} | ${1024}
+      `('throws if $field is longer than $maxCharacters', async ({ field, maxCharacters }) => {
+        const invalidString = 'a'.repeat(maxCharacters + 1);
+        const gateIdNew = await generateGateId();
+
+        try {
+          await addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            [field]: invalidString,
+          });
+        } catch (e) {
+          logger.data('', e);
+        }
+
+        await expect(
+          addTestCollectible(alice.contract, {
+            gate_id: gateIdNew,
+            [field]: invalidString,
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.InvalidArgument],
+              gate_id: gateIdNew,
+              reason: `\`${field}\` exceeds ${maxCharacters} chars`,
+              msg: `Invalid argument for gate ID \`${gateIdNew}\`: \`${field}\` exceeds ${maxCharacters} chars`,
+            }),
           })
         );
       });
@@ -307,8 +411,8 @@ describe('Nft contract', () => {
   });
 
   describe('get_collectible_by_gate_id', () => {
-    it('should return collectible', async () => {
-      const gateId = await generateId();
+    it('returns collectible', async () => {
+      const gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       const collectible = await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
@@ -318,8 +422,8 @@ describe('Nft contract', () => {
       expect(collectible).toMatchObject({ gate_id: gateId });
     });
 
-    it('should return null if no collectible found', async () => {
-      const nonExistentId = await generateId();
+    it('returns null if no collectible found', async () => {
+      const nonExistentId = await generateGateId();
       const nonExistentCollectible = await alice.contract.get_collectible_by_gate_id({ gate_id: nonExistentId });
 
       expect(nonExistentCollectible).toBeNull();
@@ -334,7 +438,7 @@ describe('Nft contract', () => {
     let collectibles: Collectible[];
 
     beforeAll(async () => {
-      const gateId = await generateId();
+      const gateId = await generateGateId();
 
       newGateIds = Array.from(new Array(numberOfCollectiblesToAdd), (el, i) => `${gateId}${i}`);
 
@@ -345,7 +449,7 @@ describe('Nft contract', () => {
       logger.data('Created collectibles for account', alice.accountId);
     });
 
-    it('should return only collectibles by specified creator', () => {
+    it('returns only collectibles by specified creator', () => {
       const uniqueCreatorIds = [...new Set(collectibles.map(({ creator_id }) => creator_id))];
 
       logger.data("Unique creators' ids", uniqueCreatorIds);
@@ -353,7 +457,7 @@ describe('Nft contract', () => {
       expect(uniqueCreatorIds).toEqual([alice.accountId]);
     });
 
-    it('should return all collectibles by a specified creator', async () => {
+    it('returns all collectibles by specified creator', async () => {
       logger.data('Collectibles before', collectiblesInitial.length);
       logger.data('Collectibles added', numberOfCollectiblesToAdd);
       logger.data('Total number of collectibles', collectibles.length);
@@ -364,7 +468,7 @@ describe('Nft contract', () => {
       ).toBe(true);
     });
 
-    it('should return empty array if no collectibles found', async () => {
+    it('returns empty array if no collectibles found', async () => {
       const collectiblesNonExistent = await alice.contract.get_collectibles_by_creator({
         creator_id: nonExistentAccountId,
       });
@@ -376,8 +480,8 @@ describe('Nft contract', () => {
   });
 
   describe('delete_collectible', () => {
-    it('should delete a collectible if called by creator', async () => {
-      const gateId = await generateId();
+    it('deletes a collectible if called by creator', async () => {
+      const gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
@@ -392,8 +496,8 @@ describe('Nft contract', () => {
       );
     });
 
-    it('should delete a collectible if called by admin', async () => {
-      const gateId = await generateId();
+    it('deletes a collectible if called by admin', async () => {
+      const gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
       expect(await alice.contract.get_collectible_by_gate_id({ gate_id: gateId })).not.toBeNull();
@@ -408,19 +512,23 @@ describe('Nft contract', () => {
     });
 
     describe('errors', () => {
-      it('should throw if provided with nonexistent gate id', async () => {
+      it("throws if gate id doesn't exist", async () => {
         const nonExistentGateId = 'non-existent-gate-id';
 
         await expect(bob.contract.delete_collectible({ gate_id: nonExistentGateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentGateId}","msg":"Gate ID \`${nonExistentGateId}\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdNotFound],
+              gate_id: nonExistentGateId,
+              msg: `Gate ID \`${nonExistentGateId}\` was not found`,
+            }),
           })
         );
       });
 
-      it('should throw if tokens were minted for the collectible', async () => {
-        const gateId = await generateId();
+      it('throws if collectible has tokens', async () => {
+        const gateId = await generateGateId();
 
         await addTestCollectible(alice.contract, { gate_id: gateId });
         await alice.contract.claim_token({ gate_id: gateId });
@@ -428,20 +536,28 @@ describe('Nft contract', () => {
         await expect(alice.contract.delete_collectible({ gate_id: gateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdHasTokens","gate_id":"${gateId}","msg":"Gate ID \`${gateId}\` has already some claimed tokens"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdHasTokens],
+              gate_id: gateId,
+              msg: `Gate ID \`${gateId}\` has already some claimed tokens`,
+            }),
           })
         );
       });
 
-      it('should throw if caller is not authorized to delete (neither creator nor admin)', async () => {
-        const gateId = await generateId();
+      it('throws if caller is neither creator nor admin', async () => {
+        const gateId = await generateGateId();
 
         await addTestCollectible(alice.contract, { gate_id: gateId });
 
         await expect(bob.contract.delete_collectible({ gate_id: gateId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"NotAuthorized","gate_id":"${gateId}","msg":"Unable to delete gate ID \`${gateId}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.NotAuthorized],
+              gate_id: gateId,
+              msg: `Unable to delete gate ID \`${gateId}\``,
+            }),
           })
         );
       });
@@ -455,7 +571,7 @@ describe('Nft contract', () => {
     let initialTokensOfBob: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
         supply: initialSupply,
@@ -480,7 +596,7 @@ describe('Nft contract', () => {
         logger.data('Claimed token', token);
       });
 
-      it('should create only one token for an owner', async () => {
+      it('creates only one token for an owner', async () => {
         logger.data('Tokens before', initialTokensOfBob.length);
         logger.data('Tokens added', 1);
         logger.data('Total number of tokens after', tokensOfBob.length);
@@ -488,37 +604,37 @@ describe('Nft contract', () => {
         expect(tokensOfBob.length).toBe(initialTokensOfBob.length + 1);
       });
 
-      it('should set correct owner of the token', async () => {
+      it('sets correct owner of the token', async () => {
         logger.data('Owner of the token', token!.owner_id);
 
         expect(token!.owner_id).toBe(bob.accountId);
       });
 
-      it('should set correct collectible of the token', async () => {
+      it('sets correct collectible of the token', async () => {
         logger.data("Token's gate id", token!.gate_id);
 
         expect(token!.gate_id).toBe(gateId);
       });
 
-      it("should set now as time of token's creation", async () => {
+      it("sets now as time of token's creation", async () => {
         logger.data('Token created at', new Date(formatNsToMs(token!.created_at)));
 
         expect(isWithinLastMs(formatNsToMs(token!.created_at), 1000 * 60)).toBe(true);
       });
 
-      it("should set time of the token's modification equal to it's creation", async () => {
+      it("sets time of the token's modification equal to it's creation", async () => {
         logger.data('Token modified at', new Date(formatNsToMs(token!.modified_at)));
 
         expect(formatNsToMs(token!.created_at)).toBe(formatNsToMs(token!.modified_at));
       });
 
-      it('should set correct approvals for the new token', async () => {
+      it('sets correct approvals for the new token', async () => {
         expect(token!.approvals).toEqual({});
         expect(token!.approval_counter).toBe('0');
       });
     });
 
-    it('should decrement current supply of the collectible', async () => {
+    it('decrements current supply of the collectible', async () => {
       logger.data("Collectible's initial supply", initialSupply);
 
       const { current_supply } = (await alice.contract.get_collectible_by_gate_id({ gate_id: gateId }))!;
@@ -529,7 +645,7 @@ describe('Nft contract', () => {
     });
 
     describe('errors', () => {
-      it('should throw an error if no gate id found', async () => {
+      it("throws if gate id doesn't exist", async () => {
         const nonExistentId = '1111A2222B33';
 
         logger.data('Attempting to claim a token for gate id', nonExistentId);
@@ -537,13 +653,17 @@ describe('Nft contract', () => {
         await expect(alice.contract.claim_token({ gate_id: nonExistentId })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdNotFound","gate_id":"${nonExistentId}","msg":"Gate ID \`${nonExistentId}\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdNotFound],
+              gate_id: nonExistentId,
+              msg: `Gate ID \`${nonExistentId}\` was not found`,
+            }),
           })
         );
       });
 
-      it('should throw an error if all tokens have been claimed', async () => {
-        const gateIdNoSupply = await generateId();
+      it('throws if all tokens are claimed', async () => {
+        const gateIdNoSupply = await generateGateId();
 
         await addTestCollectible(alice.contract, {
           gate_id: gateIdNoSupply,
@@ -557,7 +677,11 @@ describe('Nft contract', () => {
         await expect(alice.contract.claim_token({ gate_id: gateIdNoSupply })).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"GateIdExhausted","gate_id":"${gateIdNoSupply}","msg":"Tokens for gate id \`${gateIdNoSupply}\` have already been claimed"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.GateIdExhausted],
+              gate_id: gateIdNoSupply,
+              msg: `Tokens for gate id \`${gateIdNoSupply}\` have already been claimed`,
+            }),
           })
         );
       });
@@ -572,7 +696,7 @@ describe('Nft contract', () => {
     let collectible: Collectible;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId, supply: initialSupply });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
@@ -583,23 +707,23 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify({ min_price: '5' }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
-      await alice.contract.burn_token({ token_id: tokenId }, GAS);
+      await alice.contract.burn_token({ token_id: tokenId }, MAX_GAS_ALLOWED);
 
       collectible = <Collectible>await alice.contract.get_collectible_by_gate_id({ gate_id: gateId });
     });
 
-    it('should remove token from the contract', async () => {
+    it('removes token from the contract', async () => {
       expect(await alice.contract.nft_token({ token_id: tokenId })).toBeNull();
     });
 
-    it('should remove token from the collectible', async () => {
+    it('removes token from the collectible', async () => {
       expect(collectible.minted_tokens).not.toContain(tokenId);
     });
 
-    it("should decrement `copies` on collectible's metadata", async () => {
+    it("decrements `copies` on collectible's metadata", async () => {
       expect(+collectible.metadata.copies!).toBe(+initialSupply - 1);
     });
 
@@ -623,24 +747,33 @@ describe('Nft contract', () => {
     });
 
     describe('errors', () => {
-      it('should throw if the initiator does not own the token', async () => {
+      it('throws if the initiator does not own the token', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
 
-        await expect(bob.contract.burn_token({ token_id: tokenId2 }, GAS)).rejects.toThrow(
+        await expect(bob.contract.burn_token({ token_id: tokenId2 }, MAX_GAS_ALLOWED)).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${bob.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${bob.accountId}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotOwnedBy],
+              token_id: tokenId2,
+              owner_id: bob.accountId,
+              msg: `Token ID \`U64(${tokenId2})\` does not belong to account \`${bob.accountId}\``,
+            }),
           })
         );
       });
 
-      it('should throw if provided with nonexistent `token_id`', async () => {
+      it('throws if for nonexistent `token_id`', async () => {
         const nonexistentTokenId = '11212112';
 
-        await expect(bob.contract.burn_token({ token_id: nonexistentTokenId }, GAS)).rejects.toThrow(
+        await expect(bob.contract.burn_token({ token_id: nonexistentTokenId }, MAX_GAS_ALLOWED)).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}","msg":"Token ID \`U64(${nonexistentTokenId})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotFound],
+              token_id: nonexistentTokenId,
+              msg: `Token ID \`U64(${nonexistentTokenId})\` was not found`,
+            }),
           })
         );
       });
@@ -655,7 +788,7 @@ describe('Nft contract', () => {
     let tokensOfAliceAfter: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
@@ -671,13 +804,13 @@ describe('Nft contract', () => {
       logger.data('Tokens claimed', numberOfTokensToClaim);
     });
 
-    it('should return all tokens claimed by a specific user', async () => {
+    it('returns all tokens claimed by a specific user', async () => {
       logger.data('Total number of tokens after', tokensOfAliceAfter.length);
 
       expect(tokensOfAliceAfter.length).toBe(tokensOfAliceBefore.length + numberOfTokensToClaim);
     });
 
-    it('should return only tokens of a specific owner', async () => {
+    it('returns only tokens of a specific owner', async () => {
       const uniqueOwnerIds = [...new Set(tokensOfAliceAfter.map(({ owner_id }) => owner_id))];
 
       logger.data("Unique owners' ids", uniqueOwnerIds);
@@ -685,7 +818,7 @@ describe('Nft contract', () => {
       expect(uniqueOwnerIds).toEqual([alice.accountId]);
     });
 
-    it('should return an empty array if a contract has no tokens', async () => {
+    it("returns an empty array if user doesn't own tokens tokens", async () => {
       const tokensOfBob = await bob.contract.get_tokens_by_owner({ owner_id: bob.accountId });
 
       await Promise.all(
@@ -715,8 +848,8 @@ describe('Nft contract', () => {
     let tokensOfAliceGate1: Token[];
 
     beforeAll(async () => {
-      gateId1 = await generateId();
-      gateId2 = await generateId();
+      gateId1 = await generateGateId();
+      gateId2 = await generateGateId();
 
       await Promise.all([
         addTestCollectible(alice.contract, { gate_id: gateId1 }),
@@ -736,13 +869,13 @@ describe('Nft contract', () => {
       });
     });
 
-    it('should return all tokens claimed by a specific user for a specific collectible', async () => {
+    it('returns all tokens of a specific user for a specific collectible', async () => {
       logger.data('Tokens returned for a specific user for a specific collectible', tokensOfAliceGate1.length);
 
       expect(tokensOfAliceGate1.length).toBe(numberOfTokensToClaim);
     });
 
-    it('should return only tokens of a specific owner', async () => {
+    it('returns only tokens of a specific owner', async () => {
       const uniqueOwnerIds = [...new Set(tokensOfAliceGate1.map(({ owner_id }) => owner_id))];
 
       logger.data("Unique owners' ids", uniqueOwnerIds);
@@ -750,7 +883,7 @@ describe('Nft contract', () => {
       expect(uniqueOwnerIds).toEqual([alice.accountId]);
     });
 
-    it('should return only tokens of a specific collectible', async () => {
+    it('returns only tokens of a specific collectible', async () => {
       const uniqueCollectibleIds = [...new Set(tokensOfAliceGate1.map(({ gate_id }) => gate_id))];
 
       logger.data("Unique collectibles' ids", uniqueCollectibleIds);
@@ -758,8 +891,8 @@ describe('Nft contract', () => {
       expect(uniqueCollectibleIds).toEqual([gateId1]);
     });
 
-    it('should return an empty array if an owner has no tokens of a specific collectible', async () => {
-      const gateId3 = await generateId();
+    it('returns an empty array if the user has no tokens of the collectible', async () => {
+      const gateId3 = await generateGateId();
 
       const tokensOfAliceGate3 = await alice.contract.get_tokens_by_owner_and_gate_id({
         gate_id: gateId3,
@@ -782,7 +915,7 @@ describe('Nft contract', () => {
     beforeAll(async () => {
       const numberOfTokensToApprove = 5;
 
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokensIds = await Promise.all(
@@ -794,17 +927,17 @@ describe('Nft contract', () => {
           tokens: tokensIds.map((id) => [id, randomMinPrice]),
           account_id: merchant.contract.contractId,
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       tokens = await Promise.all(tokensIds.map((id) => bob.contract.nft_token({ token_id: id })));
     });
 
-    it('should increment approval counter of tokens', () => {
+    it('increments approval counter of tokens', () => {
       expect(tokens.every((token) => token && token.approval_counter === '1')).toBe(true);
     });
 
-    it("should update tokens' approvals", () => {
+    it("updates tokens' approvals", () => {
       expect(tokens.map((token) => token!.approvals)).toEqual(
         tokens.map(() => ({
           [merchant.contract.contractId]: {
@@ -864,7 +997,7 @@ describe('Nft contract', () => {
               ],
               account_id: merchant.contract.contractId,
             },
-            GAS
+            MAX_GAS_ALLOWED
           );
         } catch (e) {
           error = e;
@@ -876,11 +1009,11 @@ describe('Nft contract', () => {
         ]);
       });
 
-      it('should increment approval counter of valid tokens', () => {
+      it('increments approval counter of valid tokens', () => {
         expect([validToken, validToken2].every((token) => token && token.approval_counter === '1')).toBe(true);
       });
 
-      it("should update valid tokens' approvals", () => {
+      it("updates valid tokens' approvals", () => {
         expect([validToken, validToken2].map((token) => token!.approvals)).toEqual(
           [validToken, validToken2].map(() => ({
             [merchant.contract.contractId]: {
@@ -891,11 +1024,26 @@ describe('Nft contract', () => {
         );
       });
 
-      it('should throw an error with rejected tokens', () => {
+      it('throws an error with rejected tokens', () => {
         expect(error).toEqual(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"Errors","panics":[["${nonexistentTokenId}",{"err":"TokenIdNotFound","token_id":"${nonexistentTokenId}"}],["${alreadyApprovedTokenId}",{"err":"OneApprovalAllowed"}],["${foreignTokenId}",{"err":"TokenIdNotOwnedBy","token_id":"${foreignTokenId}","owner_id":"${alice.accountId}"}]],"msg":"3 error(s) detected, see \`panics\` fields for a full list of errors"}`,
+            panic_msg: JSON.stringify({
+              err: 'Errors',
+              panics: [
+                [nonexistentTokenId, { err: Panic[Panic.TokenIdNotFound], token_id: nonexistentTokenId }],
+                [alreadyApprovedTokenId, { err: Panic[Panic.OneApprovalAllowed] }],
+                [
+                  foreignTokenId,
+                  {
+                    err: Panic[Panic.TokenIdNotOwnedBy],
+                    token_id: foreignTokenId,
+                    owner_id: alice.accountId,
+                  },
+                ],
+              ],
+              msg: `3 error(s) detected, see \`panics\` fields for a full list of errors`,
+            }),
           })
         );
       });
@@ -925,11 +1073,41 @@ describe('Nft contract', () => {
         expect(tokensIdsForSale).not.toContain(nonexistentTokenId);
         expect(tokensIdsForSale).not.toContain(foreignTokenId);
       });
+
+      it('throws if number of tokens to approve exceeds 10', async () => {
+        const numberOfTokensToApprove = 11;
+
+        const tokenId = await alice.contract.claim_token({ gate_id: gateId });
+        const tokensIdsNew = await Promise.all(
+          Array.from({ length: numberOfTokensToApprove - 1 }, () => alice.contract.claim_token({ gate_id: gateId }))
+        );
+
+        tokensIdsNew.push(tokenId);
+        expect(tokensIdsNew.length).toBe(numberOfTokensToApprove);
+
+        await expect(
+          alice.contract.batch_approve(
+            {
+              tokens: tokensIdsNew.map((id) => [id, randomMinPrice]),
+              account_id: merchant.contract.contractId,
+            },
+            MAX_GAS_ALLOWED
+          )
+        ).rejects.toThrow(
+          expect.objectContaining({
+            type: 'GuestPanic',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.ExceedTokensToBatchApprove],
+              msg: 'At most 10 tokens are allowed to approve in batch',
+            }),
+          })
+        );
+      });
     });
   });
 
   describe('nft_metadata', () => {
-    it("should return contract's metadata", async () => {
+    it("returns contract's metadata", async () => {
       logger.data('Contract created with metadata', contractMetadata);
 
       const metadata = await alice.contract.nft_metadata();
@@ -945,7 +1123,7 @@ describe('Nft contract', () => {
     beforeAll(async () => {
       const initialSupply = 2000;
 
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
         supply: initialSupply,
@@ -986,14 +1164,14 @@ describe('Nft contract', () => {
         logger.data('Token after transfer', token);
       });
 
-      it("should associate token with it's new owner", () => {
+      it("associates token with it's new owner", () => {
         logger.data('New owner has tokens after transfer', tokensOfAlice.length);
 
         expect(token).not.toBeUndefined();
         expect(initialTokensOfAlice.length).toBe(tokensOfAlice.length - 1);
       });
 
-      it("should disassociate token from it's previous owner", () => {
+      it("disassociates token from it's previous owner", () => {
         logger.data('Old owner has tokens after transfer', tokensOfBob.length);
 
         expect(initialTokensOfBob.length).toBe(tokensOfBob.length + 1);
@@ -1003,21 +1181,21 @@ describe('Nft contract', () => {
         expect(transferredToken).toBeUndefined();
       });
 
-      it("should set token's new owner", async () => {
+      it("sets token's new owner", async () => {
         logger.data("New owner's id", alice.accountId);
         logger.data("Owner's id on token after transfer", token!.owner_id);
 
         expect(token!.owner_id).toBe(alice.accountId);
       });
 
-      it("should update token's modified_at property", async () => {
+      it("updates token's modified_at property", async () => {
         logger.data('Token created at', new Date(formatNsToMs(token!.created_at)));
         logger.data('Token modified at', new Date(formatNsToMs(token!.modified_at)));
 
         expect(formatNsToMs(token!.modified_at)).toBeGreaterThan(formatNsToMs(token!.created_at));
       });
 
-      it('should not throw if sender is not an owner but approved', async () => {
+      it("doesn't throw if sender is approved by owner", async () => {
         const tokenId = await bob.contract.claim_token({ gate_id: gateId });
         logger.data("Token's owner is", bob.accountId);
 
@@ -1029,7 +1207,7 @@ describe('Nft contract', () => {
               min_price: '5',
             }),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
         logger.data("Token's sender is approved", merchant.contract.contractId);
 
@@ -1043,7 +1221,7 @@ describe('Nft contract', () => {
         ).resolves.not.toThrow();
       });
 
-      it('should clear approvals', async () => {
+      it('clears approvals', async () => {
         const tokenId = await bob.contract.claim_token({ gate_id: gateId });
         logger.data("Token's owner is", bob.accountId);
 
@@ -1055,7 +1233,7 @@ describe('Nft contract', () => {
               min_price: '5',
             }),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
         logger.data("Token's sender is approved", merchant.contract.contractId);
 
@@ -1089,7 +1267,7 @@ describe('Nft contract', () => {
         token = await alice.contract.nft_token({ token_id: alicesTokenId });
       });
 
-      it('should throw if provided with non existent token id', async () => {
+      it('throws for nonexistent token id', async () => {
         const nonExistentId = '11111111111111111111';
 
         logger.data('Attempting to transfer token with id', nonExistentId);
@@ -1104,12 +1282,16 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotFound],
+              token_id: nonExistentId,
+              msg: `Token ID \`U64(${nonExistentId})\` was not found`,
+            }),
           })
         );
       });
 
-      it('should throw when the owner and the receiver are one person', async () => {
+      it('throws when owner and receiver are one person', async () => {
         logger.data('Alice created and claimed new token', token);
 
         logger.data('Attempting to transfer new token from', alice.accountId);
@@ -1125,12 +1307,15 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"ReceiverIsOwner","msg":"The token owner and the receiver should be different"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.ReceiverIsOwner],
+              msg: 'The token owner and the receiver should be different',
+            }),
           })
         );
       });
 
-      it("should throw when the sender doesn't own the token and is not approved to transfer token", async () => {
+      it("throws when sender isn't owner and is not approved", async () => {
         logger.data('Attempting to transfer new token from', bob.accountId);
 
         await expect(
@@ -1143,7 +1328,11 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"SenderNotAuthToTransfer","sender_id":"${bob.accountId}","msg":"Sender \`${bob.accountId}\` is not authorized to make transfer"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.SenderNotAuthToTransfer],
+              sender_id: bob.accountId,
+              msg: `Sender \`${bob.accountId}\` is not authorized to make transfer`,
+            }),
           })
         );
       });
@@ -1166,7 +1355,7 @@ describe('Nft contract', () => {
     let gateId: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(bob.contract, {
         gate_id: gateId,
         royalty,
@@ -1185,15 +1374,15 @@ describe('Nft contract', () => {
         });
       });
 
-      it("should correctly calculate mintgate's share", () => {
+      it("correctly calculates mintgate's share", () => {
         expect(+formatNearAmount(payout[mintgate.accountId])).toBe(mintgateShare);
       });
 
-      it("should correctly calculate creator's share", () => {
+      it("correctly calculates creator's share", () => {
         expect(+formatNearAmount(payout[bob.accountId])).toBe(creatorShare);
       });
 
-      it("should correctly calculate seller's share", () => {
+      it("correctly calculates seller's share", () => {
         expect(+formatNearAmount(payout[alice.accountId])).toBe(sellerShare);
       });
     });
@@ -1210,17 +1399,17 @@ describe('Nft contract', () => {
         });
       });
 
-      it("should correctly calculate mintgate's share", () => {
+      it("correctly calculates mintgate's share", () => {
         expect(+formatNearAmount(payout[mintgate.accountId])).toBe(mintgateShare);
       });
 
-      it("should correctly calculate seller's (=== creator's) share", () => {
+      it("correctly calculates seller's (=== creator's) share", () => {
         expect(+formatNearAmount(payout[bob.accountId])).toBe(sellerShare + creatorShare);
       });
     });
 
     describe('errors', () => {
-      it('should throw if called with nonexistent token_id', async () => {
+      it('throws for nonexistent token_id', async () => {
         const nonExistentTokenId = '22222222222222';
 
         await expect(
@@ -1257,14 +1446,14 @@ describe('Nft contract', () => {
     };
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
         royalty,
       });
     });
 
-    it('should return the correct payout for when receiver and creator are different persons', async () => {
+    it('returns the correct payout if receiver is not creator', async () => {
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
 
       const payoutReceived = await bob.contract.nft_transfer_payout({
@@ -1279,7 +1468,7 @@ describe('Nft contract', () => {
       });
     });
 
-    it('should return the correct payout for when receiver and creator are the same person', async () => {
+    it('returns the correct payout if receiver is creator', async () => {
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
 
       const payoutReceived = await alice.contract.nft_transfer_payout({
@@ -1309,11 +1498,11 @@ describe('Nft contract', () => {
         );
       });
 
-      it("should associate token with it's new owner", () => {
+      it("associates token with it's new owner", () => {
         expect(token).not.toBeUndefined();
       });
 
-      it("should disassociate token from it's previous owner", async () => {
+      it("disassociates token from it's previous owner", async () => {
         const [soldToken] = (await alice.contract.get_tokens_by_owner({ owner_id: alice.accountId })).filter(
           ({ token_id }) => token_id === tokenId
         );
@@ -1321,19 +1510,19 @@ describe('Nft contract', () => {
         expect(soldToken).toBeUndefined();
       });
 
-      it("should set token's new owner", async () => {
+      it("sets token's new owner", async () => {
         expect(token.owner_id).toBe(merchant.accountId);
       });
 
-      it("should update token's modified_at property", async () => {
+      it("updates token's modified_at property", async () => {
         expect(formatNsToMs(token.modified_at)).toBeGreaterThan(formatNsToMs(token.created_at));
       });
     });
   });
 
   describe('nft_token', () => {
-    it("should find and return a token by its' id", async () => {
-      const gateId = await generateId();
+    it("returns a token by its' id", async () => {
+      const gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
       });
@@ -1352,7 +1541,7 @@ describe('Nft contract', () => {
       expect(tokenFromAllTokens).toEqual(tokenById);
     });
 
-    it('should return null if no token found', async () => {
+    it('returns null if no token found', async () => {
       const nonExistentId = '99999';
       const nonExistentCollectible = await bob.contract.nft_token({ token_id: nonExistentId });
 
@@ -1370,7 +1559,7 @@ describe('Nft contract', () => {
     };
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
@@ -1384,20 +1573,20 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify(message),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       token = await bob.contract.nft_token({ token_id: tokenId });
       logger.data('Token after approval', token);
     });
 
-    it('should increment approval counter', () => {
+    it('increments approval counter', () => {
       logger.data('Token approvals counter', token!.approval_counter);
 
       expect(token!.approval_counter).toBe('1');
     });
 
-    it("should update token's approvals", () => {
+    it("updates token's approvals", () => {
       logger.data('Token approvals', token!.approvals);
 
       expect(token!.approvals[merchant.contract.contractId]).toEqual({
@@ -1424,7 +1613,7 @@ describe('Nft contract', () => {
     });
 
     describe('errors', () => {
-      it("should throw an error if msg argument doesn't contain min price", async () => {
+      it("throws if `msg` doesn't contain `min price`", async () => {
         const msg = JSON.stringify({});
 
         logger.data('Attempting to approve token with message', msg);
@@ -1436,18 +1625,21 @@ describe('Nft contract', () => {
               account_id: merchant.contract.contractId,
               msg,
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg:
-              '{"err":"MsgFormatMinPriceMissing","reason":"missing field `min_price` at line 1 column 2","msg":"Could not find min_price in msg: missing field `min_price` at line 1 column 2"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.MsgFormatMinPriceMissing],
+              reason: 'missing field `min_price` at line 1 column 2',
+              msg: `Could not find min_price in msg: missing field \`min_price\` at line 1 column 2`,
+            }),
           })
         );
       });
 
-      it('should throw an error if msg not provided', async () => {
+      it('throws if `msg` is absent', async () => {
         logger.data('Attempting to approve token without message');
 
         await expect(
@@ -1459,12 +1651,15 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"MsgFormatNotRecognized","msg":"The msg argument must contain the minimum price"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.MsgFormatNotRecognized],
+              msg: 'The msg argument must contain the minimum price',
+            }),
           })
         );
       });
 
-      it("should throw an error if approver doesn't own the token", async () => {
+      it("throws if approver doesn't own the token", async () => {
         logger.data('Attempting to approve token, approver', alice.accountId);
         logger.data('Attempting to approve token, owner', bob.accountId);
 
@@ -1477,17 +1672,22 @@ describe('Nft contract', () => {
               account_id: merchant.contract.contractId,
               msg: JSON.stringify(message),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${tokenId2}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${tokenId2})\` does not belong to account \`${alice.accountId}\`"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotOwnedBy],
+              token_id: tokenId2,
+              owner_id: alice.accountId,
+              msg: `Token ID \`U64(${tokenId2})\` does not belong to account \`${alice.accountId}\``,
+            }),
           })
         );
       });
 
-      it('should throw an error if token is already approved', async () => {
+      it('throws for already approved token ', async () => {
         const tokenId2 = await alice.contract.claim_token({ gate_id: gateId });
 
         await alice.contract.nft_approve(
@@ -1496,7 +1696,7 @@ describe('Nft contract', () => {
             account_id: merchant.contract.contractId,
             msg: JSON.stringify(message),
           },
-          GAS
+          MAX_GAS_ALLOWED
         );
 
         const token2 = await alice.contract.nft_token({ token_id: tokenId2 });
@@ -1511,12 +1711,15 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: '{"err":"OneApprovalAllowed","msg":"At most one approval is allowed per Token"}',
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.OneApprovalAllowed],
+              msg: 'At most one approval is allowed per Token',
+            }),
           })
         );
       });
 
-      it('should throw an error if provided with nonexistent `token_id`', async () => {
+      it('throws for nonexistent `token_id`', async () => {
         const nonExistentTokenId = '222222222222222';
 
         await expect(
@@ -1528,7 +1731,11 @@ describe('Nft contract', () => {
         ).rejects.toThrow(
           expect.objectContaining({
             type: 'GuestPanic',
-            panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentTokenId}","msg":"Token ID \`U64(${nonExistentTokenId})\` was not found"}`,
+            panic_msg: JSON.stringify({
+              err: Panic[Panic.TokenIdNotFound],
+              token_id: nonExistentTokenId,
+              msg: `Token ID \`U64(${nonExistentTokenId})\` was not found`,
+            }),
           })
         );
       });
@@ -1541,7 +1748,7 @@ describe('Nft contract', () => {
     let token: Token | null;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
@@ -1556,7 +1763,7 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify(msg),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
 
       token = await bob.contract.nft_token({ token_id: tokenId });
@@ -1569,11 +1776,11 @@ describe('Nft contract', () => {
           token_id: tokenId,
           account_id: merchant.contract.contractId,
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
     });
 
-    it('should remove approval for specified market on token', async () => {
+    it('removes approval for specified market on token', async () => {
       token = await bob.contract.nft_token({ token_id: tokenId });
       expect(token!.approvals[merchant.contract.contractId]).toBeUndefined();
 
@@ -1595,7 +1802,7 @@ describe('Nft contract', () => {
       );
     });
 
-    it("should throw an error if revoker doesn't own the token", async () => {
+    it("throws if revoker doesn't own the token", async () => {
       token = await bob.contract.nft_token({ token_id: tokenId });
 
       logger.data('Attempting to revoke token, revoker', alice.accountId);
@@ -1609,14 +1816,17 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token!.token_id}","owner_id":"${
-            alice.accountId
-          }","msg":"Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotOwnedBy],
+            token_id: token!.token_id,
+            owner_id: alice.accountId,
+            msg: `Token ID \`U64(${token!.token_id})\` does not belong to account \`${alice.accountId}\``,
+          }),
         })
       );
     });
 
-    it('should throw an error if token is not approved for market', async () => {
+    it('throw if token is not approved for market', async () => {
       const tokenId2 = await bob.contract.claim_token({ gate_id: gateId });
       const token2 = await bob.contract.nft_token({ token_id: tokenId2 });
 
@@ -1630,12 +1840,16 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"RevokeApprovalFailed","account_id":"${merchant.contract.contractId}","msg":"Could not revoke approval for \`${merchant.contract.contractId}\`"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.RevokeApprovalFailed],
+            account_id: merchant.contract.contractId,
+            msg: `Could not revoke approval for \`${merchant.contract.contractId}\``,
+          }),
         })
       );
     });
 
-    it('should throw if provided with non existent token id', async () => {
+    it('throws for nonexistent `token_id`', async () => {
       const nonExistentId = '11111111111111111111';
 
       logger.data('Attempting to revoke approvals for token with id', nonExistentId);
@@ -1648,7 +1862,11 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotFound],
+            token_id: nonExistentId,
+            msg: `Token ID \`U64(${nonExistentId})\` was not found`,
+          }),
         })
       );
     });
@@ -1659,7 +1877,7 @@ describe('Nft contract', () => {
     let tokenId: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
       await addTestCollectible(alice.contract, { gate_id: gateId });
 
       tokenId = await bob.contract.claim_token({ gate_id: gateId });
@@ -1670,7 +1888,7 @@ describe('Nft contract', () => {
           account_id: merchant.contract.contractId,
           msg: JSON.stringify({ min_price: '5' }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
       expect(await merchant.contract.get_tokens_for_sale()).toContainEqual(
         expect.objectContaining({ token_id: tokenId })
@@ -1681,10 +1899,10 @@ describe('Nft contract', () => {
 
       logger.data('Approvals before', tokenBefore.approvals);
 
-      await bob.contract.nft_revoke_all({ token_id: tokenId }, GAS);
+      await bob.contract.nft_revoke_all({ token_id: tokenId }, MAX_GAS_ALLOWED);
     });
 
-    it('should remove an approval for one unspecified market', async () => {
+    it('removes an approval for one unspecified market', async () => {
       const tokenAfter = (await bob.contract.nft_token({ token_id: tokenId }))!;
       expect(tokenAfter.approvals).toEqual({});
 
@@ -1708,7 +1926,7 @@ describe('Nft contract', () => {
 
     // skipped for now because currently at most one approval is allowed per Token
     // multiple approvals per Token may be allowed later
-    it.skip('should remove approval for all markets', async () => {
+    it.skip('removes approvals for all markets', async () => {
       const approvePromises: Promise<void>[] = [];
 
       [merchant.contract.contractId, `${merchant2.contract.contractId}-1`].forEach((contractId) => {
@@ -1722,7 +1940,7 @@ describe('Nft contract', () => {
               account_id: contractId,
               msg: JSON.stringify(msg),
             },
-            GAS
+            MAX_GAS_ALLOWED
           )
         );
       });
@@ -1744,9 +1962,9 @@ describe('Nft contract', () => {
 
     // skipped for now because currently at most one approval is allowed per Token
     // multiple approvals per Token may be allowed later
-    test.todo('that all previously markets delist token as for sale');
+    test.todo('that all previously approved markets delist token as for sale');
 
-    it("should throw an error if revoker doesn't own the token", async () => {
+    it("throws if revoker doesn't own the token", async () => {
       const token = (await bob.contract.nft_token({ token_id: tokenId }))!;
 
       logger.data('Attempting to revoke token, revoker', alice.accountId);
@@ -1755,12 +1973,17 @@ describe('Nft contract', () => {
       await expect(alice.contract.nft_revoke_all({ token_id: token.token_id })).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotOwnedBy","token_id":"${token.token_id}","owner_id":"${alice.accountId}","msg":"Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\`"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotOwnedBy],
+            token_id: token.token_id,
+            owner_id: alice.accountId,
+            msg: `Token ID \`U64(${token.token_id})\` does not belong to account \`${alice.accountId}\``,
+          }),
         })
       );
     });
 
-    it('should throw if provided with non existent token id', async () => {
+    it('throws for nonexistent `token_id`', async () => {
       const nonExistentId = '11111111111111111111';
 
       logger.data('Attempting to revoke approvals for token with id', nonExistentId);
@@ -1772,17 +1995,21 @@ describe('Nft contract', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           type: 'GuestPanic',
-          panic_msg: `{"err":"TokenIdNotFound","token_id":"${nonExistentId}","msg":"Token ID \`U64(${nonExistentId})\` was not found"}`,
+          panic_msg: JSON.stringify({
+            err: Panic[Panic.TokenIdNotFound],
+            token_id: nonExistentId,
+            msg: `Token ID \`U64(${nonExistentId})\` was not found`,
+          }),
         })
       );
     });
   });
 
   describe('nft_total_supply', () => {
-    it('should return the number of tokens minted for the contract', async () => {
+    it('returns the number of tokens minted for the contract', async () => {
       const numberOfTokensToAdd = 6;
 
-      const gateId = await generateId();
+      const gateId = await generateGateId();
       await addTestCollectible(alice.contract, {
         gate_id: gateId,
       });
@@ -1816,14 +2043,14 @@ describe('Nft contract', () => {
             min_price: '5',
           }),
         },
-        GAS
+        MAX_GAS_ALLOWED
       );
       await merchant2.contract.buy_token(
         {
-          nft_id: bob.contractAccount.accountId,
+          nft_contract_id: bob.contractAccount.accountId,
           token_id: bobsTokens[0],
         },
-        GAS,
+        MAX_GAS_ALLOWED,
         new BN('5')
       );
 
@@ -1843,7 +2070,7 @@ describe('Nft contract', () => {
     let tokensAfter: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
@@ -1862,7 +2089,7 @@ describe('Nft contract', () => {
       logger.data('Tokens claimed', numberOfTokensToClaim);
     });
 
-    it('should return all tokens', async () => {
+    it('returns all tokens', async () => {
       logger.data('Total number of tokens after', tokensAfter.length);
 
       expect(tokensAfter.length).toBe(tokensBefore.length + numberOfTokensToClaim);
@@ -1872,13 +2099,13 @@ describe('Nft contract', () => {
     describe('pagination', () => {
       const numberOfTokensOnPage = 2;
 
-      it('should return correct tokens for the first page', async () => {
+      it('returns correct tokens for the first page', async () => {
         const tokensOnPage = await bob.contract.nft_tokens({ from_index: '0', limit: numberOfTokensOnPage });
 
         expect(tokensOnPage).toEqual(tokensAfter.slice(0, numberOfTokensOnPage));
       });
 
-      it('should return correct tokens for the second page', async () => {
+      it('returns correct tokens for the second page', async () => {
         const tokensOnPage = await bob.contract.nft_tokens({
           from_index: String(numberOfTokensOnPage),
           limit: numberOfTokensOnPage,
@@ -1887,7 +2114,7 @@ describe('Nft contract', () => {
         expect(tokensOnPage).toEqual(tokensAfter.slice(numberOfTokensOnPage, numberOfTokensOnPage * 2));
       });
 
-      it('should return correct tokens for the last page', async () => {
+      it('returns correct tokens for the last page', async () => {
         const tokensOnPage = await bob.contract.nft_tokens({
           from_index: String(tokensAfter.length - numberOfTokensOnPage),
           limit: numberOfTokensOnPage,
@@ -1896,7 +2123,7 @@ describe('Nft contract', () => {
         expect(tokensOnPage).toEqual(tokensAfter.slice(-numberOfTokensOnPage));
       });
 
-      it('should return an empty array if no tokens found for provided page', async () => {
+      it('returns an empty array if no tokens on a page', async () => {
         const tokensOnPage = await bob.contract.nft_tokens({
           from_index: String(tokensAfter.length),
           limit: numberOfTokensOnPage,
@@ -1915,7 +2142,7 @@ describe('Nft contract', () => {
     let tokensAmtOwnedAfter: string;
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
@@ -1933,13 +2160,13 @@ describe('Nft contract', () => {
       logger.data('Tokens claimed', numberOfTokensToClaim);
     });
 
-    it('should return how many token are owned by a specified account', () => {
+    it('returns a number of token owned by an account', () => {
       logger.data('Tokens owned by alice after', tokensAmtOwnedAfter);
 
       expect(+tokensAmtOwnedAfter).toBe(+tokensAmtOwnedBefore + numberOfTokensToClaim);
     });
 
-    it("should return '0' if no tokens owned by a specified account", async () => {
+    it("returns '0' if no tokens owned by an account", async () => {
       logger.data('Getting supply for nonexistent account', nonExistentAccountId);
 
       expect(await bob.contract.nft_supply_for_owner({ account_id: nonExistentAccountId })).toBe('0');
@@ -1955,7 +2182,7 @@ describe('Nft contract', () => {
     let tokensAfter: Token[];
 
     beforeAll(async () => {
-      gateId = await generateId();
+      gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
@@ -1982,21 +2209,21 @@ describe('Nft contract', () => {
       logger.data('Tokens claimed', numberOfTokensToClaim);
     });
 
-    it('should return all tokens of a specified user', async () => {
+    it('returns all tokens owned by a user', async () => {
       logger.data('Number of tokens after', tokensAfter.length);
 
       expect(tokensAfter.length).toBe(tokensBefore.length + numberOfTokensToClaim);
       expect(tokensAfter.map(({ token_id }) => token_id)).toEqual(expect.arrayContaining(newTokensIds));
     });
 
-    it('should return tokens owned by only a specified user', async () => {
+    it('returns tokens owned by only a specified user', async () => {
       expect([...new Set(tokensAfter.map(({ owner_id }) => owner_id))]).toEqual([bob.accountId]);
     });
 
     describe('pagination', () => {
       const numberOfTokensOnPage = 2;
 
-      it('should return correct tokens for the first page', async () => {
+      it('returns correct tokens for the first page', async () => {
         const tokensOnPage = await alice.contract.nft_tokens_for_owner({
           account_id: bob.accountId,
           from_index: '0',
@@ -2006,7 +2233,7 @@ describe('Nft contract', () => {
         expect(tokensOnPage).toEqual(tokensAfter.slice(0, numberOfTokensOnPage));
       });
 
-      it('should return correct tokens for the second page', async () => {
+      it('returns correct tokens for the second page', async () => {
         const tokensOnPage = await alice.contract.nft_tokens_for_owner({
           account_id: bob.accountId,
           from_index: String(numberOfTokensOnPage),
@@ -2016,7 +2243,7 @@ describe('Nft contract', () => {
         expect(tokensOnPage).toEqual(tokensAfter.slice(numberOfTokensOnPage, numberOfTokensOnPage * 2));
       });
 
-      it('should return correct tokens for the last page', async () => {
+      it('returns correct tokens for the last page', async () => {
         const tokensOnPage = await alice.contract.nft_tokens_for_owner({
           account_id: bob.accountId,
           from_index: String(tokensAfter.length - numberOfTokensOnPage),
@@ -2026,7 +2253,7 @@ describe('Nft contract', () => {
         expect(tokensOnPage).toEqual(tokensAfter.slice(-numberOfTokensOnPage));
       });
 
-      it('should return an empty array if no tokens found for provided page', async () => {
+      it('returns an empty array if no tokens on a page', async () => {
         const tokensOnPage = await alice.contract.nft_tokens_for_owner({
           account_id: bob.accountId,
           from_index: String(tokensAfter.length),
@@ -2039,17 +2266,19 @@ describe('Nft contract', () => {
   });
 
   describe('nft_token_uri', () => {
-    it('should return URI for the provided token', async () => {
-      const gateId = await generateId();
+    it('returns URI for the provided token', async () => {
+      const gateId = await generateGateId();
 
       await addTestCollectible(bob.contract, { gate_id: gateId });
 
       const tokenId = await bob.contract.claim_token({ gate_id: gateId });
 
-      expect(await bob.contract.nft_token_uri({ token_id: tokenId })).toBe(`${contractMetadata.base_uri}/${gateId}`);
+      expect(await bob.contract.nft_token_uri({ token_id: tokenId })).toBe(
+        `${contractMetadata.base_uri}${contractMetadata.base_uri!.endsWith('/') ? '' : '/'}${gateId}`
+      );
     });
 
-    it('should return `null` if token not found', async () => {
+    it('returns `null` if token not found', async () => {
       expect(await bob.contract.nft_token_uri({ token_id: '1212121212' })).toBeNull();
     });
   });

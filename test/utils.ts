@@ -1,22 +1,28 @@
 import util from 'util';
 
+import BN from 'bn.js';
 import { customAlphabet } from 'nanoid/async';
 import chalk from 'chalk';
 
 import type { Fraction, NftContract } from '../src';
 
-const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
+const gateIdNanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
 
-export const generateId = async (): Promise<string> => nanoid();
+export const generateGateId = async (): Promise<string> => gateIdNanoid();
 
 const collectibleDefaultData = {
-  title: 'Test title',
-  description: 'Test description',
+  title: 'My super cool token',
+  description:
+    'Where is the unrelated c-beam? Experiment, scotty. Reliable, distant cosmonauts bravely teleport a solid, evasive c-beam. Red alert, quirky tragedy! The species is more transporter now than captain. modern and virtually quirky. Planets experiment from lifes like seismic stars.',
   supply: 100,
   royalty: {
     num: 3,
     den: 10,
   },
+  media: 'https://d3vug8yke8vwo8.cloudfront.net/JAKE_5am6.png',
+  media_hash: 'NjA0OGNmMzM2MGU0MzM1NjE2MTBjZDQwNWExODc5MjM0MGQxOGNhN2Y1YzAyMjc3MDY1NjQ0ZmI0NGViODhlYQo=',
+  reference: 'https://www.mintgate.app/collectible/5G0RWSSZ35BF/token.json',
+  reference_hash: 'NWU4ODg4MGNkM2ExOTU1NmZmNDMyMmQ2OTdkZjM1NzExMGRhZmJhMjQ2MmJmNWFkOGY5YjAwZjhlODk5ODVmZA==',
 };
 
 export const addTestCollectible = async (
@@ -27,12 +33,16 @@ export const addTestCollectible = async (
     description?: string;
     supply?: number;
     royalty?: Fraction;
+    media?: string;
+    media_hash?: string;
+    reference?: string;
+    reference_hash?: string;
   } = {}
 ): Promise<void> => {
   let { gate_id } = collectibleData;
 
   if (gate_id === undefined) {
-    gate_id = await generateId();
+    gate_id = await generateGateId();
   }
 
   return contract.create_collectible({
@@ -115,3 +125,5 @@ export const logger = {
 export const getShare = (totalAmount: number, { num, den }: Fraction): number => (totalAmount * num) / den;
 
 export const validGateIdRegEx = /^[a-z\d_-]{1,32}$/gi;
+
+export const MAX_GAS_ALLOWED = new BN(300000000000000);

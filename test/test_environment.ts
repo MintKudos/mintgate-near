@@ -35,7 +35,6 @@ export default class LocalTestEnvironment extends NodeEnvironment {
     const nftUsers = await getUsers(prefixes.nft.users);
     const marketUsers = await getUsers(prefixes.market.users);
 
-    // todo: use more realistic data
     const nftContractArguments: NftContract['init'] = {
       admin_id: adminUser.accountId,
       metadata: contractMetadata,

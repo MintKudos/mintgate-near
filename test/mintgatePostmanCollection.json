@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "2c8d4e31-288d-460e-9f96-a44f29c16bfe",
+		"_postman_id": "cdec2f31-6d08-42ac-96c7-92eafc62d32f",
 		"name": "Mintgate",
 		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. install all dependencies:\n```\nyarn\n```\n3. to start api server run in the terminal from mintgate project's root dir:\n```\nyarn near-api-server\n```\n4. import postman collection from `./test/mintgatePostmanCollection.json` file;\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `gateId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR accounts are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -127,8 +127,14 @@
 							"listen": "prerequest",
 							"script": {
 								"exec": [
-									"const { v4: uuidv4 } = require('uuid');\r",
-									"pm.collectionVariables.set(\"gateId\", uuidv4().slice(4));\r",
+									"const { random } = require('lodash'); \r",
+									"\r",
+									"const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';\r",
+									"\r",
+									"const generateGateId = () => \r",
+									"    Array.from({ length: 12 }, () => alphabet[random(alphabet.length - 1)]).join('');\r",
+									"\r",
+									"pm.collectionVariables.set(\"gateId\", generateGateId());\r",
 									""
 								],
 								"type": "text/javascript"
@@ -149,7 +155,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": \"100\",\r\n        \"gate_url\": \"{{$randomUrl}}\",\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        }\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": 100,\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        },\r\n        \"media\": \"{{$randomImageUrl}}\",\r\n        \"media_hash\": \"MmJlMzViYzY3MWRjOTEyZTdmNTQwZjBlNWEyZTkxNWVmNmE0YTRkYmQyYWRhNWJhOWMxZDJiMTE3YmZjOTA3Yw==\",\r\n        \"reference\": \"{{$randomUrl}}/token.json\",\r\n        \"reference_hash\": \"YzAwMzE1NTE3NzUxNTcxYzVhN2I1MGMyZTVmZWUzYzNmZmI3MzdlNmNiNjQ1YWE0MGZlZWNkZjdmNDJhODNkMw==\"\r\n\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -936,7 +942,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_tokens\",\r\n    \"params\": {\r\n        \"from_index\": 15, \r\n        \"limit\": 3\r\n    }\r\n}",
+							"raw": "{\r\n    \"contract\": \"{{nft}}\",\r\n    \"method\": \"nft_tokens\",\r\n    \"params\": {\r\n        \"from_index\": \"15\", \r\n        \"limit\": 3\r\n    }\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1325,7 +1331,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{market}}\",\r\n\t\"method\": \"buy_token\",\r\n\t\"params\": {\r\n\t\t\"token_id\": \"{{tokenId}}\",\r\n        \"nft_id\": \"{{nft}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"{{tokenPrice}}\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{market}}\",\r\n\t\"method\": \"buy_token\",\r\n\t\"params\": {\r\n\t\t\"token_id\": \"{{tokenId}}\",\r\n        \"nft_contract_id\": \"{{nft}}\"\r\n\t},\r\n    \"attached_gas\": \"300000000000000\",\r\n    \"attached_tokens\": \"{{tokenPrice}}\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1675,67 +1681,67 @@
 	"variable": [
 		{
 			"key": "nft",
-			"value": "nft-1619709834013-900624"
+			"value": "nft-1619785648276-330059"
 		},
 		{
 			"key": "nftPrivateKey",
-			"value": "ed25519:3S7WHFZxh8VVWWqtkrMHrfRHyDNtqUAw1s3DiFCQJHjwVUSDb6LdKZYwDuBQAbZcfnoDLLHThJ6DegehVXgGtvJ6"
+			"value": "ed25519:NQrVSHjoH6qPxBa5RYsgRzx3KGqV8CD9bMNWaj7J8qACAaxt2okt22GAE5N1p2NTRDBJcsuxb66VCXq5fNd4DSH"
 		},
 		{
 			"key": "market",
-			"value": "market-1619709848292-742848"
+			"value": "market-1619785666150-864448"
 		},
 		{
 			"key": "marketPrivateKey",
-			"value": "ed25519:5aFdo2dkvyB4AHmYj5jTzrFac3TQTEusmS1dXSd7r1y9vCVF63hVJwUn3pfGCVdRTPmHxv1o31cJxC5ugyUKHhjV"
+			"value": "ed25519:3S6YYcxsU738zSxtvxXCYDtBjcQ21sU1N5rZUNUzXCYth7w5VUa4P1R4gBNriczHwtgvqcBRhTu6tsTK4hBPte8C"
 		},
 		{
 			"key": "alice",
-			"value": "alice-1619709859209-487905"
+			"value": "alice-1619785680011-561380"
 		},
 		{
 			"key": "alicePrivateKey",
-			"value": "ed25519:2UGLSVdYGgyfWsBum8mwJdFBuDFS65Ld3MCAtCy1CZvnNL28nLmaiEndQMYDC66ns1c2aU7iUbyBJjo6tJEoS1rf"
+			"value": "ed25519:57Exht7TVYXMydpiVcLsg9AAWM5kUerLKd1pZNRxqgTMx6mbNte7X7p1pDTTwpsAGKBqCAMCUXkDVDJdL4MALH1J"
 		},
 		{
 			"key": "bob",
-			"value": "bob-1619709865028-638496"
+			"value": "bob-1619785685657-50118"
 		},
 		{
 			"key": "bobPrivateKey",
-			"value": "ed25519:sUYcLDLNqTCf5NDrYyTyjiLZUibChacSwuZbctCdmhidfQKhbqUvVq83kko8RxWT4EXG8d54XWPBaQVWoXCDQAQ"
+			"value": "ed25519:399pXjioXRbXGxmSAvvUKVgyrm51A28hWA5aPiesCjZTeQUmRGi9wk7AGgM9K2CKHRt1ugr8v9fiWySRdgxkZFMo"
 		},
 		{
 			"key": "merchant-1",
-			"value": "merchant-1-1619709873065-925063"
+			"value": "merchant-1-1619785692715-182924"
 		},
 		{
 			"key": "merchant-1PrivateKey",
-			"value": "ed25519:5kQ9NPCKPPS7qXED4b5vEyyzmnHchoudn5uhXmgteTdirvovaX16FSY2radsRLQnJYh6HtNLrTgXM1CZxPyzUPb"
+			"value": "ed25519:2CqW8LjAsRxyuHVArvZrNzf6YJPStnjfaFVLsgE5H8pQbqXJHAFFgybNnB3dqeS32MWYUago2CTzto2DpnpPj4j2"
 		},
 		{
 			"key": "merchant-2",
-			"value": "merchant-2-1619709878777-987019"
+			"value": "merchant-2-1619785695972-297377"
 		},
 		{
 			"key": "merchant-2PrivateKey",
-			"value": "ed25519:2UXxJjCgZM5LAYMX6594qZzVEbEgDpRNYoUjNXG2ouddC58CAwYjPJQzTU4Ti7oysqG3X7MzJ6oAjWWwetrq9kLU"
+			"value": "ed25519:GGGhfsYjcX1ZhVBeUZPSb5z7bonQqqsDTRcPmrmRQtQeLmKmBL7xjxFV2yys3XKoCZhEayD3kXb2FhWmSJiGEzH"
 		},
 		{
 			"key": "mintgate-fee",
-			"value": "mintgate-fee-1619709884158-903184"
+			"value": "mintgate-fee-1619785699449-544343"
 		},
 		{
 			"key": "mintgate-feePrivateKey",
-			"value": "ed25519:Xn5QEPXk9vVQJjMkutK7jAtr32kFapmh7uajPxki8GkTTq2j8UwnQTofGazK1Cvxfia87vLg8pSzy7em2pm4TsE"
+			"value": "ed25519:26nqYCpDswQRr6UpvrQN72ibWKABdZB3bXBTPXVbdSNkj5tUvSbaERy1GWEAt6kp36ckFattSJsbG8hsTnKjneck"
 		},
 		{
 			"key": "admin",
-			"value": "admin-1619709891076-572539"
+			"value": "admin-1619785702506-888654"
 		},
 		{
 			"key": "adminPrivateKey",
-			"value": "ed25519:3SgNzfvj93aJoLuCrMQ27up9YirXxMSQJBGjy6cDZWfzFgx9Ba8fBWBuLMmSmHSGLVTefYg9ZU7QjtWpFX45GyWz"
+			"value": "ed25519:4N6hbV8ywJth51Yo9oGbVw4SjpxmpcdqWGpbzY85vBk8xGPwdungZuhFVkiXtadhVwPifdHkqpx45WFQqU72K5pb"
 		},
 		{
 			"key": "tokenPrice",
