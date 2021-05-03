@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "cdec2f31-6d08-42ac-96c7-92eafc62d32f",
+		"_postman_id": "5c1ab140-aab7-4881-9c36-beee8a81b0f5",
 		"name": "Mintgate",
 		"description": "This Postman collection is intended to be used during the development of the Mintage NFT market (https://github.com/epam/mintgate).\n\nTo be able to make requests from Postman:\n\n1. update your local repo of mintgate project; \n2. install all dependencies:\n```\nyarn\n```\n3. to start api server run in the terminal from mintgate project's root dir:\n```\nyarn near-api-server\n```\n4. import postman collection from `./test/mintgatePostmanCollection.json` file;\n\nThat should be it.\n \nNo changes to bodies of requests needed. \n\nTo make requests where `gate_id` and / or `token_id` are required params (e.g. `buy_token`) send `create_collectible` and `claim_token` first. `gateId` and `tokenId` postman collection variables are created (or updated) from these requests' responses. The variables are used in other requests where `gate_id` and `token_id` are needed. \n\nTo generate new NEAR accounts for test users and contracts:\n1. run \n```\napp-test:contracts:clean\n```\n2. start some tests (if not found NEAR accounts are generated during tests' setup, postman collection file gets updated);\n3. import postman collection from `./test/mintgatePostmanCollection.json` file again.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -155,7 +155,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"account_id\": \"{{alice}}\",\r\n    \"private_key\": \"{{alicePrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": 100,\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        },\r\n        \"media\": \"{{$randomImageUrl}}\",\r\n        \"media_hash\": \"MmJlMzViYzY3MWRjOTEyZTdmNTQwZjBlNWEyZTkxNWVmNmE0YTRkYmQyYWRhNWJhOWMxZDJiMTE3YmZjOTA3Yw==\",\r\n        \"reference\": \"{{$randomUrl}}/token.json\",\r\n        \"reference_hash\": \"YzAwMzE1NTE3NzUxNTcxYzVhN2I1MGMyZTVmZWUzYzNmZmI3MzdlNmNiNjQ1YWE0MGZlZWNkZjdmNDJhODNkMw==\"\r\n\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
+							"raw": "{\r\n\t\"account_id\": \"{{admin}}\",\r\n    \"private_key\": \"{{adminPrivateKey}}\",\r\n    \"contract\": \"{{nft}}\",\r\n\t\"method\": \"create_collectible\",\r\n\t\"params\": {\r\n        \"creator_id\": \"{{alice}}\",\r\n\t\t\"gate_id\": \"{{gateId}}\",\r\n        \"title\": \"{{$randomProductName}}\",\r\n        \"description\": \"{{$randomLoremSentences}}\",\r\n        \"supply\": 100,\r\n        \"royalty\": {\r\n            \"num\": 2,\r\n            \"den\": 10\r\n        },\r\n        \"media\": \"{{$randomImageUrl}}\",\r\n        \"media_hash\": \"MmJlMzViYzY3MWRjOTEyZTdmNTQwZjBlNWEyZTkxNWVmNmE0YTRkYmQyYWRhNWJhOWMxZDJiMTE3YmZjOTA3Yw==\",\r\n        \"reference\": \"{{$randomUrl}}/token.json\",\r\n        \"reference_hash\": \"YzAwMzE1NTE3NzUxNTcxYzVhN2I1MGMyZTVmZWUzYzNmZmI3MzdlNmNiNjQ1YWE0MGZlZWNkZjdmNDJhODNkMw==\"\r\n\r\n\t},\r\n    \"attached_gas\": \"100000000000000\",\r\n    \"attached_tokens\": \"0\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1681,67 +1681,67 @@
 	"variable": [
 		{
 			"key": "nft",
-			"value": "nft-1619785648276-330059"
+			"value": "nft-1620032849504-69015"
 		},
 		{
 			"key": "nftPrivateKey",
-			"value": "ed25519:NQrVSHjoH6qPxBa5RYsgRzx3KGqV8CD9bMNWaj7J8qACAaxt2okt22GAE5N1p2NTRDBJcsuxb66VCXq5fNd4DSH"
+			"value": "ed25519:57dvPJHqibovBBkhT9v48kurUB74uq6EqBBx7PHrG5CDXAVsinDZambjYD3SusJtMsxkvvNTWY1raJvCeT5DrRvH"
 		},
 		{
 			"key": "market",
-			"value": "market-1619785666150-864448"
+			"value": "market-1620032862795-872608"
 		},
 		{
 			"key": "marketPrivateKey",
-			"value": "ed25519:3S6YYcxsU738zSxtvxXCYDtBjcQ21sU1N5rZUNUzXCYth7w5VUa4P1R4gBNriczHwtgvqcBRhTu6tsTK4hBPte8C"
+			"value": "ed25519:23HifMWzeKZarna4QNpWRGTWyMeozfvan8wwgsX5ZUe4Rz9FaF1yXTNawyAG7ZHMvNKHp8aCzTuY2kVEhi8R5vDw"
 		},
 		{
 			"key": "alice",
-			"value": "alice-1619785680011-561380"
+			"value": "alice-1620032871746-667203"
 		},
 		{
 			"key": "alicePrivateKey",
-			"value": "ed25519:57Exht7TVYXMydpiVcLsg9AAWM5kUerLKd1pZNRxqgTMx6mbNte7X7p1pDTTwpsAGKBqCAMCUXkDVDJdL4MALH1J"
+			"value": "ed25519:4YD1sM2CTZ9EDZiZtunD9Swcgb8gjenY28LZsA3fv3JrnbTQn8YyhmFMywr5vPcFVFiDeWZhWWAT8jcN2xinMfFo"
 		},
 		{
 			"key": "bob",
-			"value": "bob-1619785685657-50118"
+			"value": "bob-1620032875327-576836"
 		},
 		{
 			"key": "bobPrivateKey",
-			"value": "ed25519:399pXjioXRbXGxmSAvvUKVgyrm51A28hWA5aPiesCjZTeQUmRGi9wk7AGgM9K2CKHRt1ugr8v9fiWySRdgxkZFMo"
+			"value": "ed25519:3U9cZrwyEvKYVCXnTiGhPyTfWupBkZ6sBqt1aYVKfv4oCw9ct3b5RKQdUquUw2LSPhcq2wKsjfPrw37736DGArYn"
 		},
 		{
 			"key": "merchant-1",
-			"value": "merchant-1-1619785692715-182924"
+			"value": "merchant-1-1620032878866-818394"
 		},
 		{
 			"key": "merchant-1PrivateKey",
-			"value": "ed25519:2CqW8LjAsRxyuHVArvZrNzf6YJPStnjfaFVLsgE5H8pQbqXJHAFFgybNnB3dqeS32MWYUago2CTzto2DpnpPj4j2"
+			"value": "ed25519:2dnvkYGXKi91YbSJvDXKiKhYvpnfgHzfGoa8yaKygtj917cS5Fg2M7e6bZn9kHnUYKmtsyEJ9a7KvzTAX3vVoF6b"
 		},
 		{
 			"key": "merchant-2",
-			"value": "merchant-2-1619785695972-297377"
+			"value": "merchant-2-1620032881909-838854"
 		},
 		{
 			"key": "merchant-2PrivateKey",
-			"value": "ed25519:GGGhfsYjcX1ZhVBeUZPSb5z7bonQqqsDTRcPmrmRQtQeLmKmBL7xjxFV2yys3XKoCZhEayD3kXb2FhWmSJiGEzH"
+			"value": "ed25519:4WX1aL7zsFnrxkNg1ePnVTF3dSPsUL6dym2RtMNtjQFttPLb8zPHSKtkpmEEY1mNhHQTfcafhdzAzi5Mo39Sb674"
 		},
 		{
 			"key": "mintgate-fee",
-			"value": "mintgate-fee-1619785699449-544343"
+			"value": "mintgate-fee-1620032885042-200491"
 		},
 		{
 			"key": "mintgate-feePrivateKey",
-			"value": "ed25519:26nqYCpDswQRr6UpvrQN72ibWKABdZB3bXBTPXVbdSNkj5tUvSbaERy1GWEAt6kp36ckFattSJsbG8hsTnKjneck"
+			"value": "ed25519:XKSKdLbPuojk49UzdxRUw1RQziamibzvYf2GmSWuKvfoot5bFHX2KjeR95z2T9gHsyFyKXd9ZJKSNWsspVQwF8D"
 		},
 		{
 			"key": "admin",
-			"value": "admin-1619785702506-888654"
+			"value": "admin-1620032888525-470844"
 		},
 		{
 			"key": "adminPrivateKey",
-			"value": "ed25519:4N6hbV8ywJth51Yo9oGbVw4SjpxmpcdqWGpbzY85vBk8xGPwdungZuhFVkiXtadhVwPifdHkqpx45WFQqU72K5pb"
+			"value": "ed25519:2VgtS4ZLtozLoNV42GVYYZLaeDcP7xajnDossud8uTo9x7crQKrwkSbnP8i8qshgBbX91dWt9tTz2RyYvDuoHJrr"
 		},
 		{
 			"key": "tokenPrice",

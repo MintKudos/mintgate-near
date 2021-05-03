@@ -3,7 +3,7 @@ import { utils } from 'near-api-js';
 
 import type { Account } from 'near-api-js';
 
-import { MAX_GAS_ALLOWED, addTestCollectible, generateGateId, getShare, formatNsToMs, logger } from './utils';
+import { MAX_GAS_ALLOWED, createAddTestCollectible, generateGateId, getShare, formatNsToMs, logger } from './utils';
 import { MINTGATE_FEE } from './initialData';
 import { Panics } from '../src/mg-market';
 
@@ -33,6 +33,9 @@ describe('Market contract', () => {
   const [merchant, merchant2] = global.marketUsers;
 
   const mintgate = global.nftFeeUser;
+  const admin = global.adminUser;
+
+  const addTestCollectible = createAddTestCollectible(admin);
 
   beforeEach(() => {
     logger.title(`${expect.getState().currentTestName}`);
@@ -45,7 +48,7 @@ describe('Market contract', () => {
       const newTokensIds: string[] = [];
 
       const gateId = await generateGateId();
-      await addTestCollectible(bob.contract, { gate_id: gateId });
+      await addTestCollectible(bob, { gate_id: gateId });
 
       for (let i = 0; i < numberOfTokensToAdd; i += 1) {
         newTokensIds.push(await bob.contract.claim_token({ gate_id: gateId }));
@@ -80,7 +83,7 @@ describe('Market contract', () => {
     beforeAll(async () => {
       gateId = await generateGateId();
 
-      await addTestCollectible(alice.contract, { gate_id: gateId });
+      await addTestCollectible(alice, { gate_id: gateId });
 
       for (let i = 0; i < numberOfTokensToCreate; i += 1) {
         newTokensIds.push(await bob.contract.claim_token({ gate_id: gateId }));
@@ -151,7 +154,7 @@ describe('Market contract', () => {
 
     beforeAll(async () => {
       gateId = await generateGateId();
-      await addTestCollectible(bob.contract, {
+      await addTestCollectible(bob, {
         gate_id: gateId,
         royalty,
       });
@@ -337,7 +340,7 @@ describe('Market contract', () => {
 
       beforeAll(async () => {
         gateId2 = await generateGateId();
-        await addTestCollectible(bob.contract, {
+        await addTestCollectible(bob, {
           gate_id: gateId2,
           royalty,
         });
@@ -429,7 +432,7 @@ describe('Market contract', () => {
 
         const gateId2 = await generateGateId();
 
-        await addTestCollectible(creator.contract, {
+        await addTestCollectible(creator, {
           gate_id: gateId2,
           royalty,
         });
@@ -499,7 +502,8 @@ describe('Market contract', () => {
 
         const gateId2 = await generateGateId();
 
-        await creator.functionCall(bob.contractAccount.accountId, 'create_collectible', {
+        await admin.functionCall(bob.contractAccount.accountId, 'create_collectible', {
+          creator_id: creator.accountId,
           gate_id: gateId2,
           gate_url: 'Test gate url',
           title: 'Test title',
@@ -579,7 +583,7 @@ describe('Market contract', () => {
 
         const gateId2 = await generateGateId();
 
-        await addTestCollectible(creator.contract, {
+        await addTestCollectible(creator, {
           gate_id: gateId2,
           royalty,
         });
@@ -667,7 +671,7 @@ describe('Market contract', () => {
 
         const gateId2 = await generateGateId();
 
-        await addTestCollectible(creator.contract, {
+        await addTestCollectible(creator, {
           gate_id: gateId2,
           royalty,
         });
@@ -962,7 +966,7 @@ describe('Market contract', () => {
         creator_id: bob.accountId,
       };
 
-      await addTestCollectible(bob.contract, { gate_id: gateId });
+      await addTestCollectible(bob, { gate_id: gateId });
 
       tokenId = await alice.contract.claim_token({ gate_id: gateId });
 
@@ -1025,7 +1029,7 @@ describe('Market contract', () => {
 
     beforeAll(async () => {
       gateId = await generateGateId();
-      await addTestCollectible(bob.contract, {
+      await addTestCollectible(bob, {
         gate_id: gateId,
       });
 
@@ -1111,7 +1115,7 @@ describe('Market contract', () => {
         creator_id: alice.accountId,
       };
 
-      await addTestCollectible(bob.contract, { gate_id: gateId });
+      await addTestCollectible(bob, { gate_id: gateId });
 
       tokensIds = await Promise.all(
         Array.from({ length: numberOfTokensToAdd }, () => bob.contract.claim_token({ gate_id: gateId }))
