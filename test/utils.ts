@@ -4,7 +4,8 @@ import BN from 'bn.js';
 import { customAlphabet } from 'nanoid/async';
 import chalk from 'chalk';
 
-import type { Fraction, NftContract } from '../src';
+import type { Account } from 'near-api-js';
+import type { AccountContract, Fraction, NftContract } from '../src';
 
 const gateIdNanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
 
@@ -13,7 +14,7 @@ export const generateGateId = async (): Promise<string> => gateIdNanoid();
 const collectibleDefaultData = {
   title: 'My super cool token',
   description:
-    'Where is the unrelated c-beam? Experiment, scotty. Reliable, distant cosmonauts bravely teleport a solid, evasive c-beam. Red alert, quirky tragedy! The species is more transporter now than captain. modern and virtually quirky. Planets experiment from lifes like seismic stars.',
+    'Where is the unrelated c-beam? Experiment, scotty. Reliable, distant cosmonauts bravely teleport a solid, evasive c-beam. Red alert, quirky tragedy! The species is more transporter now than captain. modern and virtually quirky. Planets experiment from lives like seismic stars.',
   supply: 100,
   royalty: {
     num: 3,
@@ -22,11 +23,11 @@ const collectibleDefaultData = {
   media: 'https://d3vug8yke8vwo8.cloudfront.net/JAKE_5am6.png',
   media_hash: 'NjA0OGNmMzM2MGU0MzM1NjE2MTBjZDQwNWExODc5MjM0MGQxOGNhN2Y1YzAyMjc3MDY1NjQ0ZmI0NGViODhlYQo=',
   reference: 'https://www.mintgate.app/collectible/5G0RWSSZ35BF/token.json',
-  reference_hash: 'NWU4ODg4MGNkM2ExOTU1NmZmNDMyMmQ2OTdkZjM1NzExMGRhZmJhMjQ2MmJmNWFkOGY5YjAwZjhlODk5ODVmZA==',
+  reference_hash: 'NWU4ODg4MGNkM2ExOTU1NmZmNDMyMmQ2OTdkZjM1NzExMGRhZmJhMjQ2MmJmNWFkOGY5YjAwZ4H7ODk5ODVmZA==',
 };
 
-export const addTestCollectible = async (
-  contract: NftContract,
+export const createAddTestCollectible = (admin: Account) => async (
+  creator: AccountContract<NftContract>,
   collectibleData: {
     gate_id?: string;
     title?: string;
@@ -45,7 +46,8 @@ export const addTestCollectible = async (
     gate_id = await generateGateId();
   }
 
-  return contract.create_collectible({
+  await admin.functionCall(creator.contract.contractId, 'create_collectible', {
+    creator_id: creator.accountId,
     ...collectibleDefaultData,
     ...collectibleData,
     gate_id,
